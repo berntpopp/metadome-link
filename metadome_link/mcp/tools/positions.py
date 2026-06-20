@@ -23,7 +23,7 @@ from pydantic import Field
 
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, run_mcp_tool
-from metadome_link.mcp.next_commands import cmd
+from metadome_link.mcp.next_commands import _more_steps, cmd
 from metadome_link.mcp.schemas import (
     COMPARE_POSITIONS_SCHEMA,
     GET_POSITION_TOLERANCE_SCHEMA,
@@ -31,6 +31,8 @@ from metadome_link.mcp.schemas import (
 )
 from metadome_link.mcp.service_adapters import get_metadome_service
 from metadome_link.mcp.tools._common import (
+    LimitArg,
+    OffsetArg,
     PositionArg,
     PositionsArg,
     ResponseMode,
@@ -68,17 +70,42 @@ def after_position(
     return steps
 
 
-def after_variant_counts(transcript_id: str, position: int | None) -> list[dict[str, Any]]:
+def after_variant_counts(
+    payload: dict[str, Any],
+    transcript_id: str,
+    *,
+    position: int | None,
+    position_start: int | None,
+    position_stop: int | None,
+    source: str,
+    limit: int,
+) -> list[dict[str, Any]]:
     """Success-path next steps for ``get_variant_counts``."""
     if position is not None:
         return [
             cmd("get_position_tolerance", transcript_id=transcript_id, position=position),
             cmd("get_meta_domain", transcript_id=transcript_id, position=position),
         ]
-    return [
-        cmd("summarize_intolerant_regions", transcript_id=transcript_id),
-        cmd("get_tolerance_landscape", transcript_id=transcript_id),
-    ]
+    steps: list[dict[str, Any]] = []
+    pagination = payload.get("pagination")
+    if isinstance(pagination, dict):
+        base: dict[str, Any] = {
+            "transcript_id": transcript_id,
+            "source": source,
+            "limit": limit,
+        }
+        if position_start is not None:
+            base["position_start"] = position_start
+        if position_stop is not None:
+            base["position_stop"] = position_stop
+        steps.extend(_more_steps("get_variant_counts", base, pagination, ceiling=1000))
+    steps.extend(
+        [
+            cmd("summarize_intolerant_regions", transcript_id=transcript_id),
+            cmd("get_tolerance_landscape", transcript_id=transcript_id),
+        ]
+    )
+    return steps
 
 
 def after_compare(payload: dict[str, Any], transcript_id: str) -> list[dict[str, Any]]:
@@ -161,7 +188,7 @@ def register_position_tools(mcp: FastMCP) -> None:
             "[position_start, position_stop] range, or the whole protein (paginated); when "
             "source includes clinvar each residue's ClinVar variants are listed with NCBI urls. "
             "Signature: get_variant_counts(transcript_id=, position=, position_start=, "
-            "position_stop=, source=, response_mode=)."
+            "position_stop=, source=, limit=, offset=, response_mode=)."
         ),
     )
     async def get_variant_counts(
@@ -176,6 +203,8 @@ def register_position_tools(mcp: FastMCP) -> None:
             int | None, Field(ge=1, description="Inclusive stop of a residue range.")
         ] = None,
         source: SourceArg = "both",
+        limit: LimitArg = 200,
+        offset: OffsetArg = 0,
         response_mode: ResponseMode = "compact",
     ) -> dict[str, Any]:
         async def call() -> dict[str, Any]:
@@ -186,10 +215,18 @@ def register_position_tools(mcp: FastMCP) -> None:
                 position_start=position_start,
                 position_stop=position_stop,
                 source=source,
+                limit=limit,
+                offset=offset,
                 response_mode=response_mode,
             )
             payload.setdefault("_meta", {})["next_commands"] = after_variant_counts(
-                transcript_id, position
+                payload,
+                transcript_id,
+                position=position,
+                position_start=position_start,
+                position_stop=position_stop,
+                source=source,
+                limit=limit,
             )
             return payload
 
@@ -199,7 +236,12 @@ def register_position_tools(mcp: FastMCP) -> None:
             context=McpErrorContext(
                 "get_variant_counts",
                 response_mode=response_mode,
-                arguments={"transcript_id": transcript_id, "source": source},
+                arguments={
+                    "transcript_id": transcript_id,
+                    "source": source,
+                    "limit": limit,
+                    "offset": offset,
+                },
             ),
         )
 

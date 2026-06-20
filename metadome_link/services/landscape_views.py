@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from metadome_link.constants import DATA_CURRENCY_CAVEAT
+from metadome_link.constants import DATA_CURRENCY_CAVEAT, DEFAULT_PAGE_LIMIT
 from metadome_link.exceptions import InvalidInputError
 from metadome_link.services.citation import recommended_citation
 from metadome_link.services.landscape import (
@@ -58,6 +58,8 @@ def get_variant_counts_view(
     position_start: int | None = None,
     position_stop: int | None = None,
     source: str = "both",
+    limit: int = DEFAULT_PAGE_LIMIT,
+    offset: int = 0,
     response_mode: str,
 ) -> dict[str, Any]:
     """Return per-position gnomAD/ClinVar counts (filtered by ``source``)."""
@@ -84,8 +86,9 @@ def get_variant_counts_view(
         rows.append(row)
 
     # A single explicit position is returned whole (no pagination cap).
-    page_limit = len(rows) or 1 if position is not None else 200
-    page, block = paginate(rows, limit=page_limit, offset=0)
+    page_limit = len(rows) or 1 if position is not None else limit
+    page_offset = 0 if position is not None else offset
+    page, block = paginate(rows, limit=page_limit, offset=page_offset)
     payload: dict[str, Any] = {
         "transcript_id": transcript_id,
         "source": source,

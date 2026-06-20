@@ -39,7 +39,7 @@ residue position for missense intolerance. **Lower `sw_dn_ds` = more constrained
 - **`_meta.data_versions`** present on every response — the GRCh37/hg19 data-currency caveat
   surface. Every record-derived payload carries `recommended_citation` (verbatim Wiel 2019).
 - **Unified transport**: serves FastAPI `/health` + MCP `/mcp` on port 8000; also supports
-  stdio (Claude Desktop) and standalone HTTP.
+  stdio (Claude Desktop). `--transport http` is REST/FastAPI-only.
 - **Read-only**: all tools annotated `READ_ONLY_OPEN_WORLD`; no auth required upstream.
 
 ## Quick start
@@ -57,7 +57,8 @@ Run the unified server (FastAPI `/health` + MCP at `/mcp`):
 ```bash
 uv run metadome-link                    # listens on :8000
 # or
-uv run metadome-link --transport http   # HTTP-only (no FastAPI wrapper)
+uv run metadome-link --transport unified # router/MCP HTTP + REST health
+uv run metadome-link --transport http    # REST/FastAPI only (no MCP /mcp)
 uv run metadome-link-mcp               # stdio (Claude Desktop)
 ```
 
@@ -86,7 +87,7 @@ uv run metadome-link-cache status
 **HTTP** (Streamable HTTP): start the server and point your client at the `/mcp` endpoint:
 
 ```bash
-uv run metadome-link                # starts on :8000
+uv run metadome-link --transport unified  # starts on :8000
 claude mcp add --transport http metadome-link --scope user http://127.0.0.1:8000/mcp
 ```
 
@@ -108,7 +109,7 @@ response carries `_meta.next_commands` — ready-to-call follow-ups.
 | 4 | `request_tolerance_landscape` | Submit (or re-confirm) an async landscape build; returns status handle | `request_tolerance_landscape(transcript_id=, response_mode=)` |
 | 5 | `get_tolerance_landscape` | Cache-first fetch of the built landscape; `status:"processing"` while building | `get_tolerance_landscape(transcript_id=, position_start=, position_stop=, limit=, offset=, response_mode=)` |
 | 6 | `get_position_tolerance` | One residue: `sw_dn_ds`, domain membership, variant counts | `get_position_tolerance(transcript_id=, position=, response_mode=)` |
-| 7 | `get_variant_counts` | Per-position gnomAD / ClinVar counts with ClinVar IDs and NCBI URLs | `get_variant_counts(transcript_id=, position=, position_start=, position_stop=, source=, response_mode=)` |
+| 7 | `get_variant_counts` | Per-position gnomAD / ClinVar counts with ClinVar IDs and NCBI URLs | `get_variant_counts(transcript_id=, position=, position_start=, position_stop=, source=, limit=, offset=, response_mode=)` |
 | 8 | `compare_positions` | Side-by-side tolerance table for a batch of positions (≤ 50) | `compare_positions(transcript_id=, positions=, response_mode=)` |
 | 9 | `get_protein_domains` | Pfam domains on a transcript: ID, Name, start/stop, metadomain flag, alignment depth | `get_protein_domains(transcript_id=, response_mode=)` |
 | 10 | `get_meta_domain` | Homologous-domain variant drill-down: gnomAD normal + ClinVar pathogenic variants across Pfam family | `get_meta_domain(transcript_id=, position=, domains=, limit=, offset=, response_mode=)` |

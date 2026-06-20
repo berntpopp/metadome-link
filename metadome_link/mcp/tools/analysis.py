@@ -41,14 +41,14 @@ def _after_summarize(
             cmd(
                 "get_position_tolerance",
                 transcript_id=transcript_id,
-                protein_pos=midpoint,
+                position=midpoint,
             )
         )
         steps.append(
             cmd(
                 "get_meta_domain",
                 transcript_id=transcript_id,
-                protein_pos=midpoint,
+                position=midpoint,
             )
         )
     steps.append(

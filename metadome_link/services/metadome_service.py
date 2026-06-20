@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, Any
 
 from metadome_link.constants import (
     DATA_CURRENCY_CAVEAT,
+    DEFAULT_PAGE_LIMIT,
     MAX_BATCH_POSITIONS,
 )
 from metadome_link.exceptions import (
@@ -318,6 +319,8 @@ class MetaDomeService:
         position_start: int | None = None,
         position_stop: int | None = None,
         source: str = "both",
+        limit: int = DEFAULT_PAGE_LIMIT,
+        offset: int = 0,
         response_mode: str,
     ) -> dict[str, Any]:
         """Return per-position gnomAD/ClinVar counts (filtered by ``source``).
@@ -345,6 +348,8 @@ class MetaDomeService:
             position_start=position_start,
             position_stop=position_stop,
             source=source,
+            limit=limit,
+            offset=offset,
             response_mode=response_mode,
         )
 

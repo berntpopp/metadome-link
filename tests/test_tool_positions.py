@@ -111,6 +111,41 @@ async def test_get_variant_counts_clinvar_id_present(
     assert all(v["url"].startswith("https://www.ncbi.nlm.nih.gov/clinvar/") for v in variants)
 
 
+async def test_get_variant_counts_schema_exposes_limit_offset(facade: Any) -> None:
+    """The MCP input schema exposes whole-protein pagination controls."""
+    tools = await facade.list_tools()
+    tool = next(t for t in tools if t.name == "get_variant_counts")
+    properties = tool.parameters["properties"]
+    assert properties["limit"]["default"] == 200
+    assert properties["offset"]["default"] == 0
+
+
+async def test_get_variant_counts_whole_protein_paginates_with_next_command(
+    facade: Any, call_tool: Any, mocked_metadome: Any
+) -> None:
+    """A low-limit whole-protein request returns a forward-page next_command."""
+    data = await call_tool(
+        facade,
+        "get_variant_counts",
+        {"transcript_id": TID, "limit": 2, "offset": 0, "response_mode": "compact"},
+    )
+    assert data["success"] is True
+    assert len(data["positions"]) == 2
+    assert data["pagination"]["limit"] == 2
+    assert data["pagination"]["offset"] == 0
+    assert data["pagination"]["truncated"] is True
+    assert data["pagination"]["next_offset"] == 2
+
+    page_commands = [
+        command
+        for command in data["_meta"]["next_commands"]
+        if command["tool"] == "get_variant_counts" and command["arguments"].get("offset") == 2
+    ]
+    assert page_commands
+    assert page_commands[0]["arguments"]["transcript_id"] == TID
+    assert page_commands[0]["arguments"]["limit"] == 2
+
+
 async def test_get_variant_counts_bad_source_invalid_input(
     facade: Any, call_tool: Any, mocked_metadome: Any
 ) -> None:

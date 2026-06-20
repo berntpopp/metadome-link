@@ -131,6 +131,29 @@ async def test_summarize_intolerant_regions_meta_next_commands(facade: Any, call
     assert len(meta["next_commands"]) >= 1
 
 
+async def test_summarize_intolerant_regions_next_commands_use_position_arg(
+    facade: Any, call_tool: Any
+) -> None:
+    """Drill-down next_commands use the public position arg name, not protein_pos."""
+    data = await call_tool(
+        facade,
+        "summarize_intolerant_regions",
+        {"transcript_id": TID, "response_mode": "compact"},
+    )
+    assert data["success"] is True
+    next_commands = data["_meta"]["next_commands"]
+    drilldowns = [
+        command
+        for command in next_commands
+        if command["tool"] in {"get_position_tolerance", "get_meta_domain"}
+    ]
+    assert drilldowns
+    for command in drilldowns:
+        arguments = command["arguments"]
+        assert "position" in arguments
+        assert "protein_pos" not in arguments
+
+
 async def test_summarize_intolerant_regions_region_fields(facade: Any, call_tool: Any) -> None:
     """Each region entry carries the required structural fields."""
     data = await call_tool(
