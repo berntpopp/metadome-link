@@ -1,0 +1,66 @@
+"""Domain constants for metadome-link: schema/data versions, citation, caveats, limits.
+
+MetaDome data is GRCh37/hg19, frozen at gnomAD r2.0.2 and ClinVar 2018-06-03
+(Gencode v19, Pfam 30.0). ``METADOME_DATA_VERSION`` pins the upstream release;
+the on-disk result cache and ``capabilities_version`` derive from it. Bump it
+manually if MetaDome ships a new release.
+"""
+
+from __future__ import annotations
+
+import re
+
+#: Bumped whenever the on-disk SQLite result-cache schema changes.
+SCHEMA_VERSION = "1"
+
+#: Pinned MetaDome upstream data release. Cache keys + capabilities_version derive
+#: from this; bump manually if MetaDome updates.
+METADOME_DATA_VERSION = "gencode19-gnomad2.0.2-clinvar20180603-pfam30-app1.0.1"
+
+#: Structured component versions of the pinned MetaDome release. Surfaced in
+#: ``_meta.data_versions`` on EVERY response (the hg19/data-currency caveat surface).
+DATA_VERSIONS: dict[str, str] = {
+    "assembly": "GRCh37",
+    "gencode": "v19",
+    "gnomad": "r2.0.2",
+    "clinvar": "2018-06-03",
+    "pfam": "30.0",
+    "metadome_app": "1.0.1",
+}
+
+#: Canonical citation pasted verbatim into capability/_meta/record payloads.
+RECOMMENDED_CITATION = (
+    "MetaDome: Pathogenicity analysis of genetic variants through aggregation of "
+    "homologous human protein domains. Wiel L, Baakman C, Gilissen D, Veltman JA, "
+    "Vriend G, Gilissen C. Human Mutation. 2019;40(8):1030-1038. "
+    "doi:10.1002/humu.23798"
+)
+
+#: License attribution for the MetaDome software/data.
+METADOME_LICENSE = "MIT (https://github.com/laurensvdwiel/metadome)"
+
+#: Research-use disclaimer surfaced in instructions + capabilities + resources.
+RESEARCH_USE_NOTICE = (
+    "Research use only; not for clinical decision support, diagnosis, treatment, "
+    "or patient management."
+)
+
+#: Prominent data-currency caveat (the hg19 / historical-counts warning).
+DATA_CURRENCY_CAVEAT = (
+    "MetaDome data are GRCh37/hg19 with gnomAD r2.0.2 and ClinVar 2018-06-03; "
+    "per-position counts are historical. Use live gnomAD/ClinVar for current data."
+)
+
+#: Hard cap on positions accepted by a single batch tool call.
+MAX_BATCH_POSITIONS = 50
+
+#: Default and maximum page sizes for list-returning tools.
+DEFAULT_PAGE_LIMIT = 200
+MAX_PAGE_LIMIT = 1000
+
+#: Verbosity tiers for ``response_mode`` and the default tier.
+RESPONSE_MODES = ["minimal", "compact", "standard", "full"]
+DEFAULT_RESPONSE_MODE = "compact"
+
+#: Ensembl transcript id with a version suffix, e.g. ``ENST00000269305.4``.
+ENST_RE = re.compile(r"^ENST\d{11}\.\d+$")
