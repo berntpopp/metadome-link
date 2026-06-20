@@ -5,6 +5,8 @@ TDD order: tests written first, implementation comes after.
 
 from __future__ import annotations
 
+import json
+
 # ---------------------------------------------------------------------------
 # pagination tests
 # ---------------------------------------------------------------------------
@@ -237,7 +239,36 @@ def test_char_budget_guard_over_budget_truncates_lists_and_injects_summary() -> 
     # at least one list field was truncated
     positions = result.get("positions", [])
     assert isinstance(positions, list)
-    assert len(positions) < 500
+
+
+def test_char_budget_guard_truncates_nested_meta_domain_lists() -> None:
+    from metadome_link.services.shaping import char_budget_guard
+
+    payload = {
+        "transcript_id": "ENST00000269305.4",
+        "protein_position": 175,
+        "meta_domains": {
+            "PF00870": {
+                "alignment_depth": 42,
+                "pathogenic_variants": [
+                    {"clinvar_ID": str(i), "pad": "z" * 30} for i in range(400)
+                ],
+            },
+        },
+    }
+    original_input = json.loads(json.dumps(payload))  # snapshot to detect mutation
+    result = char_budget_guard(payload, max_chars=500)
+
+    assert len(json.dumps(result)) <= 500
+    # The bulk lives in a nested list; the guard must reach it and record it.
+    assert "dropped_summary" in result
+    assert "meta_domains.PF00870.pathogenic_variants" in result["dropped_summary"]
+    assert len(result["meta_domains"]["PF00870"]["pathogenic_variants"]) < 400
+    # Dict scaffolding (alignment_depth, identity anchors) survives.
+    assert result["meta_domains"]["PF00870"]["alignment_depth"] == 42
+    assert result["transcript_id"] == "ENST00000269305.4"
+    # The caller's input dict is not mutated.
+    assert payload == original_input
 
 
 def test_response_modes_and_default_exported() -> None:

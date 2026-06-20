@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import pytest
 
-from metadome_link.constants import DATA_VERSIONS
+from metadome_link.constants import DATA_VERSIONS, MAX_RESPONSE_CHARS
 from metadome_link.exceptions import (
     AmbiguousQueryError,
     InvalidInputError,
@@ -210,3 +211,56 @@ async def test_metrics_record_on_success_and_error() -> None:
     snap = metrics.snapshot()
     assert snap["requests"] == 2
     assert snap["errors"] == 1
+
+
+async def test_oversized_success_payload_is_budget_guarded() -> None:
+    """A success payload over the hard cap comes back truncated with a
+    ``dropped_summary``, at/under the budget, while ``_meta`` survives intact."""
+
+    async def call() -> dict[str, Any]:
+        # ~1500 fat rows -> well over MAX_RESPONSE_CHARS as a top-level list,
+        # plus a nested meta-domain list to exercise the nested-truncation path.
+        return {
+            "transcript_id": "ENST00000269305.4",
+            "gene_name": "TP53",
+            "positional_annotation": [
+                {"protein_pos": i, "ref_aa": "A", "sw_dn_ds": 0.123456789, "pad": "x" * 40}
+                for i in range(1500)
+            ],
+            "meta_domains": {
+                "PF00870": {
+                    "pathogenic_variants": [
+                        {"clinvar_ID": str(i), "pad": "y" * 40} for i in range(800)
+                    ],
+                },
+            },
+        }
+
+    out = await run_mcp_tool(
+        "get_tolerance_landscape",
+        call,
+        context=McpErrorContext("get_tolerance_landscape", response_mode="full"),
+    )
+
+    # The guard fired and recorded what it dropped.
+    assert "dropped_summary" in out
+    # Serialised size is at/under the budget.
+    assert len(json.dumps(out)) <= MAX_RESPONSE_CHARS
+    # The big lists were reduced from their originals.
+    assert len(out["positional_annotation"]) < 1500
+    # _meta survives intact and is NOT truncated/dropped.
+    meta = out["_meta"]
+    assert meta["tool"] == "get_tolerance_landscape"
+    assert out["success"] is True
+    assert meta["data_versions"] == DATA_VERSIONS
+
+
+async def test_normal_payload_unaffected_by_budget_guard() -> None:
+    """A small payload passes through the guard untouched (no dropped_summary)."""
+
+    async def call() -> dict[str, Any]:
+        return {"transcript_id": "ENST00000269305.4", "positions": [1, 2, 3]}
+
+    out = await run_mcp_tool("get_position_tolerance", call)
+    assert "dropped_summary" not in out
+    assert out["positions"] == [1, 2, 3]

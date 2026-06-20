@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 from typing import Any
 
 import httpx
@@ -78,6 +79,26 @@ async def test_unknown_gene_returns_empty_list() -> None:
     client = MetaDomeClient()
     assert await client.get_transcripts("NOSUCHGENE") == []
     await client.aclose()
+
+
+@respx.mock
+async def test_get_transcripts_url_encodes_gene_metacharacters() -> None:
+    """A gene segment with metacharacters is URL-encoded so it cannot rewrite the path."""
+    route = respx.get(url__regex=rf"^{re.escape(BASE)}/get_transcripts/.*$").mock(
+        return_value=httpx.Response(200, json={"trancript_ids": []})
+    )
+    client = MetaDomeClient()
+    await client.get_transcripts("../status/x?y=z")
+    await client.aclose()
+
+    assert route.called
+    raw_path = route.calls.last.request.url.raw_path.decode()
+    # The gene is a single percent-encoded path segment under /get_transcripts/;
+    # it never escapes into a new segment or a query string.
+    assert raw_path == "/metadome/api/get_transcripts/..%2Fstatus%2Fx%3Fy%3Dz"
+    assert "%2F" in raw_path  # '/' -> %2F (path traversal neutralised)
+    assert "%3F" in raw_path  # '?' -> %3F (query injection neutralised)
+    assert "?" not in raw_path  # no real query string was introduced
 
 
 # -- endpoint 2: submit_visualization -------------------------------------------

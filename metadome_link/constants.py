@@ -58,6 +58,14 @@ MAX_BATCH_POSITIONS = 50
 DEFAULT_PAGE_LIMIT = 200
 MAX_PAGE_LIMIT = 1000
 
+#: Hard cap on the serialised character length of a successful tool payload's
+#: data (the ``_meta`` block is exempt). ~90k chars is a safe margin under the
+#: ~25k-token (~100k-char) MCP client response cap, leaving headroom for the
+#: ``_meta`` block and JSON-encoding overhead. The envelope runs
+#: ``char_budget_guard`` against this so a ``full``-mode tolerance landscape or a
+#: deep meta-domain closure cannot overflow the client response budget.
+MAX_RESPONSE_CHARS = 90_000
+
 #: Verbosity tiers for ``response_mode`` and the default tier.
 RESPONSE_MODES = ["minimal", "compact", "standard", "full"]
 DEFAULT_RESPONSE_MODE = "compact"

@@ -32,6 +32,7 @@ import asyncio
 import random
 import time
 from typing import TYPE_CHECKING, Any
+from urllib.parse import quote
 
 import httpx
 
@@ -216,7 +217,9 @@ class MetaDomeClient:
         empty list (upstream returns HTTP 200 with an empty list, not 404), so
         this method never raises :class:`NotFoundError`.
         """
-        body = await self._get_json(f"/get_transcripts/{gene}")
+        # URL-encode the gene segment so metacharacters in a free-text query
+        # cannot rewrite the request path (normalize_gene_symbol still upstream).
+        body = await self._get_json(f"/get_transcripts/{quote(gene, safe='')}")
         # NOTE: upstream key is the misspelled ``trancript_ids`` (sic).
         raw = body.get("trancript_ids", []) if isinstance(body, dict) else []
         out: list[dict[str, Any]] = []

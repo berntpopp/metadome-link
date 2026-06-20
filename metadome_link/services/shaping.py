@@ -7,12 +7,15 @@ anchors (``transcript_id`` + ``gene_name``) and a few system keys.
 
 ``char_budget_guard`` provides a last-resort token-budget safety valve: when
 the serialised payload exceeds ``max_chars``, it iteratively truncates list
-fields (longest first) until the budget is met, then injects a
-``dropped_summary`` field describing what was removed.
+fields (longest first -- top-level lists like ``positional_annotation`` /
+``positions`` / ``regions`` AND lists nested one level under a dict, such as
+``meta_domains.<PF>.pathogenic_variants``) until the budget is met, then injects
+a ``dropped_summary`` field describing what was removed.
 """
 
 from __future__ import annotations
 
+import copy
 import json
 from typing import Any
 
@@ -91,13 +94,45 @@ def select_fields(payload: dict[str, Any], fields: list[str] | None) -> dict[str
     return out
 
 
+#: Truncation step size: drop a chunk of items per pass so a large over-budget
+#: payload converges in O(items / step) serialisations instead of one-by-one.
+_GUARD_TRUNCATE_STEP = 8
+
+#: A located, truncatable list: ``(dotted_label, owning_container, key)``. The
+#: container is held by reference so a slice can be written straight back.
+_ListTarget = tuple[str, dict[str, Any], str]
+
+
+def _guard_list_targets(node: dict[str, Any], prefix: str = "") -> list[_ListTarget]:
+    """Collect every non-empty list in *node*, recursing through dict scaffolding.
+
+    Finds top-level list fields (e.g. ``positional_annotation``, ``positions``,
+    ``regions``) AND lists nested under dict-valued fields at any depth (e.g.
+    ``meta_domains.<PF>.pathogenic_variants``), which is where the bulk of a
+    meta-domain payload lives. Empty lists and the injected ``dropped_summary``
+    are skipped; only dicts are descended into (list items are never split).
+    """
+    targets: list[_ListTarget] = []
+    for key, value in node.items():
+        if key == "dropped_summary":
+            continue
+        label = f"{prefix}{key}"
+        if isinstance(value, list) and value:
+            targets.append((label, node, key))
+        elif isinstance(value, dict):
+            targets.extend(_guard_list_targets(value, prefix=f"{label}."))
+    return targets
+
+
 def char_budget_guard(payload: dict[str, Any], *, max_chars: int) -> dict[str, Any]:
     """Truncate list fields until the serialised payload fits within *max_chars*.
 
     When over budget the function iteratively removes items from the longest
-    list-valued field until the budget is satisfied, then injects a
-    ``dropped_summary`` field describing how many items were removed from which
-    fields.  Scalar fields (strings, numbers, dicts) are never truncated.
+    list field -- top-level OR nested under dict scaffolding at any depth (e.g.
+    ``meta_domains.<PF>.pathogenic_variants``) -- until the budget is satisfied,
+    then injects a ``dropped_summary`` field describing how many items were
+    removed from which fields. Scalars, strings and dict scaffolding are never
+    dropped -- only list *items* are removed.
 
     The budget is measured against ``len(json.dumps(payload))``.  If the
     payload is already within budget it is returned unchanged (no copy).
@@ -105,25 +140,18 @@ def char_budget_guard(payload: dict[str, Any], *, max_chars: int) -> dict[str, A
     if len(json.dumps(payload)) <= max_chars:
         return payload
 
-    result: dict[str, Any] = dict(payload)
+    result: dict[str, Any] = copy.deepcopy(payload)
     dropped: dict[str, int] = {}
 
     while len(json.dumps(result)) > max_chars:
-        # Find the list field with the most items (excluding dropped_summary itself)
-        list_fields = [
-            (k, v) for k, v in result.items() if isinstance(v, list) and k != "dropped_summary"
-        ]
-        if not list_fields:
-            # Nothing more to truncate
-            break
-        # Pick the longest
-        key, lst = max(list_fields, key=lambda kv: len(kv[1]))
-        if len(lst) == 0:
-            # All lists are empty, nothing to do
-            break
-        # Remove one item from the end
-        result[key] = lst[:-1]
-        dropped[key] = dropped.get(key, 0) + 1
+        targets = _guard_list_targets(result)
+        if not targets:
+            break  # nothing left to truncate
+        label, container, key = max(targets, key=lambda t: len(t[1][t[2]]))
+        lst = container[key]
+        step = min(_GUARD_TRUNCATE_STEP, len(lst))
+        container[key] = lst[: len(lst) - step]
+        dropped[label] = dropped.get(label, 0) + step
 
     if dropped:
         parts = [f"{k}: {n} item(s) dropped" for k, n in sorted(dropped.items())]

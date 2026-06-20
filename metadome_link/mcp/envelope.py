@@ -21,13 +21,14 @@ from typing import Any
 
 from pydantic import ValidationError as PydanticValidationError
 
-from metadome_link.constants import DATA_VERSIONS, DEFAULT_RESPONSE_MODE
+from metadome_link.constants import DATA_VERSIONS, DEFAULT_RESPONSE_MODE, MAX_RESPONSE_CHARS
 from metadome_link.exceptions import (
     AmbiguousQueryError,
     MetaDomeError,
 )
 from metadome_link.mcp import metrics
 from metadome_link.mcp.next_commands import cmd, default_error_next_commands
+from metadome_link.services.shaping import char_budget_guard
 
 logger = logging.getLogger(__name__)
 
@@ -306,6 +307,11 @@ async def run_mcp_tool(
         if isinstance(result, dict):
             existing_meta: dict[str, Any] = result.get("_meta") or {}
             success = bool(result.setdefault("success", True))
+            # Enforce the hard response-size cap on the DATA (never _meta): guard
+            # everything except _meta so the trace/provenance block survives a
+            # truncation intact, then re-attach the shaped _meta.
+            result.pop("_meta", None)
+            result = char_budget_guard(result, max_chars=MAX_RESPONSE_CHARS)
             meta = {
                 **existing_meta,
                 "tool": tool_name,
