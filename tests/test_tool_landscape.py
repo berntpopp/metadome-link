@@ -62,10 +62,10 @@ async def test_request_landscape_processing(
     assert data["cold_build_warning"]
 
 
-async def test_request_landscape_failure_is_upstream_unavailable(
+async def test_request_landscape_failure_is_non_retryable(
     facade: Any, call_tool: Any, mocked_metadome: respx.MockRouter
 ) -> None:
-    """A FAILURE build status maps to error_code='upstream_unavailable'."""
+    """A FAILURE build status maps to a NON-retryable data_unavailable (no retry loop)."""
     mocked_metadome.get(f"/status/{TID}/").mock(
         return_value=httpx.Response(200, json={"status": "FAILURE"})
     )
@@ -74,7 +74,8 @@ async def test_request_landscape_failure_is_upstream_unavailable(
     )
     data = await call_tool(facade, "request_tolerance_landscape", {"transcript_id": TID})
     assert data["success"] is False
-    assert data["error_code"] == "upstream_unavailable"
+    assert data["error_code"] == "data_unavailable"
+    assert data["retryable"] is False
 
 
 async def test_request_landscape_bad_id_is_invalid_input(facade: Any, call_tool: Any) -> None:
@@ -174,12 +175,12 @@ async def test_get_landscape_processing_state(
     )
 
 
-async def test_get_landscape_failure_is_upstream_unavailable(
+async def test_get_landscape_failure_is_non_retryable(
     facade: Any,
     call_tool: Any,
     mocked_metadome: respx.MockRouter,
 ) -> None:
-    """A FAILURE build status surfaces error_code='upstream_unavailable'."""
+    """A FAILURE build status surfaces a NON-retryable data_unavailable (no retry loop)."""
     mocked_metadome.get(f"/status/{TID}/").mock(
         return_value=httpx.Response(200, json={"status": "FAILURE"})
     )
@@ -191,7 +192,8 @@ async def test_get_landscape_failure_is_upstream_unavailable(
     )
     data = await call_tool(facade, "get_tolerance_landscape", {"transcript_id": TID})
     assert data["success"] is False
-    assert data["error_code"] == "upstream_unavailable"
+    assert data["error_code"] == "data_unavailable"
+    assert data["retryable"] is False
 
 
 async def test_get_landscape_bad_id_is_invalid_input(facade: Any, call_tool: Any) -> None:

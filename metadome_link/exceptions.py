@@ -99,3 +99,54 @@ class InternalError(MetaDomeError):
     """An unexpected internal error (the catch-all default code)."""
 
     error_code = "internal_error"
+
+
+# ---------------------------------------------------------------------------
+# Failure classification
+# ---------------------------------------------------------------------------
+
+#: Stacktrace fragments identifying a MetaDome build crash caused by a transcript
+#: with ``has_protein_data == false`` (no UniProt mapping): the builder
+#: dereferences ``_protein.id`` on a ``None`` protein.
+_NO_PROTEIN_DATA_SIGNATURES = (
+    "object has no attribute 'id'",
+    "_protein.id",
+    "self.protein_id = _protein",
+)
+
+
+def metadome_build_failure(transcript_id: str, error: object) -> MetaDomeError:
+    """Classify a MetaDome job ``FAILURE`` into a NON-retryable, actionable error.
+
+    A MetaDome ``FAILURE`` is a *completed* Celery job that crashed; the failure
+    is cached upstream (a ``visualization_error`` file), so a re-submit returns
+    the same ``FAILURE`` without re-running -- it is **not** retryable (unlike a
+    5xx/timeout, which stays a retryable :class:`UpstreamUnavailableError`).
+    The dominant cause is a transcript with ``has_protein_data == false`` (no
+    protein mapping), which crashes the builder; that case becomes an
+    ``invalid_input`` pointing the caller at a protein-coding transcript. Any
+    other crash becomes a non-retryable ``data_unavailable``. The raw upstream
+    stacktrace is used only to classify and is never echoed to the client.
+    """
+    stacktrace = ""
+    if isinstance(error, dict):
+        stacktrace = str(error.get("stacktrace") or "")
+    if any(sig in stacktrace for sig in _NO_PROTEIN_DATA_SIGNATURES):
+        return InvalidInputError(
+            f"MetaDome cannot analyse transcript {transcript_id}: it has no protein "
+            "data in MetaDome (has_protein_data=false), so no tolerance landscape can "
+            "be built. Call resolve_transcript and choose a transcript where "
+            "has_protein_data=true. Some genes (e.g. BRCA2) have no protein-coding "
+            "transcript in MetaDome's GRCh37/Gencode-v19 dataset and cannot be analysed.",
+            field="transcript_id",
+            recovery_action="reformulate_input",
+            transcript_id=transcript_id,
+        )
+    return DataUnavailableError(
+        f"MetaDome's visualization build for {transcript_id} failed and the failure is "
+        "cached upstream; retrying will not help. Try a different transcript via "
+        "resolve_transcript, or verify the gene is analysable in MetaDome.",
+        retryable=False,
+        recovery_action="switch_tool",
+        transcript_id=transcript_id,
+    )

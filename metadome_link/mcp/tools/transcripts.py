@@ -32,8 +32,14 @@ def after_resolve_transcript(payload: dict[str, Any]) -> list[dict[str, Any]]:
       transcript (the longest protein-coding entry), followed by
       ``get_tolerance_landscape`` so the client can start the poll loop right away.
     - **ID path**: same, using the echoed transcript id directly.
+    - **Not analyzable**: a gene whose transcripts all have
+      ``has_protein_data=false`` cannot be built, so suggest no build step.
     - Falls back to ``get_server_capabilities`` if no usable id is found.
     """
+    # Not-analyzable gene (no protein-coding transcript): do not suggest a build
+    # that is guaranteed to fail upstream.
+    if payload.get("analyzable") is False:
+        return [cmd("get_server_capabilities")]
     # Gene path: canonical_transcript_id is set
     canonical = payload.get("canonical_transcript_id")
     if canonical:

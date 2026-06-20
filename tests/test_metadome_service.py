@@ -24,9 +24,9 @@ from metadome_link.api.client import MetaDomeClient
 from metadome_link.cache.store import ResultCache
 from metadome_link.config import ServerSettings
 from metadome_link.exceptions import (
+    DataUnavailableError,
     InvalidInputError,
     NotFoundError,
-    UpstreamUnavailableError,
 )
 from metadome_link.services.landscape import (
     domains_for_position,
@@ -279,8 +279,13 @@ async def test_request_landscape_processing(cache: ResultCache) -> None:
 
 
 @respx.mock
-async def test_request_landscape_failure_raises_upstream(cache: ResultCache) -> None:
-    """A FAILURE status raises UpstreamUnavailableError with the error summary."""
+async def test_request_landscape_failure_is_non_retryable(cache: ResultCache) -> None:
+    """A generic build FAILURE is a NON-retryable DataUnavailableError (no retry loop).
+
+    A MetaDome FAILURE is a completed-and-crashed job whose error is cached
+    upstream; re-submitting never clears it, so it must not be reported as a
+    retryable transient error (the bug that caused endless BRCA2 retries).
+    """
     respx.post(f"{BASE}/submit_visualization/").mock(
         return_value=httpx.Response(200, json={"transcript_id": TID})
     )
@@ -288,11 +293,45 @@ async def test_request_landscape_failure_raises_upstream(cache: ResultCache) -> 
         return_value=httpx.Response(200, json={"status": "FAILURE"})
     )
     respx.get(f"{BASE}/error/{TID}/").mock(
-        return_value=httpx.Response(200, json={"error": "boom", "stacktrace": "..."})
+        return_value=httpx.Response(200, json={"error": "boom", "stacktrace": "some other crash"})
     )
     svc = _make_service(cache)
-    with pytest.raises(UpstreamUnavailableError):
+    with pytest.raises(DataUnavailableError) as ei:
         await svc.request_landscape(TID, response_mode="compact")
+    assert ei.value.retryable is False
+    await svc.aclose()
+
+
+@respx.mock
+async def test_request_landscape_no_protein_data_is_invalid_input(cache: ResultCache) -> None:
+    """A FAILURE whose stacktrace is the no-protein-data crash maps to invalid_input.
+
+    This is the real BRCA2 case: has_protein_data=false transcripts crash the
+    MetaDome builder on ``_protein.id``; we surface a non-retryable invalid_input
+    telling the caller to pick a protein-coding transcript.
+    """
+    respx.post(f"{BASE}/submit_visualization/").mock(
+        return_value=httpx.Response(200, json={"transcript_id": TID})
+    )
+    respx.get(f"{BASE}/status/{TID}/").mock(
+        return_value=httpx.Response(200, json={"status": "FAILURE"})
+    )
+    respx.get(f"{BASE}/error/{TID}/").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "error": "error running visualization job",
+                "stacktrace": "...\n    self.protein_id = _protein.id\n"
+                "AttributeError: 'NoneType' object has no attribute 'id'\n",
+            },
+        )
+    )
+    svc = _make_service(cache)
+    with pytest.raises(InvalidInputError) as ei:
+        await svc.request_landscape(TID, response_mode="compact")
+    assert ei.value.error_code == "invalid_input"
+    assert ei.value.retryable is False
+    assert ei.value.extra.get("field") == "transcript_id"
     await svc.aclose()
 
 
@@ -374,8 +413,8 @@ async def test_get_landscape_slices_by_position_range(cache: ResultCache) -> Non
 
 
 @respx.mock
-async def test_get_landscape_failed_raises_upstream(cache: ResultCache) -> None:
-    """A FAILURE during the poll raises UpstreamUnavailableError."""
+async def test_get_landscape_failed_is_non_retryable(cache: ResultCache) -> None:
+    """A FAILURE during the poll raises a NON-retryable error (no endless retry)."""
     respx.post(f"{BASE}/submit_visualization/").mock(
         return_value=httpx.Response(200, json={"transcript_id": TID})
     )
@@ -384,6 +423,40 @@ async def test_get_landscape_failed_raises_upstream(cache: ResultCache) -> None:
     )
     respx.get(f"{BASE}/error/{TID}/").mock(return_value=httpx.Response(200, json={"error": "boom"}))
     svc = _make_service(cache)
-    with pytest.raises(UpstreamUnavailableError):
+    with pytest.raises(DataUnavailableError) as ei:
         await svc.get_landscape(TID, limit=200, offset=0, response_mode="compact")
+    assert ei.value.retryable is False
+    await svc.aclose()
+
+
+@respx.mock
+async def test_resolve_transcript_not_analyzable_when_no_protein_data(cache: ResultCache) -> None:
+    """A gene whose transcripts all lack protein data is flagged not analyzable (BRCA2)."""
+    respx.get(f"{BASE}/get_transcripts/BRCA2").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "message": "Retrieved transcripts for gene 'BRCA2'",
+                "trancript_ids": [
+                    {
+                        "aa_length": 3418,
+                        "gencode_id": "ENST00000380152.3",
+                        "has_protein_data": False,
+                        "refseq_nm_numbers": "",
+                    },
+                    {
+                        "aa_length": 3418,
+                        "gencode_id": "ENST00000544455.1",
+                        "has_protein_data": False,
+                        "refseq_nm_numbers": "NM_000059.3",
+                    },
+                ],
+            },
+        )
+    )
+    svc = _make_service(cache)
+    out = await svc.resolve_transcript("BRCA2", response_mode="standard")
+    assert out["analyzable"] is False
+    assert out["canonical_transcript_id"] is None
+    assert "has_protein_data=false" in out["note"]
     await svc.aclose()

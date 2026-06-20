@@ -30,7 +30,7 @@ from metadome_link.constants import (
 from metadome_link.exceptions import (
     InvalidInputError,
     NotFoundError,
-    UpstreamUnavailableError,
+    metadome_build_failure,
 )
 from metadome_link.identifiers import (
     looks_like_transcript_query,
@@ -166,13 +166,21 @@ class MetaDomeService:
             row = dict(entry)
             row["canonical"] = entry.get("gencode_id") == canonical_id
             rows.append(row)
+        analyzable = any(bool(entry.get("has_protein_data")) for entry in ordered)
         payload = {
             "resolved_from": "gene",
             "gene_name": gene,
             "canonical_transcript_id": canonical_id,
+            "analyzable": analyzable,
             "transcripts": rows,
             "recommended_citation": recommended_citation(gene_name=gene),
         }
+        if not analyzable:
+            payload["note"] = (
+                f"No {gene} transcript in MetaDome (GRCh37/Gencode v19) has protein data "
+                "(has_protein_data=false for all); MetaDome cannot build a tolerance "
+                "landscape for this gene. Do not call request_tolerance_landscape."
+            )
         return shape_record(payload, response_mode)
 
     # -- async landscape request ----------------------------------------------
@@ -188,19 +196,15 @@ class MetaDomeService:
              eta_hint, cold_build_warning, recommended_citation}
 
         Raises:
-            InvalidInputError: A malformed/unversioned ENST id (local or 400).
-            UpstreamUnavailableError: The build status is ``FAILURE``.
+            InvalidInputError: A malformed/unversioned ENST id (local or 400),
+                or a build FAILURE caused by a no-protein-data transcript.
+            DataUnavailableError: A non-retryable MetaDome build FAILURE.
         """
         tid = validate_transcript_id(transcript_id)
         await self._client.submit_visualization(tid)
         status = await self._client.get_status(tid)
         if status == "FAILURE":
-            error = await self._client.get_error(tid)
-            raise UpstreamUnavailableError(
-                f"MetaDome build failed for {tid}: {error.get('error', 'unknown error')}",
-                retryable=True,
-                transcript_id=tid,
-            )
+            raise metadome_build_failure(tid, await self._client.get_error(tid))
         ready = status == _READY_STATUS
         payload: dict[str, Any] = {
             "job_id": tid,
@@ -235,8 +239,9 @@ class MetaDomeService:
         raises. See the payload construction below for the exact ready shape.
 
         Raises:
-            InvalidInputError: A malformed/unversioned ENST id.
-            UpstreamUnavailableError: The build status is ``FAILURE``.
+            InvalidInputError: A malformed/unversioned ENST id, or a build
+                FAILURE caused by a no-protein-data transcript.
+            DataUnavailableError: A non-retryable MetaDome build FAILURE.
         """
         tid = validate_transcript_id(transcript_id)
         landscape = self._cache.get_result(tid)
@@ -254,12 +259,7 @@ class MetaDomeService:
                     "recommended_citation": recommended_citation(transcript_id=tid),
                 }
             if state == "failed":
-                detail = (result or {}).get("error", "unknown error")
-                raise UpstreamUnavailableError(
-                    f"MetaDome build failed for {tid}: {detail}",
-                    retryable=True,
-                    transcript_id=tid,
-                )
+                raise metadome_build_failure(tid, result)
             # state == "ready"
             landscape = result or {}
             self._cache.put_result(tid, landscape)
@@ -463,7 +463,7 @@ class MetaDomeService:
         Used by every per-position/domain/summary method. A still-building job
         raises :class:`NotFoundError` (``recovery_action="switch_tool"``) carrying
         ``next_commands`` hints to request + poll the landscape; a ``FAILURE``
-        raises :class:`UpstreamUnavailableError`.
+        raises a non-retryable error via :func:`metadome_build_failure`.
         """
         cached = self._cache.get_result(transcript_id)
         if cached is not None:
@@ -476,12 +476,7 @@ class MetaDomeService:
             self._cache.put_result(transcript_id, landscape)
             return landscape
         if state == "failed":
-            detail = (result or {}).get("error", "unknown error")
-            raise UpstreamUnavailableError(
-                f"MetaDome build failed for {transcript_id}: {detail}",
-                retryable=True,
-                transcript_id=transcript_id,
-            )
+            raise metadome_build_failure(transcript_id, result)
         raise NotFoundError(
             f"Tolerance landscape for {transcript_id} is not built yet.",
             recovery_action="switch_tool",
