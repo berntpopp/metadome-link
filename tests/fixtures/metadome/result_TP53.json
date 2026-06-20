@@ -1,0 +1,552 @@
+{
+  "domains": [
+    {
+      "ID": "PF00870",
+      "Name": "P53 DNA-binding domain",
+      "meta_domain_alignment_depth": 4,
+      "metadomain": true,
+      "start": 95,
+      "stop": 288
+    },
+    {
+      "ID": "PF07710",
+      "Name": "P53 tetramerisation motif",
+      "meta_domain_alignment_depth": 3,
+      "metadomain": true,
+      "start": 319,
+      "stop": 357
+    },
+    {
+      "ID": "PF08563",
+      "Name": "P53 transactivation motif",
+      "meta_domain_alignment_depth": 1,
+      "metadomain": true,
+      "start": 5,
+      "stop": 29
+    }
+  ],
+  "gene_name": "TP53",
+  "positional_annotation": [
+    {
+      "cdna_pos": "c.1-3",
+      "chr": "chr17",
+      "chr_positions": "g.7579910-7579912",
+      "domains": {},
+      "protein_pos": 1,
+      "ref_aa": "M",
+      "ref_aa_triplet": "Met",
+      "ref_codon": "ATG",
+      "strand": "-",
+      "sw_coverage": 0.5238095238095238,
+      "sw_dn_ds": 0.4166666666666667,
+      "sw_size": 10
+    },
+    {
+      "cdna_pos": "c.4-6",
+      "chr": "chr17",
+      "chr_positions": "g.7579907-7579909",
+      "domains": {},
+      "protein_pos": 2,
+      "ref_aa": "E",
+      "ref_aa_triplet": "Glu",
+      "ref_codon": "GAG",
+      "strand": "-",
+      "sw_coverage": 0.5714285714285714,
+      "sw_dn_ds": 0.421602787456446,
+      "sw_size": 10
+    },
+    {
+      "cdna_pos": "c.13-15",
+      "chr": "chr17",
+      "chr_positions": "g.7579898-7579900",
+      "domains": {
+        "PF08563": {
+          "consensus_pos": [
+            1
+          ],
+          "normal_missense_variant_count": 0,
+          "normal_variant_count": 0,
+          "pathogenic_missense_variant_count": 0,
+          "pathogenic_variant_count": 0
+        }
+      },
+      "protein_pos": 5,
+      "ref_aa": "Q",
+      "ref_aa_triplet": "Gln",
+      "ref_codon": "CAG",
+      "strand": "-",
+      "sw_coverage": 0.7142857142857143,
+      "sw_dn_ds": 0.3564356435643564,
+      "sw_size": 10
+    },
+    {
+      "ClinVar": [
+        {
+          "alt": "T",
+          "alt_aa": "F",
+          "alt_aa_triplet": "Phe",
+          "alt_codon": "TTT",
+          "clinvar_ID": "12371",
+          "pos": 7579582,
+          "ref": "G",
+          "type": "missense"
+        }
+      ],
+      "cdna_pos": "c.103-105",
+      "chr": "chr17",
+      "chr_positions": "g.7579582-7579584",
+      "domains": {},
+      "protein_pos": 35,
+      "ref_aa": "L",
+      "ref_aa_triplet": "Leu",
+      "ref_codon": "TTG",
+      "strand": "-",
+      "sw_coverage": 1.0,
+      "sw_dn_ds": 0.26857142857142857,
+      "sw_size": 10
+    },
+    {
+      "cdna_pos": "c.283-285",
+      "chr": "chr17",
+      "chr_positions": "g.7579402-7579404",
+      "domains": {
+        "PF00870": {
+          "consensus_pos": [
+            1
+          ],
+          "normal_missense_variant_count": 0,
+          "normal_variant_count": 0,
+          "pathogenic_missense_variant_count": 0,
+          "pathogenic_variant_count": 0
+        }
+      },
+      "protein_pos": 95,
+      "ref_aa": "S",
+      "ref_aa_triplet": "Ser",
+      "ref_codon": "TCT",
+      "strand": "-",
+      "sw_coverage": 1.0,
+      "sw_dn_ds": 0.10546875,
+      "sw_size": 10
+    },
+    {
+      "cdna_pos": "c.298-300",
+      "chr": "chr17",
+      "chr_positions": "g.7579387-7579389",
+      "domains": {
+        "PF00870": {
+          "consensus_pos": [
+            6
+          ],
+          "normal_missense_variant_count": 2,
+          "normal_variant_count": 2,
+          "pathogenic_missense_variant_count": 0,
+          "pathogenic_variant_count": 0
+        }
+      },
+      "protein_pos": 100,
+      "ref_aa": "Q",
+      "ref_aa_triplet": "Gln",
+      "ref_codon": "CAG",
+      "strand": "-",
+      "sw_coverage": 1.0,
+      "sw_dn_ds": 0.48484848484848486,
+      "sw_size": 10
+    },
+    {
+      "cdna_pos": "c.301-303",
+      "chr": "chr17",
+      "chr_positions": "g.7579384-7579386",
+      "domains": {
+        "PF00870": {
+          "consensus_pos": [
+            7
+          ],
+          "normal_missense_variant_count": 1,
+          "normal_variant_count": 4,
+          "pathogenic_missense_variant_count": 0,
+          "pathogenic_variant_count": 0
+        }
+      },
+      "protein_pos": 101,
+      "ref_aa": "K",
+      "ref_aa_triplet": "Lys",
+      "ref_codon": "AAA",
+      "strand": "-",
+      "sw_coverage": 1.0,
+      "sw_dn_ds": 0.598473282442748,
+      "sw_size": 10
+    },
+    {
+      "cdna_pos": "c.517-519",
+      "chr": "chr17",
+      "chr_positions": "g.7578411-7578413",
+      "domains": {
+        "PF00870": {
+          "consensus_pos": [
+            79
+          ],
+          "normal_missense_variant_count": 0,
+          "normal_variant_count": 0,
+          "pathogenic_missense_variant_count": 0,
+          "pathogenic_variant_count": 0
+        }
+      },
+      "protein_pos": 173,
+      "ref_aa": "V",
+      "ref_aa_triplet": "Val",
+      "ref_codon": "GTG",
+      "strand": "-",
+      "sw_coverage": 1.0,
+      "sw_dn_ds": 0.48857142857142855,
+      "sw_size": 10
+    },
+    {
+      "cdna_pos": "c.520-522",
+      "chr": "chr17",
+      "chr_positions": "g.7578408-7578410",
+      "domains": {
+        "PF00870": {
+          "consensus_pos": [
+            80
+          ],
+          "normal_missense_variant_count": 0,
+          "normal_variant_count": 0,
+          "pathogenic_missense_variant_count": 0,
+          "pathogenic_variant_count": 0
+        }
+      },
+      "protein_pos": 174,
+      "ref_aa": "R",
+      "ref_aa_triplet": "Arg",
+      "ref_codon": "AGG",
+      "strand": "-",
+      "sw_coverage": 1.0,
+      "sw_dn_ds": 0.48169014084507045,
+      "sw_size": 10
+    },
+    {
+      "ClinVar": [
+        {
+          "alt": "A",
+          "alt_aa": "H",
+          "alt_aa_triplet": "His",
+          "alt_codon": "CAC",
+          "clinvar_ID": "12374",
+          "pos": 7578406,
+          "ref": "G",
+          "type": "missense"
+        }
+      ],
+      "cdna_pos": "c.523-525",
+      "chr": "chr17",
+      "chr_positions": "g.7578405-7578407",
+      "domains": {
+        "PF00870": {
+          "consensus_pos": [
+            81
+          ],
+          "normal_missense_variant_count": 1,
+          "normal_variant_count": 2,
+          "pathogenic_missense_variant_count": 2,
+          "pathogenic_variant_count": 2
+        }
+      },
+      "protein_pos": 175,
+      "ref_aa": "R",
+      "ref_aa_triplet": "Arg",
+      "ref_codon": "CGC",
+      "strand": "-",
+      "sw_coverage": 1.0,
+      "sw_dn_ds": 0.44289044289044294,
+      "sw_size": 10
+    },
+    {
+      "cdna_pos": "c.526-528",
+      "chr": "chr17",
+      "chr_positions": "g.7578402-7578404",
+      "domains": {
+        "PF00870": {
+          "consensus_pos": [
+            82
+          ],
+          "normal_missense_variant_count": 0,
+          "normal_variant_count": 0,
+          "pathogenic_missense_variant_count": 0,
+          "pathogenic_variant_count": 0
+        }
+      },
+      "protein_pos": 176,
+      "ref_aa": "C",
+      "ref_aa_triplet": "Cys",
+      "ref_codon": "TGC",
+      "strand": "-",
+      "sw_coverage": 1.0,
+      "sw_dn_ds": 0.4523809523809524,
+      "sw_size": 10
+    },
+    {
+      "cdna_pos": "c.529-531",
+      "chr": "chr17",
+      "chr_positions": "g.7578399-7578401",
+      "domains": {
+        "PF00870": {
+          "consensus_pos": [
+            83
+          ],
+          "normal_missense_variant_count": 0,
+          "normal_variant_count": 0,
+          "pathogenic_missense_variant_count": 0,
+          "pathogenic_variant_count": 0
+        }
+      },
+      "protein_pos": 177,
+      "ref_aa": "P",
+      "ref_aa_triplet": "Pro",
+      "ref_codon": "CCC",
+      "strand": "-",
+      "sw_coverage": 1.0,
+      "sw_dn_ds": 0.4461839530332681,
+      "sw_size": 10
+    },
+    {
+      "ClinVar": [
+        {
+          "alt": "A",
+          "alt_aa": "D",
+          "alt_aa_triplet": "Asp",
+          "alt_codon": "GAC",
+          "clinvar_ID": "12355",
+          "pos": 7577547,
+          "ref": "G",
+          "type": "missense"
+        },
+        {
+          "alt": "T",
+          "alt_aa": "C",
+          "alt_aa_triplet": "Cys",
+          "alt_codon": "TGC",
+          "clinvar_ID": "12349",
+          "pos": 7577548,
+          "ref": "G",
+          "type": "missense"
+        },
+        {
+          "alt": "A",
+          "alt_aa": "S",
+          "alt_aa_triplet": "Ser",
+          "alt_codon": "AGC",
+          "clinvar_ID": "12365",
+          "pos": 7577548,
+          "ref": "G",
+          "type": "missense"
+        }
+      ],
+      "cdna_pos": "c.733-735",
+      "chr": "chr17",
+      "chr_positions": "g.7577546-7577548",
+      "domains": {
+        "PF00870": {
+          "consensus_pos": [
+            152
+          ],
+          "normal_missense_variant_count": 0,
+          "normal_variant_count": 1,
+          "pathogenic_missense_variant_count": 0,
+          "pathogenic_variant_count": 0
+        }
+      },
+      "protein_pos": 245,
+      "ref_aa": "G",
+      "ref_aa_triplet": "Gly",
+      "ref_codon": "GGC",
+      "strand": "-",
+      "sw_coverage": 1.0,
+      "sw_dn_ds": 0.7140939597315437,
+      "sw_size": 10
+    },
+    {
+      "ClinVar": [
+        {
+          "alt": "T",
+          "alt_aa": "W",
+          "alt_aa_triplet": "Trp",
+          "alt_codon": "TGG",
+          "clinvar_ID": "12347",
+          "pos": 7577539,
+          "ref": "C",
+          "type": "missense"
+        }
+      ],
+      "cdna_pos": "c.742-744",
+      "chr": "chr17",
+      "chr_positions": "g.7577537-7577539",
+      "domains": {
+        "PF00870": {
+          "consensus_pos": [
+            155
+          ],
+          "normal_missense_variant_count": 0,
+          "normal_variant_count": 2,
+          "pathogenic_missense_variant_count": 1,
+          "pathogenic_variant_count": 1
+        }
+      },
+      "protein_pos": 248,
+      "ref_aa": "R",
+      "ref_aa_triplet": "Arg",
+      "ref_codon": "CGG",
+      "strand": "-",
+      "sw_coverage": 1.0,
+      "sw_dn_ds": 0.7333333333333333,
+      "sw_size": 10
+    },
+    {
+      "ClinVar": [
+        {
+          "alt": "T",
+          "alt_aa": "W",
+          "alt_aa_triplet": "Trp",
+          "alt_codon": "TGG",
+          "clinvar_ID": "12364",
+          "pos": 7577094,
+          "ref": "C",
+          "type": "missense"
+        },
+        {
+          "alt": "G",
+          "alt_aa": "G",
+          "alt_aa_triplet": "Gly",
+          "alt_codon": "GGG",
+          "clinvar_ID": "140821",
+          "pos": 7577094,
+          "ref": "C",
+          "type": "missense"
+        }
+      ],
+      "cdna_pos": "c.844-846",
+      "chr": "chr17",
+      "chr_positions": "g.7577092-7577094",
+      "domains": {
+        "PF00870": {
+          "consensus_pos": [
+            189
+          ],
+          "normal_missense_variant_count": 1,
+          "normal_variant_count": 1,
+          "pathogenic_missense_variant_count": 1,
+          "pathogenic_variant_count": 1
+        }
+      },
+      "protein_pos": 282,
+      "ref_aa": "R",
+      "ref_aa_triplet": "Arg",
+      "ref_codon": "CGG",
+      "strand": "-",
+      "sw_coverage": 1.0,
+      "sw_dn_ds": 1.0072992700729928,
+      "sw_size": 10
+    },
+    {
+      "cdna_pos": "c.862-864",
+      "chr": "chr17",
+      "chr_positions": "g.7577074-7577076",
+      "domains": {
+        "PF00870": {
+          "consensus_pos": [
+            195
+          ],
+          "normal_missense_variant_count": 2,
+          "normal_variant_count": 3,
+          "pathogenic_missense_variant_count": 0,
+          "pathogenic_variant_count": 0
+        }
+      },
+      "protein_pos": 288,
+      "ref_aa": "N",
+      "ref_aa_triplet": "Asn",
+      "ref_codon": "AAT",
+      "strand": "-",
+      "sw_coverage": 1.0,
+      "sw_dn_ds": 0.5361702127659574,
+      "sw_size": 10
+    },
+    {
+      "cdna_pos": "c.955-957",
+      "chr": "chr17",
+      "chr_positions": "g.7576889-7576891",
+      "domains": {
+        "PF07710": {
+          "consensus_pos": [
+            1
+          ],
+          "normal_missense_variant_count": 0,
+          "normal_variant_count": 0,
+          "pathogenic_missense_variant_count": 0,
+          "pathogenic_variant_count": 0
+        }
+      },
+      "protein_pos": 319,
+      "ref_aa": "K",
+      "ref_aa_triplet": "Lys",
+      "ref_codon": "AAG",
+      "strand": "-",
+      "sw_coverage": 1.0,
+      "sw_dn_ds": 0.8600000000000001,
+      "sw_size": 10
+    },
+    {
+      "cdna_pos": "c.1069-1071",
+      "chr": "chr17",
+      "chr_positions": "g.7573956-7573958",
+      "domains": {
+        "PF07710": null
+      },
+      "protein_pos": 357,
+      "ref_aa": "K",
+      "ref_aa_triplet": "Lys",
+      "ref_codon": "AAG",
+      "strand": "-",
+      "sw_coverage": 1.0,
+      "sw_dn_ds": 1.976359338061466,
+      "sw_size": 10
+    },
+    {
+      "cdna_pos": "c.1174-1176",
+      "chr": "chr17",
+      "chr_positions": "g.7572933-7572935",
+      "domains": {},
+      "protein_pos": 392,
+      "ref_aa": "S",
+      "ref_aa_triplet": "Ser",
+      "ref_codon": "TCA",
+      "strand": "-",
+      "sw_coverage": 0.5714285714285714,
+      "sw_dn_ds": 0.5301204819277109,
+      "sw_size": 10
+    },
+    {
+      "cdna_pos": "c.1177-1179",
+      "chr": "chr17",
+      "chr_positions": "g.7572930-7572932",
+      "domains": {},
+      "protein_pos": 393,
+      "ref_aa": "D",
+      "ref_aa_triplet": "Asp",
+      "ref_codon": "GAC",
+      "strand": "-",
+      "sw_coverage": 0.5238095238095238,
+      "sw_dn_ds": 0.5526315789473685,
+      "sw_size": 10
+    }
+  ],
+  "protein_ac": "P04637",
+  "refseq_ids": [
+    "NM_000546.5",
+    "NM_001126112.2",
+    "NM_001126118.1",
+    "NM_001276760.1",
+    "NM_001276761.1"
+  ],
+  "transcript_id": "ENST00000269305.4"
+}
