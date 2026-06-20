@@ -1,0 +1,51 @@
+name: metadome-link
+
+services:
+  metadome-link:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: production
+    container_name: metadome-link
+    ports:
+      - "${METADOME_LINK_HOST_PORT:-8000}:8000"
+    env_file:
+      - path: ../.env
+        required: false
+      - path: ../.env.docker
+        required: false
+    environment:
+      METADOME_LINK_TRANSPORT: unified
+      METADOME_LINK_HOST: 0.0.0.0
+      METADOME_LINK_PORT: "8000"
+      METADOME_LINK_MCP_PATH: /mcp
+      METADOME_LINK_LOG_LEVEL: INFO
+      METADOME_LINK_LOG_FORMAT: json
+      METADOME_LINK_CACHE__DB_PATH: /app/data/metadome_cache.sqlite
+    volumes:
+      # Persist the SQLite result cache across container restarts so already-
+      # computed tolerance landscapes are served instantly on repeat requests.
+      - metadome-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      # Short start-period: no bulk download needed; server starts immediately.
+      start_period: 30s
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - metadome-network
+
+volumes:
+  metadome-data:
+    driver: local
+
+networks:
+  metadome-network:
+    driver: bridge

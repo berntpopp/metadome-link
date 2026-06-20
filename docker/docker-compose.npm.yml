@@ -1,0 +1,81 @@
+# Nginx Proxy Manager deployment overlay for metadome-link.
+#
+# Self-contained (used standalone, not layered on docker-compose.yml): one
+# unified container serves the FastAPI REST API on / and the MCP streamable-HTTP
+# transport on /mcp via a single port (8000). NPM reverse-proxies to the fixed
+# container_name on the shared external npm_default network. Mirrors the
+# gtex-link / mgi-link fleet pattern.
+#
+#   docker compose -f docker/docker-compose.npm.yml --env-file .env.docker up -d --build
+name: metadome-link-npm
+
+services:
+  metadome_link:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: production
+    container_name: metadome-link-npm
+    # NO published host ports — NPM handles all routing via the container name.
+    expose:
+      - "8000"
+    environment:
+      - METADOME_LINK_TRANSPORT=unified
+      - METADOME_LINK_HOST=0.0.0.0
+      - METADOME_LINK_PORT=8000
+      - METADOME_LINK_MCP_PATH=/mcp
+      - METADOME_LINK_LOG_LEVEL=${LOG_LEVEL_API:-INFO}
+      - METADOME_LINK_LOG_FORMAT=json
+      - METADOME_LINK_CACHE__DB_PATH=/app/data/metadome_cache.sqlite
+    # The ENTRYPOINT sets up the data dir and exec's the unified server.
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      # No bulk download needed; server starts immediately after uvicorn binds.
+      start_period: 30s
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      # Scratch space for Python / uvicorn runtime temporaries.
+      - /tmp/metadome-link:rw,noexec,nosuid,size=64m,mode=1777
+    volumes:
+      # Persist the SQLite result cache across container restarts.
+      - metadome-data:/app/data
+    networks:
+      - metadome_link_internal_net
+      - npm_proxy_network
+    deploy:
+      resources:
+        limits:
+          memory: ${METADOME_API_MEMORY_LIMIT:-512m}
+          cpus: ${METADOME_API_CPU_LIMIT:-1.0}
+          pids: 256
+        reservations:
+          memory: 128m
+          cpus: 0.25
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+        labels: "service=metadome-link,environment=production,proxy=npm"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    init: true
+
+volumes:
+  metadome-data:
+    driver: local
+
+networks:
+  metadome_link_internal_net:
+    driver: bridge
+    name: metadome_link_internal_net
+  npm_proxy_network:
+    external: true
+    name: ${NPM_SHARED_NETWORK_NAME:-npm_default}
