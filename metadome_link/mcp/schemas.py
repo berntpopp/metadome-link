@@ -113,9 +113,10 @@ _INTOLERANT_REGION = {
         "stop": _INT,
         "length": _INT,
         "mean_sw_dn_ds": _NUM_NULL,
-        "domain_ids": _ARR,
-        "variant_count_total": _INT,
-        "rank": _INT,
+        "min_sw_dn_ds": _NUM_NULL,
+        "domains": _ARR,
+        "gnomad_variant_count": _INT,
+        "clinvar_variant_count": _INT,
     },
 }
 
@@ -195,24 +196,20 @@ GET_VARIANT_COUNTS_SCHEMA = _envelope(
 
 COMPARE_POSITIONS_SCHEMA = _envelope(
     transcript_id=_STR,
-    positions_requested=_INT,
-    results={"type": "array", "items": _OBJ},
+    comparison={"type": "array", "items": _OBJ},
 )
 
 GET_PROTEIN_DOMAINS_SCHEMA = _envelope(
     transcript_id=_STR,
     gene_name=_STR_NULL,
-    domain_count=_INT,
     domains={"type": "array", "items": _DOMAIN_ENTRY},
 )
 
 GET_META_DOMAIN_SCHEMA = _envelope(
     transcript_id=_STR,
-    protein_pos=_INT,
-    domains=_OBJ,
-    total_normal_variants=_INT,
-    total_pathogenic_variants=_INT,
-    pagination=_PAGINATION_BLOCK,
+    protein_position=_INT,
+    requested_domains=_OBJ,
+    meta_domains=_OBJ,
 )
 
 SUMMARIZE_INTOLERANT_REGIONS_SCHEMA = _envelope(
