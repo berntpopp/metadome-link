@@ -36,3 +36,4 @@ data/
 
 # SDD scratch (progress ledger)
 .superpowers/
+.env.docker
