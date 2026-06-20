@@ -58,9 +58,7 @@ DomainsArg = Annotated[
 ]
 
 
-def _after_get_protein_domains(
-    transcript_id: str, payload: dict[str, Any]
-) -> list[dict[str, Any]]:
+def _after_get_protein_domains(transcript_id: str, payload: dict[str, Any]) -> list[dict[str, Any]]:
     """Next steps after listing Pfam domains: drill into a domain's meta-domain.
 
     Picks the first metadomain-bearing Pfam domain (if any) and offers a
@@ -117,9 +115,7 @@ def _after_get_meta_domain(
                         break
             if steps:
                 break
-    steps.append(
-        cmd("get_position_tolerance", transcript_id=transcript_id, position=position)
-    )
+    steps.append(cmd("get_position_tolerance", transcript_id=transcript_id, position=position))
     steps.append(cmd("get_protein_domains", transcript_id=transcript_id))
     return steps
 
@@ -147,11 +143,9 @@ def register_domain_tools(mcp: FastMCP) -> None:
     ) -> dict[str, Any]:
         async def call() -> dict[str, Any]:
             service = get_metadome_service()
-            payload = await service.get_domains(
-                transcript_id, response_mode=response_mode
-            )
-            payload.setdefault("_meta", {})["next_commands"] = (
-                _after_get_protein_domains(transcript_id, payload)
+            payload = await service.get_domains(transcript_id, response_mode=response_mode)
+            payload.setdefault("_meta", {})["next_commands"] = _after_get_protein_domains(
+                transcript_id, payload
             )
             return payload
 

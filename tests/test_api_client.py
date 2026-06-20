@@ -56,8 +56,7 @@ async def test_get_transcripts_parses_typo_key_and_splits_refseq() -> None:
     out = await client.get_transcripts("TP53")
 
     assert any(
-        t["gencode_id"] == TID and t["has_protein_data"] and t["aa_length"] == 393
-        for t in out
+        t["gencode_id"] == TID and t["has_protein_data"] and t["aa_length"] == 393 for t in out
     )
     canonical = next(t for t in out if t["gencode_id"] == TID)
     assert isinstance(canonical["refseq_ids"], list)
@@ -74,9 +73,7 @@ async def test_get_transcripts_parses_typo_key_and_splits_refseq() -> None:
 async def test_unknown_gene_returns_empty_list() -> None:
     """Unknown gene is HTTP 200 with an empty list -> [] (does not raise)."""
     respx.get(f"{BASE}/get_transcripts/NOSUCHGENE").mock(
-        return_value=httpx.Response(
-            200, json={"message": "No transcripts...", "trancript_ids": []}
-        )
+        return_value=httpx.Response(200, json={"message": "No transcripts...", "trancript_ids": []})
     )
     client = MetaDomeClient()
     assert await client.get_transcripts("NOSUCHGENE") == []

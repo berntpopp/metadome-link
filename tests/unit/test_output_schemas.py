@@ -81,17 +81,17 @@ _SUCCESS_ARGS: dict[str, dict[str, Any]] = {
 # Each produces a recognised error envelope (success=False, valid error_code).
 # Tools that have no meaningful remote-error path use the bad_tid trick.
 _ERROR_ARGS: dict[str, dict[str, Any]] = {
-    "get_server_capabilities": {},   # no error path; re-use success (see special handling)
-    "get_diagnostics": {},           # no error path; re-use success
-    "resolve_transcript": {"query": _BAD_TID},          # invalid_input (unversioned ENST)
+    "get_server_capabilities": {},  # no error path; re-use success (see special handling)
+    "get_diagnostics": {},  # no error path; re-use success
+    "resolve_transcript": {"query": _BAD_TID},  # invalid_input (unversioned ENST)
     "request_tolerance_landscape": {"transcript_id": _BAD_TID},  # invalid_input
-    "get_tolerance_landscape": {"transcript_id": _BAD_TID},      # invalid_input
+    "get_tolerance_landscape": {"transcript_id": _BAD_TID},  # invalid_input
     "get_position_tolerance": {"transcript_id": _TID, "position": 9999},  # invalid_input (OOB)
     "get_variant_counts": {"transcript_id": _TID, "position": 35, "source": "bogus"},  # invalid
     "compare_positions": {"transcript_id": _BAD_TID, "positions": [35, 175]},  # invalid_input
-    "get_protein_domains": {"transcript_id": _BAD_TID},            # invalid_input
+    "get_protein_domains": {"transcript_id": _BAD_TID},  # invalid_input
     "get_meta_domain": {"transcript_id": _BAD_TID, "position": 1},  # invalid_input
-    "summarize_intolerant_regions": {"transcript_id": _BAD_TID},    # invalid_input
+    "summarize_intolerant_regions": {"transcript_id": _BAD_TID},  # invalid_input
 }
 
 # ── Tools whose "error" scenario is just the success path repeated ──────────
@@ -113,6 +113,7 @@ def _assert_valid(tool: str, output: Any) -> None:
 # ═══════════════════════════════════════════════════════════════════════════
 # Success-path parametrize tests
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 @pytest.mark.parametrize("tool_name", list(_TOOL_SCHEMAS.keys()))
 @pytest.mark.parametrize("mode", _RESPONSE_MODES)
@@ -136,6 +137,7 @@ async def test_output_schema_success_path(
 # ═══════════════════════════════════════════════════════════════════════════
 # Forced-error path parametrize tests
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 @pytest.mark.parametrize("tool_name", list(_TOOL_SCHEMAS.keys()))
 @pytest.mark.parametrize("mode", _RESPONSE_MODES)

@@ -141,9 +141,7 @@ async def test_resolve_unknown_gene_returns_not_found(
 # ---------------------------------------------------------------------------
 
 
-async def test_resolve_minimal_mode_drops_next_commands(
-    facade: object, call_tool: object
-) -> None:
+async def test_resolve_minimal_mode_drops_next_commands(facade: object, call_tool: object) -> None:
     """response_mode=minimal strips next_commands from _meta."""
     data = await call_tool(  # type: ignore[operator]
         facade, "resolve_transcript", {"query": "TP53", "response_mode": "minimal"}

@@ -124,9 +124,7 @@ async def test_get_variant_counts_bad_source_invalid_input(
     assert data["error_code"] == "invalid_input"
 
 
-async def test_compare_positions_table(
-    facade: Any, call_tool: Any, mocked_metadome: Any
-) -> None:
+async def test_compare_positions_table(facade: Any, call_tool: Any, mocked_metadome: Any) -> None:
     """compare_positions returns one row per requested position."""
     data = await call_tool(
         facade,

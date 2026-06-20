@@ -86,9 +86,7 @@ def mocked_metadome() -> Iterator[respx.MockRouter]:
         router.get(f"/result/{TID}/").mock(
             return_value=httpx.Response(200, json=_load("result_TP53.json"))
         )
-        router.get(f"/error/{TID}/").mock(
-            return_value=httpx.Response(200, json={"error": "stub"})
-        )
+        router.get(f"/error/{TID}/").mock(return_value=httpx.Response(200, json={"error": "stub"}))
         router.post("/get_metadomain_annotation/").mock(
             return_value=httpx.Response(200, json=_load("metadomain_p175.json"))
         )

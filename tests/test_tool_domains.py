@@ -37,9 +37,7 @@ async def test_get_protein_domains_returns_pfam_list(facade: Any, call_tool: Any
     assert data["_meta"]["next_commands"]
 
 
-async def test_get_meta_domain_derives_request_when_omitted(
-    facade: Any, call_tool: Any
-) -> None:
+async def test_get_meta_domain_derives_request_when_omitted(facade: Any, call_tool: Any) -> None:
     """get_meta_domain(p.175) with domains omitted derives the request from the residue."""
     data = await call_tool(
         facade,
@@ -84,9 +82,7 @@ async def test_get_meta_domain_non_metadomain_position_empty_not_error(
     assert "error_code" not in data
 
 
-async def test_get_meta_domain_explicit_domains_paginates(
-    facade: Any, call_tool: Any
-) -> None:
+async def test_get_meta_domain_explicit_domains_paginates(facade: Any, call_tool: Any) -> None:
     """Explicit domains + limit=1 returns one variant per list and a pagination block."""
     data = await call_tool(
         facade,

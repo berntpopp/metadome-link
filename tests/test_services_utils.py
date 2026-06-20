@@ -221,8 +221,8 @@ def test_char_budget_guard_over_budget_truncates_lists_and_injects_summary() -> 
 
     payload = {
         "transcript_id": "ENST00000269305.4",
-        "positions": list(range(500)),   # big list
-        "domains": list(range(50)),       # another list
+        "positions": list(range(500)),  # big list
+        "domains": list(range(50)),  # another list
     }
     result = char_budget_guard(payload, max_chars=200)
 

@@ -65,9 +65,7 @@ def shape_record(record: dict[str, Any], mode: str) -> dict[str, Any]:
     return out
 
 
-def select_fields(
-    payload: dict[str, Any], fields: list[str] | None
-) -> dict[str, Any]:
+def select_fields(payload: dict[str, Any], fields: list[str] | None) -> dict[str, Any]:
     """Project a payload to a caller-requested sparse fieldset.
 
     Identity/grounding anchors (``transcript_id``, ``gene_name``,
@@ -93,9 +91,7 @@ def select_fields(
     return out
 
 
-def char_budget_guard(
-    payload: dict[str, Any], *, max_chars: int
-) -> dict[str, Any]:
+def char_budget_guard(payload: dict[str, Any], *, max_chars: int) -> dict[str, Any]:
     """Truncate list fields until the serialised payload fits within *max_chars*.
 
     When over budget the function iteratively removes items from the longest

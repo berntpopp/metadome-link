@@ -41,6 +41,7 @@ EXPECTED_RESOURCE_URIS: list[str] = [
 # Resource content tests
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 @pytest.mark.parametrize("uri", EXPECTED_RESOURCE_URIS)
 async def test_resource_returns_non_empty_content(
     uri: str,
@@ -121,6 +122,7 @@ async def test_reference_resource_contains_error_codes(facade: Any) -> None:
 # ═══════════════════════════════════════════════════════════════════════════
 # Tool-registry parity tests
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 async def test_build_capabilities_tools_matches_facade_list_tools(facade: Any) -> None:
     """build_capabilities()['tools'] must match the facade's list_tools() exactly."""

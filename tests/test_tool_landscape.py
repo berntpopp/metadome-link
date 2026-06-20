@@ -33,9 +33,7 @@ def _load(name: str) -> Any:
 
 async def test_request_landscape_ready(facade: Any, call_tool: Any) -> None:
     """A pre-built transcript returns status='ready' with the poll handle + chain."""
-    data = await call_tool(
-        facade, "request_tolerance_landscape", {"transcript_id": TID}
-    )
+    data = await call_tool(facade, "request_tolerance_landscape", {"transcript_id": TID})
     assert data["success"] is True
     assert data["status"] == "ready"
     assert data["job_id"] == TID
@@ -44,8 +42,7 @@ async def test_request_landscape_ready(facade: Any, call_tool: Any) -> None:
     # The success chain points at the poll tool keyed on the same transcript.
     steps = data["_meta"]["next_commands"]
     assert any(
-        s["tool"] == "get_tolerance_landscape"
-        and s["arguments"].get("transcript_id") == TID
+        s["tool"] == "get_tolerance_landscape" and s["arguments"].get("transcript_id") == TID
         for s in steps
     )
     assert data["_meta"]["data_versions"]["assembly"] == "GRCh37"
@@ -58,9 +55,7 @@ async def test_request_landscape_processing(
     mocked_metadome.get(f"/status/{TID}/").mock(
         return_value=httpx.Response(200, json={"status": "PENDING"})
     )
-    data = await call_tool(
-        facade, "request_tolerance_landscape", {"transcript_id": TID}
-    )
+    data = await call_tool(facade, "request_tolerance_landscape", {"transcript_id": TID})
     assert data["success"] is True
     assert data["status"] == "processing"
     assert data["poll_after_s"] is not None
@@ -77,16 +72,12 @@ async def test_request_landscape_failure_is_upstream_unavailable(
     mocked_metadome.get(f"/error/{TID}/").mock(
         return_value=httpx.Response(200, json={"error": "boom"})
     )
-    data = await call_tool(
-        facade, "request_tolerance_landscape", {"transcript_id": TID}
-    )
+    data = await call_tool(facade, "request_tolerance_landscape", {"transcript_id": TID})
     assert data["success"] is False
     assert data["error_code"] == "upstream_unavailable"
 
 
-async def test_request_landscape_bad_id_is_invalid_input(
-    facade: Any, call_tool: Any
-) -> None:
+async def test_request_landscape_bad_id_is_invalid_input(facade: Any, call_tool: Any) -> None:
     """An unversioned ENST id fails locally as invalid_input."""
     data = await call_tool(
         facade, "request_tolerance_landscape", {"transcript_id": "ENST00000269305"}
@@ -122,9 +113,7 @@ async def test_get_landscape_ready_returns_domains_and_positions(
     assert "get_protein_domains" in tools
 
 
-async def test_get_landscape_pagination_truncates(
-    facade: Any, call_tool: Any
-) -> None:
+async def test_get_landscape_pagination_truncates(facade: Any, call_tool: Any) -> None:
     """A small limit truncates the page and exposes a forward-page next_command."""
     data = await call_tool(
         facade,
@@ -140,14 +129,11 @@ async def test_get_landscape_pagination_truncates(
     # The truncated page offers a paging step on the same tool.
     steps = data["_meta"]["next_commands"]
     assert any(
-        s["tool"] == "get_tolerance_landscape" and s["arguments"].get("offset") == 5
-        for s in steps
+        s["tool"] == "get_tolerance_landscape" and s["arguments"].get("offset") == 5 for s in steps
     )
 
 
-async def test_get_landscape_slice_by_position_range(
-    facade: Any, call_tool: Any
-) -> None:
+async def test_get_landscape_slice_by_position_range(facade: Any, call_tool: Any) -> None:
     """position_start/stop slices the landscape to the requested inclusive range."""
     data = await call_tool(
         facade,
@@ -183,8 +169,7 @@ async def test_get_landscape_processing_state(
     # next_commands re-suggests this same tool (poll self).
     steps = data["_meta"]["next_commands"]
     assert any(
-        s["tool"] == "get_tolerance_landscape"
-        and s["arguments"].get("transcript_id") == TID
+        s["tool"] == "get_tolerance_landscape" and s["arguments"].get("transcript_id") == TID
         for s in steps
     )
 
@@ -209,20 +194,14 @@ async def test_get_landscape_failure_is_upstream_unavailable(
     assert data["error_code"] == "upstream_unavailable"
 
 
-async def test_get_landscape_bad_id_is_invalid_input(
-    facade: Any, call_tool: Any
-) -> None:
+async def test_get_landscape_bad_id_is_invalid_input(facade: Any, call_tool: Any) -> None:
     """An unversioned ENST id fails locally as invalid_input."""
-    data = await call_tool(
-        facade, "get_tolerance_landscape", {"transcript_id": "not-an-enst"}
-    )
+    data = await call_tool(facade, "get_tolerance_landscape", {"transcript_id": "not-an-enst"})
     assert data["success"] is False
     assert data["error_code"] == "invalid_input"
 
 
-async def test_get_landscape_position_below_one_rejected(
-    facade: Any, call_tool: Any
-) -> None:
+async def test_get_landscape_position_below_one_rejected(facade: Any, call_tool: Any) -> None:
     """position_start below 1 is rejected by the ge=1 arg constraint."""
     data = await call_tool(
         facade,
@@ -233,9 +212,7 @@ async def test_get_landscape_position_below_one_rejected(
     assert data["error_code"] == "invalid_input"
 
 
-async def test_get_landscape_minimal_mode_drops_next_commands(
-    facade: Any, call_tool: Any
-) -> None:
+async def test_get_landscape_minimal_mode_drops_next_commands(facade: Any, call_tool: Any) -> None:
     """response_mode='minimal' is the documented opt-out from next_commands."""
     data = await call_tool(
         facade,

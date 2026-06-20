@@ -73,9 +73,7 @@ async def test_summarize_intolerant_regions_mean_below_threshold(
         )
 
 
-async def test_summarize_intolerant_regions_domain_overlap(
-    facade: Any, call_tool: Any
-) -> None:
+async def test_summarize_intolerant_regions_domain_overlap(facade: Any, call_tool: Any) -> None:
     """At least one region overlaps PF00870 (the p53 DNA-binding domain, aa 95-288)."""
     data = await call_tool(
         facade,
@@ -90,9 +88,7 @@ async def test_summarize_intolerant_regions_domain_overlap(
     )
 
 
-async def test_summarize_intolerant_regions_counts_present(
-    facade: Any, call_tool: Any
-) -> None:
+async def test_summarize_intolerant_regions_counts_present(facade: Any, call_tool: Any) -> None:
     """Every region carries gnomad_variant_count and clinvar_variant_count."""
     data = await call_tool(
         facade,
@@ -121,9 +117,7 @@ async def test_summarize_intolerant_regions_recommended_citation(
     assert data["recommended_citation"]
 
 
-async def test_summarize_intolerant_regions_meta_next_commands(
-    facade: Any, call_tool: Any
-) -> None:
+async def test_summarize_intolerant_regions_meta_next_commands(facade: Any, call_tool: Any) -> None:
     """compact response_mode includes _meta.next_commands."""
     data = await call_tool(
         facade,
@@ -137,9 +131,7 @@ async def test_summarize_intolerant_regions_meta_next_commands(
     assert len(meta["next_commands"]) >= 1
 
 
-async def test_summarize_intolerant_regions_region_fields(
-    facade: Any, call_tool: Any
-) -> None:
+async def test_summarize_intolerant_regions_region_fields(facade: Any, call_tool: Any) -> None:
     """Each region entry carries the required structural fields."""
     data = await call_tool(
         facade,
@@ -173,9 +165,7 @@ async def test_summarize_intolerant_regions_top_n_one(facade: Any, call_tool: An
     assert len(data["regions"]) <= 1
 
 
-async def test_summarize_intolerant_regions_respects_min_run(
-    facade: Any, call_tool: Any
-) -> None:
+async def test_summarize_intolerant_regions_respects_min_run(facade: Any, call_tool: Any) -> None:
     """min_run=6 excludes the p.173-177 run (length 5); returns no regions."""
     data = await call_tool(
         facade,
@@ -193,9 +183,7 @@ async def test_summarize_intolerant_regions_respects_min_run(
     )
 
 
-async def test_summarize_intolerant_regions_ranked_ascending(
-    facade: Any, call_tool: Any
-) -> None:
+async def test_summarize_intolerant_regions_ranked_ascending(facade: Any, call_tool: Any) -> None:
     """Regions are ranked by mean_sw_dn_ds ascending (most constrained first)."""
     data = await call_tool(
         facade,
@@ -212,9 +200,7 @@ async def test_summarize_intolerant_regions_ranked_ascending(
 # ---------------------------------------------------------------------------
 
 
-async def test_summarize_intolerant_regions_envelope_fields(
-    facade: Any, call_tool: Any
-) -> None:
+async def test_summarize_intolerant_regions_envelope_fields(facade: Any, call_tool: Any) -> None:
     """Payload includes threshold, min_run, top_n echo and region_count."""
     data = await call_tool(
         facade,

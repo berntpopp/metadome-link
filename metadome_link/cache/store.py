@@ -36,6 +36,7 @@ from metadome_link.constants import METADOME_DATA_VERSION
 # TTLCache
 # ---------------------------------------------------------------------------
 
+
 class TTLCache[K, V]:
     """A generic in-memory LRU cache with per-entry TTL expiry.
 
@@ -147,15 +148,11 @@ class ResultCache:
     ) -> None:
         """Open (or create) the SQLite database and the in-memory LRU layer."""
         self._db_path = db_path if db_path is not None else settings.cache.db_path
-        self._data_version = (
-            data_version if data_version is not None else METADOME_DATA_VERSION
-        )
+        self._data_version = data_version if data_version is not None else METADOME_DATA_VERSION
         _maxsize = lru_maxsize if lru_maxsize is not None else settings.cache.lru_results
         # LRU entries live indefinitely (no TTL on disk entries — disk is the
         # authoritative source; LRU is purely an acceleration layer).
-        self._lru: TTLCache[str, dict[str, Any]] = TTLCache(
-            maxsize=_maxsize, ttl=float("inf")
-        )
+        self._lru: TTLCache[str, dict[str, Any]] = TTLCache(maxsize=_maxsize, ttl=float("inf"))
         self._closed = False
 
         # Ensure parent directory exists

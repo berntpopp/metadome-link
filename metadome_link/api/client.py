@@ -191,9 +191,7 @@ class MetaDomeClient:
             )
         if status == 429:
             raise RateLimitedError("MetaDome rate limit hit.", retryable=True)
-        raise UpstreamUnavailableError(
-            f"MetaDome upstream error (HTTP {status}).", retryable=True
-        )
+        raise UpstreamUnavailableError(f"MetaDome upstream error (HTTP {status}).", retryable=True)
 
     async def _get_json(self, path: str) -> Any:
         """GET ``base_url + path`` and return parsed JSON (status mapped first)."""

@@ -94,9 +94,7 @@ def register_landscape_tools(mcp: FastMCP) -> None:
     ) -> dict[str, Any]:
         async def call() -> dict[str, Any]:
             service = get_metadome_service()
-            payload = await service.request_landscape(
-                transcript_id, response_mode=response_mode
-            )
+            payload = await service.request_landscape(transcript_id, response_mode=response_mode)
             payload.setdefault("_meta", {})["next_commands"] = after_request_landscape(
                 payload, transcript_id
             )

@@ -51,7 +51,9 @@ def _has_metadomain(payload: dict[str, Any]) -> bool:
     return bool(isinstance(domain_ids, list) and domain_ids)
 
 
-def after_position(payload: dict[str, Any], transcript_id: str, position: int) -> list[dict[str, Any]]:
+def after_position(
+    payload: dict[str, Any], transcript_id: str, position: int
+) -> list[dict[str, Any]]:
     """Success-path next steps for ``get_position_tolerance``.
 
     A residue inside a meta-domain leads naturally to ``get_meta_domain`` (the
@@ -225,9 +227,7 @@ def register_position_tools(mcp: FastMCP) -> None:
             payload = await service.compare_positions(
                 transcript_id, positions, response_mode=response_mode
             )
-            payload.setdefault("_meta", {})["next_commands"] = after_compare(
-                payload, transcript_id
-            )
+            payload.setdefault("_meta", {})["next_commands"] = after_compare(payload, transcript_id)
             return payload
 
         return await run_mcp_tool(
