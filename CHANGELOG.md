@@ -1,0 +1,52 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+## [0.1.0] - 2026-06-20
+
+### Added
+
+- Initial release of `metadome-link`.
+- **11 MCP tools** across 5 functional groups:
+  - Discovery: `get_server_capabilities`, `get_diagnostics`
+  - Transcripts: `resolve_transcript`
+  - Landscape: `request_tolerance_landscape`, `get_tolerance_landscape`
+  - Positions: `get_position_tolerance`, `get_variant_counts`, `compare_positions`
+  - Domains: `get_protein_domains`, `get_meta_domain`
+  - Analysis: `summarize_intolerant_regions`
+- Explicit async request + poll model for MetaDome Celery-backed landscape builds.
+  `status:"processing"` is a first-class success state carrying `poll_after_s` /
+  `eta_hint`; no tool ever hard-blocks.
+- On-disk SQLite result cache keyed `(transcript_id, metadome_data_version)`;
+  in-memory TTL/LRU cache for transcript lists.
+- Async httpx MetaDome client with token-bucket politeness limiter, jittered backoff,
+  and typed exception mapping.
+- Typed 7-code error taxonomy: `invalid_input`, `not_found`, `ambiguous_query`,
+  `data_unavailable`, `rate_limited`, `upstream_unavailable`, `internal_error`.
+- `response_mode` ∈ `minimal | compact | standard | full` (default `compact`);
+  `_meta.next_commands` on every `compact`+ response.
+- `_meta.data_versions` on every response (GRCh37 / Gencode v19 / gnomAD r2.0.2 /
+  ClinVar 2018-06-03 / Pfam 30.0).
+- `recommended_citation` (verbatim Wiel et al. 2019) on every record-derived payload.
+- Unified transport: FastAPI `/health` + MCP `/mcp` on port 8000; stdio and HTTP-only
+  transports also supported.
+- `metadome://` resource family: `capabilities`, `tools`, `usage`, `reference`,
+  `research-use`, `citation`.
+- Output-schema invariant test (`tests/unit/test_output_schemas.py`) validating every
+  tool's success and error output against its declared `output_schema` in all 4 modes.
+- CI: GitHub Actions `ci.yml` (quality gate), `docker.yml` (build validation),
+  `security.yml` (CodeQL + dependency review).
+- Docker: multi-stage `python:3.12-slim` image, non-root, unified server on `:8000`,
+  cache volume at `/app/data`, `docker-compose.yml` + `docker-compose.npm.yml` (production
+  nginx-proxy-manager overlay).
+- `metadome-link-cache` CLI: `status` / `clear` / `warm` subcommands.
+- Full documentation: `README.md`, `CHANGELOG.md`, `docs/architecture.md`,
+  `docs/deployment.md`, `docs/usage.md`, `docs/router-registration.md`.
+
+[Unreleased]: https://github.com/berntpopp/metadome-link/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/berntpopp/metadome-link/releases/tag/v0.1.0

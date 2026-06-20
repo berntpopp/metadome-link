@@ -44,3 +44,32 @@ make ci-local       # the full gate
 Research use only; not for clinical decision support. MetaDome data is GRCh37/hg19
 (gnomAD r2.0.2, ClinVar 2018-06-03) — historical; use live gnomAD/ClinVar for
 current data.
+
+## Two-plane invariants (non-negotiable)
+
+1. **Data plane returns plain dicts; MCP plane owns `success`/`_meta`.** Services raise typed
+   exceptions; `run_mcp_tool` catches and returns structured errors. Never build envelopes in
+   the data plane; never raise to the MCP client.
+2. **`_meta.data_versions` is ALWAYS present** in `compact`+ responses. This is the
+   GRCh37/hg19 data-currency caveat surface.
+3. **`_meta.next_commands` in every `compact`+ (default) response.** `minimal` explicitly
+   opts out.
+4. **7-code error taxonomy** (see `metadome_link/exceptions.py`): `invalid_input`,
+   `not_found`, `ambiguous_query`, `data_unavailable`, `rate_limited`,
+   `upstream_unavailable`, `internal_error`.
+5. **`status:"processing"` is a first-class success state** (`success:true`), never an error.
+   The poll loop never hard-blocks — soft deadline enforced.
+6. **Transcript ids require the `.N` version suffix** (`^ENST\d{11}\.\d+$`). Enforce in
+   `identifiers.validate_transcript_id`; never accept bare `ENST…` ids.
+7. **`capabilities.TOOLS` (11 names) must equal the registered tool set.** Enforced by
+   `tests/test_resources.py`.
+8. **Every tool's success and error output validates against its `output_schema`** — enforced
+   by `tests/unit/test_output_schemas.py` in all 4 response modes.
+
+## Documentation
+
+- `README.md` — full tool catalog + TP53 workflow example
+- `docs/architecture.md` — two-plane + async model + caching
+- `docs/deployment.md` — Docker + config reference
+- `docs/usage.md` — tool reference + workflows + error codes
+- `docs/router-registration.md` — `servers.yaml` entry + `GF_METADOME_URL`

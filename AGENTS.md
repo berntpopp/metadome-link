@@ -2,6 +2,9 @@
 
 Guidance for agents and contributors working in this repository.
 
+> **Task 17 (docs/router) complete as of 2026-06-20.** See `README.md` for the full tool
+> catalog and `docs/` for architecture, deployment, usage, and router-registration docs.
+
 ## What this is
 
 `metadome-link` is a read-only MCP + REST server that wraps the **MetaDome** web
@@ -113,3 +116,14 @@ server.py  mcp_server.py  scripts/check_file_size.py
 
 Research use only; not for clinical decision support, diagnosis, treatment, or
 patient management. MetaDome code is MIT; cite Wiel et al. 2019 (doi:10.1002/humu.23798).
+
+## Documentation index
+
+| Doc | Purpose |
+|-----|---------|
+| `README.md` | Full tool catalog (11 tools), quick start, TP53 example workflow, configuration, Docker, citation |
+| `docs/architecture.md` | Two-plane design, async request+poll model, caching, error taxonomy, envelope |
+| `docs/deployment.md` | Docker, configuration reference, unified transport, cache management |
+| `docs/usage.md` | Tool-by-tool reference, recommended workflows, response_mode tiers, error codes |
+| `docs/router-registration.md` | Exact `servers.yaml` entry, `GF_METADOME_URL`, verify commands |
+| `CHANGELOG.md` | Version history |
