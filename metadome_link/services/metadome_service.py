@@ -97,6 +97,11 @@ class MetaDomeService:
 
     # -- lifecycle -------------------------------------------------------------
 
+    @property
+    def cache(self) -> ResultCache:
+        """The on-disk :class:`ResultCache` (read-only handle for diagnostics)."""
+        return self._cache
+
     async def aclose(self) -> None:
         """Close the underlying client (idempotent)."""
         await self._client.aclose()
