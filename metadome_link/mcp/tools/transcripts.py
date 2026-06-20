@@ -1,17 +1,91 @@
 """Transcript-resolution tools (``resolve_transcript``).
 
-STUB: the concrete tool is registered in Task 9. This no-op keeps the facade
-importable and buildable in the meantime.
+Resolves a free-text gene symbol or versioned ENST id to MetaDome transcript
+candidate(s). Gene queries are sorted by ``aa_length`` descending and the
+longest protein-coding transcript is flagged ``canonical``. A bare ENST id is
+validated and echoed without an upstream call.
+
+After a successful gene resolution, ``_meta.next_commands`` includes
+``request_tolerance_landscape`` for the canonical transcript, steering the
+client straight into the two-step landscape workflow.
 """
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
+from metadome_link.mcp.envelope import McpErrorContext, run_mcp_tool
+from metadome_link.mcp.next_commands import cmd
+from metadome_link.mcp.schemas import RESOLVE_TRANSCRIPT_SCHEMA
+from metadome_link.mcp.service_adapters import get_metadome_service
+from metadome_link.mcp.tools._common import GeneOrIdArg, ResponseMode
 
 if TYPE_CHECKING:
     from fastmcp import FastMCP
 
 
+def after_resolve_transcript(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Build ``next_commands`` for a successful ``resolve_transcript`` response.
+
+    - **Gene path**: suggests ``request_tolerance_landscape`` for the canonical
+      transcript (the longest protein-coding entry), followed by
+      ``get_tolerance_landscape`` so the client can start the poll loop right away.
+    - **ID path**: same, using the echoed transcript id directly.
+    - Falls back to ``get_server_capabilities`` if no usable id is found.
+    """
+    # Gene path: canonical_transcript_id is set
+    canonical = payload.get("canonical_transcript_id")
+    if canonical:
+        return [
+            cmd("request_tolerance_landscape", transcript_id=canonical),
+            cmd("get_tolerance_landscape", transcript_id=canonical),
+        ]
+    # ID path: transcript_id is echoed
+    tid = payload.get("transcript_id")
+    if tid:
+        return [
+            cmd("request_tolerance_landscape", transcript_id=tid),
+            cmd("get_tolerance_landscape", transcript_id=tid),
+        ]
+    return [cmd("get_server_capabilities")]
+
+
 def register_transcript_tools(mcp: FastMCP) -> None:
-    """Register the transcript tools on a FastMCP instance (no-op stub, Task 9)."""
-    return None
+    """Register the transcript tools on a FastMCP instance."""
+
+    @mcp.tool(
+        name="resolve_transcript",
+        title="Resolve Gene or Transcript ID",
+        annotations=READ_ONLY_OPEN_WORLD,
+        output_schema=RESOLVE_TRANSCRIPT_SCHEMA,
+        tags={"transcripts"},
+        description=(
+            "Resolve a gene symbol or versioned Ensembl transcript id to MetaDome "
+            "GRCh37 transcript candidate(s). A gene symbol returns all transcripts "
+            "sorted by protein length (aa_length descending) with the longest "
+            "protein-coding entry flagged canonical. A bare ENST id (version suffix "
+            "required) is validated and echoed directly. Use the canonical_transcript_id "
+            "with request_tolerance_landscape to start a tolerance-landscape build. "
+            "Signature: resolve_transcript(query=, response_mode=)."
+        ),
+    )
+    async def resolve_transcript(
+        query: GeneOrIdArg,
+        response_mode: ResponseMode = "compact",
+    ) -> dict[str, Any]:
+        async def call() -> dict[str, Any]:
+            service = get_metadome_service()
+            payload = await service.resolve_transcript(query, response_mode=response_mode)
+            payload.setdefault("_meta", {})["next_commands"] = after_resolve_transcript(payload)
+            return payload
+
+        return await run_mcp_tool(
+            "resolve_transcript",
+            call,
+            context=McpErrorContext(
+                "resolve_transcript",
+                arguments={"query": query, "response_mode": response_mode},
+                response_mode=response_mode,
+            ),
+        )
