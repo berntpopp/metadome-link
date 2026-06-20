@@ -38,12 +38,15 @@ from metadome_link.identifiers import (
     validate_transcript_id,
 )
 from metadome_link.services.citation import recommended_citation
-from metadome_link.services.landscape import (
-    domains_for_position,
-    intolerant_runs,
-    position_to_entry,
-    slice_positions,
-    variant_counts_for,
+from metadome_link.services.landscape import slice_positions
+from metadome_link.services.landscape_views import (
+    compare_positions_view,
+    get_domains_view,
+    get_meta_domain_view,
+    get_position_view,
+    get_variant_counts_view,
+    resolve_meta_domain_request,
+    summarize_intolerant_regions_view,
 )
 from metadome_link.services.pagination import paginate
 from metadome_link.services.resolution import (
@@ -117,9 +120,7 @@ class MetaDomeService:
 
     # -- resolution ------------------------------------------------------------
 
-    async def resolve_transcript(
-        self, query: str, *, response_mode: str
-    ) -> dict[str, Any]:
+    async def resolve_transcript(self, query: str, *, response_mode: str) -> dict[str, Any]:
         """Resolve a gene symbol or ENST id to transcript candidate(s).
 
         A bare ``ENST...`` query is validated (``.N`` version required) and echoed
@@ -176,9 +177,7 @@ class MetaDomeService:
 
     # -- async landscape request ----------------------------------------------
 
-    async def request_landscape(
-        self, transcript_id: str, *, response_mode: str
-    ) -> dict[str, Any]:
+    async def request_landscape(self, transcript_id: str, *, response_mode: str) -> dict[str, Any]:
         """Submit a landscape build and report a job handle (endpoints 2 + 3).
 
         Idempotent: a re-submit of a built/running transcript is a fast no-op.
@@ -229,20 +228,11 @@ class MetaDomeService:
         """Return the (sliced/paginated) tolerance landscape; cache-first.
 
         On a cache miss, one soft-deadline ``poll_until_ready`` attempt runs:
-        ``ready`` caches the landscape and continues; ``processing`` returns a
-        first-class ``status: "processing"`` success dict; ``failed`` raises.
-
-        Returns (processing)::
-
-            {success: True, status: "processing", transcript_id, poll_after_s,
-             cold_build_warning, recommended_citation}
-
-        Returns (ready)::
-
-            {transcript_id, gene_name, protein_ac, refseq_ids, domains,
-             positional_annotation: [...], pagination: {total, returned, limit,
-             offset, truncated, next_offset}, data_currency_caveat,
-             recommended_citation}
+        ``ready`` caches the landscape and continues (returning the
+        gene/domains/``positional_annotation`` payload with a ``pagination``
+        block); ``processing`` returns a first-class ``status: "processing"``
+        success dict (``poll_after_s`` + ``cold_build_warning``); ``failed``
+        raises. See the payload construction below for the exact ready shape.
 
         Raises:
             InvalidInputError: A malformed/unversioned ENST id.
@@ -309,11 +299,8 @@ class MetaDomeService:
     ) -> dict[str, Any]:
         """Return one residue's tolerance + domain + variant-count context.
 
-        Returns the cached ``positional_annotation`` entry, augmented with a
-        ``counts`` block and ``recommended_citation``::
-
-            {protein_pos, ref_aa, sw_dn_ds, sw_coverage, ..., domains,
-             counts: {gnomad, clinvar}, transcript_id, recommended_citation}
+        Thin delegator over :func:`landscape_views.get_position_view` (see there
+        for the exact return shape).
 
         Raises:
             InvalidInputError: ``position`` is out of range (1-based bounds).
@@ -321,14 +308,7 @@ class MetaDomeService:
         """
         tid = validate_transcript_id(transcript_id)
         landscape = await self._require_landscape(tid)
-        entry = position_to_entry(landscape, position)
-        payload = dict(entry)
-        payload["transcript_id"] = tid
-        payload["counts"] = variant_counts_for(entry, "both")
-        payload["recommended_citation"] = recommended_citation(
-            transcript_id=tid, gene_name=landscape.get("gene_name")
-        )
-        return shape_record(payload, response_mode)
+        return get_position_view(landscape, tid, position, response_mode=response_mode)
 
     async def get_variant_counts(
         self,
@@ -344,13 +324,8 @@ class MetaDomeService:
 
         Accepts a single ``position`` OR a ``[position_start, position_stop]``
         range (defaulting to the whole protein when neither is given). The result
-        is paginated.
-
-        Returns::
-
-            {transcript_id, source, positions: [{protein_pos, ref_aa, sw_dn_ds,
-             counts: {gnomad?, clinvar?}, clinvar_variants?}], pagination{...},
-             data_currency_caveat, recommended_citation}
+        is paginated. Thin delegator over
+        :func:`landscape_views.get_variant_counts_view` (see there for the shape).
 
         Raises:
             InvalidInputError: A bad ``source`` or out-of-range ``position``.
@@ -363,43 +338,15 @@ class MetaDomeService:
             )
         tid = validate_transcript_id(transcript_id)
         landscape = await self._require_landscape(tid)
-
-        if position is not None:
-            entries = [position_to_entry(landscape, position)]
-        elif position_start is not None and position_stop is not None:
-            entries = slice_positions(landscape, position_start, position_stop)
-        else:
-            raw = landscape.get("positional_annotation")
-            entries = raw if isinstance(raw, list) else []
-
-        rows: list[dict[str, Any]] = []
-        for entry in entries:
-            row: dict[str, Any] = {
-                "protein_pos": entry.get("protein_pos"),
-                "ref_aa": entry.get("ref_aa"),
-                "sw_dn_ds": entry.get("sw_dn_ds"),
-                "counts": variant_counts_for(entry, source),
-            }
-            if source in ("both", "clinvar"):
-                clinvar = entry.get("ClinVar")
-                if isinstance(clinvar, list) and clinvar:
-                    row["clinvar_variants"] = [_clinvar_row(v) for v in clinvar]
-            rows.append(row)
-
-        # A single explicit position is returned whole (no pagination cap).
-        page_limit = len(rows) or 1 if position is not None else 200
-        page, block = paginate(rows, limit=page_limit, offset=0)
-        payload: dict[str, Any] = {
-            "transcript_id": tid,
-            "source": source,
-            "positions": page,
-            "pagination": block,
-            "data_currency_caveat": DATA_CURRENCY_CAVEAT,
-            "recommended_citation": recommended_citation(
-                transcript_id=tid, gene_name=landscape.get("gene_name")
-            ),
-        }
-        return shape_record(payload, response_mode)
+        return get_variant_counts_view(
+            landscape,
+            tid,
+            position=position,
+            position_start=position_start,
+            position_stop=position_stop,
+            source=source,
+            response_mode=response_mode,
+        )
 
     async def compare_positions(
         self, transcript_id: str, positions: list[int], *, response_mode: str
@@ -407,12 +354,8 @@ class MetaDomeService:
         """Return a side-by-side tolerance table for a batch of positions.
 
         Out-of-range positions get a per-item ``error`` row; the whole batch never
-        fails for one bad position.
-
-        Returns::
-
-            {transcript_id, comparison: [{protein_pos, ref_aa, sw_dn_ds, domains,
-             counts} | {protein_pos, error}], recommended_citation}
+        fails for one bad position. Thin delegator over
+        :func:`landscape_views.compare_positions_view` (see there for the shape).
 
         Raises:
             InvalidInputError: ``positions`` exceeds ``MAX_BATCH_POSITIONS``.
@@ -425,59 +368,21 @@ class MetaDomeService:
             )
         tid = validate_transcript_id(transcript_id)
         landscape = await self._require_landscape(tid)
-
-        comparison: list[dict[str, Any]] = []
-        for pos in positions:
-            try:
-                entry = position_to_entry(landscape, pos)
-            except InvalidInputError as exc:
-                comparison.append({"protein_pos": pos, "error": exc.message})
-                continue
-            comparison.append(
-                {
-                    "protein_pos": entry.get("protein_pos"),
-                    "ref_aa": entry.get("ref_aa"),
-                    "sw_dn_ds": entry.get("sw_dn_ds"),
-                    "domain_ids": sorted(_domain_ids(entry)),
-                    "counts": variant_counts_for(entry, "both"),
-                }
-            )
-        payload: dict[str, Any] = {
-            "transcript_id": tid,
-            "comparison": comparison,
-            "data_currency_caveat": DATA_CURRENCY_CAVEAT,
-            "recommended_citation": recommended_citation(
-                transcript_id=tid, gene_name=landscape.get("gene_name")
-            ),
-        }
-        return shape_record(payload, response_mode)
+        return compare_positions_view(landscape, tid, positions, response_mode=response_mode)
 
     # -- domains & meta-domains ------------------------------------------------
 
-    async def get_domains(
-        self, transcript_id: str, *, response_mode: str
-    ) -> dict[str, Any]:
+    async def get_domains(self, transcript_id: str, *, response_mode: str) -> dict[str, Any]:
         """Return the landscape's top-level Pfam ``domains[]``.
 
-        Returns::
-
-            {transcript_id, gene_name, domains: [{ID, Name, start, stop,
-             metadomain, meta_domain_alignment_depth}], recommended_citation}
+        Thin delegator over :func:`landscape_views.get_domains_view`.
 
         Raises:
             NotFoundError: The landscape is not built yet (``switch_tool``).
         """
         tid = validate_transcript_id(transcript_id)
         landscape = await self._require_landscape(tid)
-        payload: dict[str, Any] = {
-            "transcript_id": tid,
-            "gene_name": landscape.get("gene_name"),
-            "domains": landscape.get("domains", []),
-            "recommended_citation": recommended_citation(
-                transcript_id=tid, gene_name=landscape.get("gene_name")
-            ),
-        }
-        return shape_record(payload, response_mode)
+        return get_domains_view(landscape, tid, response_mode=response_mode)
 
     async def get_meta_domain(
         self,
@@ -493,14 +398,9 @@ class MetaDomeService:
 
         When ``domains`` (``{PF: [consensus_pos]}``) is omitted it is derived from
         the cached residue's ``domains`` map. A residue with no meta-domain
-        mapping returns empty ``meta_domains`` (not an error).
-
-        Returns::
-
-            {transcript_id, protein_position, requested_domains,
-             meta_domains: {PF: {alignment_depth, normal_variants: [...],
-             pathogenic_variants: [...], pagination?}}, data_currency_caveat,
-             recommended_citation}
+        mapping returns empty ``meta_domains`` (not an error). The client call
+        stays here; shaping is delegated to
+        :func:`landscape_views.get_meta_domain_view` (see there for the shape).
 
         Raises:
             InvalidInputError: ``position`` is out of range.
@@ -508,45 +408,20 @@ class MetaDomeService:
         """
         tid = validate_transcript_id(transcript_id)
         landscape = await self._require_landscape(tid)
-        requested = domains if domains else domains_for_position(landscape, position)
-
-        meta_domains: dict[str, Any] = {}
+        requested = resolve_meta_domain_request(landscape, position, domains)
+        raw: dict[str, Any] = {}
         if requested:
             raw = await self._client.get_metadomain_annotation(tid, position, requested)
-            for pfam_id, block in raw.items():
-                if not isinstance(block, dict):
-                    continue
-                normal = block.get("normal_variants")
-                patho = block.get("pathogenic_variants")
-                normal_list = normal if isinstance(normal, list) else []
-                patho_list = patho if isinstance(patho, list) else []
-                normal_page, normal_block = paginate(
-                    normal_list, limit=limit, offset=offset
-                )
-                patho_page, patho_block = paginate(
-                    patho_list, limit=limit, offset=offset
-                )
-                meta_domains[pfam_id] = {
-                    "alignment_depth": block.get("alignment_depth"),
-                    "normal_variants": normal_page,
-                    "pathogenic_variants": patho_page,
-                    "pagination": {
-                        "normal_variants": normal_block,
-                        "pathogenic_variants": patho_block,
-                    },
-                }
-
-        payload: dict[str, Any] = {
-            "transcript_id": tid,
-            "protein_position": position,
-            "requested_domains": requested,
-            "meta_domains": meta_domains,
-            "data_currency_caveat": DATA_CURRENCY_CAVEAT,
-            "recommended_citation": recommended_citation(
-                transcript_id=tid, gene_name=landscape.get("gene_name")
-            ),
-        }
-        return shape_record(payload, response_mode)
+        return get_meta_domain_view(
+            landscape,
+            tid,
+            position,
+            requested,
+            raw,
+            limit=limit,
+            offset=offset,
+            response_mode=response_mode,
+        )
 
     # -- analysis --------------------------------------------------------------
 
@@ -563,51 +438,22 @@ class MetaDomeService:
 
         Each region is the mean-``sw_dn_ds``-ranked run of consecutive residues
         below ``threshold`` (length >= ``min_run``), annotated with overlapping
-        Pfam domain ids and aggregate variant counts.
-
-        Returns::
-
-            {transcript_id, gene_name, threshold, min_run, top_n,
-             regions: [{start, stop, length, mean_sw_dn_ds, min_sw_dn_ds,
-             domains: [PF...], gnomad_variant_count, clinvar_variant_count}],
-             recommended_citation}
+        Pfam domain ids and aggregate variant counts. Thin delegator over
+        :func:`landscape_views.summarize_intolerant_regions_view`.
 
         Raises:
             NotFoundError: The landscape is not built yet (``switch_tool``).
         """
         tid = validate_transcript_id(transcript_id)
         landscape = await self._require_landscape(tid)
-        runs = intolerant_runs(landscape, threshold, min_run, top_n)
-        domains = landscape.get("domains")
-        domain_spans = domains if isinstance(domains, list) else []
-
-        regions: list[dict[str, Any]] = []
-        for run in runs:
-            overlapping = sorted(_overlapping_domains(domain_spans, run["start"], run["stop"]))
-            gnomad_total, clinvar_total = _region_counts(
-                landscape, run["start"], run["stop"]
-            )
-            regions.append(
-                {
-                    **run,
-                    "domains": overlapping,
-                    "gnomad_variant_count": gnomad_total,
-                    "clinvar_variant_count": clinvar_total,
-                }
-            )
-        payload: dict[str, Any] = {
-            "transcript_id": tid,
-            "gene_name": landscape.get("gene_name"),
-            "threshold": threshold,
-            "min_run": min_run,
-            "top_n": top_n,
-            "regions": regions,
-            "data_currency_caveat": DATA_CURRENCY_CAVEAT,
-            "recommended_citation": recommended_citation(
-                transcript_id=tid, gene_name=landscape.get("gene_name")
-            ),
-        }
-        return shape_record(payload, response_mode)
+        return summarize_intolerant_regions_view(
+            landscape,
+            tid,
+            threshold=threshold,
+            min_run=min_run,
+            top_n=top_n,
+            response_mode=response_mode,
+        )
 
     # -- internals -------------------------------------------------------------
 
@@ -651,53 +497,3 @@ class MetaDomeService:
                 },
             ],
         )
-
-
-def _domain_ids(entry: dict[str, Any]) -> set[str]:
-    """Return the set of Pfam ids covering a residue (from its ``domains`` map)."""
-    domains = entry.get("domains")
-    if isinstance(domains, dict):
-        return {str(k) for k in domains}
-    return set()
-
-
-def _overlapping_domains(
-    domain_spans: list[dict[str, Any]], start: int, stop: int
-) -> set[str]:
-    """Return Pfam ids whose ``[start, stop]`` span overlaps ``[start, stop]``."""
-    out: set[str] = set()
-    for domain in domain_spans:
-        d_start = domain.get("start")
-        d_stop = domain.get("stop")
-        d_id = domain.get("ID")
-        if (
-            isinstance(d_start, int)
-            and isinstance(d_stop, int)
-            and isinstance(d_id, str)
-            and d_start <= stop
-            and d_stop >= start
-        ):
-            out.add(d_id)
-    return out
-
-
-def _region_counts(
-    landscape: dict[str, Any], start: int, stop: int
-) -> tuple[int, int]:
-    """Sum gnomAD + ClinVar variant counts across the residues of a region."""
-    gnomad_total = 0
-    clinvar_total = 0
-    for entry in slice_positions(landscape, start, stop):
-        counts = variant_counts_for(entry, "both")
-        gnomad_total += int(counts.get("gnomad", {}).get("variant_count", 0))
-        clinvar_total += int(counts.get("clinvar", {}).get("variant_count", 0))
-    return gnomad_total, clinvar_total
-
-
-def _clinvar_row(variant: dict[str, Any]) -> dict[str, Any]:
-    """Project a ``/result/`` ClinVar entry + add the NCBI variation URL."""
-    row = dict(variant)
-    cid = variant.get("clinvar_ID")
-    if isinstance(cid, str) and cid:
-        row["url"] = f"https://www.ncbi.nlm.nih.gov/clinvar/variation/{cid}/"
-    return row

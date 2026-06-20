@@ -72,9 +72,7 @@ def position_to_entry(landscape: dict[str, Any], pos: int) -> dict[str, Any]:
     )
 
 
-def slice_positions(
-    landscape: dict[str, Any], start: int, stop: int
-) -> list[dict[str, Any]]:
+def slice_positions(landscape: dict[str, Any], start: int, stop: int) -> list[dict[str, Any]]:
     """Return entries whose ``protein_pos`` falls within ``[start, stop]`` (inclusive).
 
     The bounds are clamped lazily — entries outside the range are simply omitted;
