@@ -40,6 +40,7 @@ def _envelope(**properties: Any) -> dict[str, Any]:
 _STR = {"type": "string"}
 _STR_NULL = {"type": ["string", "null"]}
 _INT = {"type": "integer"}
+_INT_NULL = {"type": ["integer", "null"]}
 _NUM = {"type": "number"}
 _NUM_NULL = {"type": ["number", "null"]}
 _BOOL = {"type": "boolean"}
@@ -60,7 +61,7 @@ _PAGINATION_BLOCK = {
         "limit": _INT,
         "offset": _INT,
         "truncated": _BOOL,
-        "next_offset": _INT,
+        "next_offset": _INT_NULL,
     },
 }
 
