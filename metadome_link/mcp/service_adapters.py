@@ -14,16 +14,14 @@ and typechecks before the service module exists.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from metadome_link.exceptions import InternalError
 
 if TYPE_CHECKING:  # pragma: no cover - import only for type checkers
-    from metadome_link.services.metadome_service import (  # type: ignore[import-untyped, import-not-found, unused-ignore]
-        MetaDomeService,
-    )
+    from metadome_link.services.metadome_service import MetaDomeService
 
-_service: Any | None = None
+_service: MetaDomeService | None = None
 
 
 def get_metadome_service() -> MetaDomeService:
