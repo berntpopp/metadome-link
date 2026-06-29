@@ -38,10 +38,14 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json",
     )
 
+    # Container Hardening Standard v1: never combine wildcard origins with
+    # credentials. Browsers reject "*" + credentials and it is a security
+    # footgun, so disable credentials whenever a wildcard origin is configured.
+    allow_credentials = "*" not in settings.cors_origins
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
-        allow_credentials=True,
+        allow_credentials=allow_credentials,
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["*"],
     )

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-29
+
+### Security
+
+- Adopt GeneFoundry Container & Deployment Hardening Standard v1: digest-pinned base
+  image, hardened `prod` compose overlay (read-only rootfs, `cap_drop: ALL`,
+  `no-new-privileges`, `init`, resource limits, expose-only), CORS no longer combines
+  wildcard origins with credentials, and a CI container scan (Trivy) + SBOM workflow.
+
 ## [0.1.0] - 2026-06-20
 
 ### Added
