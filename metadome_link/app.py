@@ -55,6 +55,8 @@ def create_app() -> FastAPI:
         """Liveness probe reporting pinned data + capabilities versions."""
         return {
             "status": "ok",
+            "version": __version__,
+            "transport": "streamable-http-stateless",
             "data_versions": DATA_VERSIONS,
             "capabilities_version": capabilities_version(),
         }

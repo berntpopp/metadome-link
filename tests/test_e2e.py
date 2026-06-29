@@ -41,7 +41,7 @@ EXPECTED_TOOLS: frozenset[str] = frozenset(
 
 
 async def test_health_endpoint_reports_versions() -> None:
-    """GET /health returns 200 with data_versions + capabilities_version."""
+    """GET /health returns 200 with status, version, transport + data/capabilities versions."""
     from metadome_link.app import app
 
     transport = httpx.ASGITransport(app=app)
@@ -51,6 +51,8 @@ async def test_health_endpoint_reports_versions() -> None:
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "ok"
+    assert isinstance(body["version"], str) and body["version"]
+    assert body["transport"] == "streamable-http-stateless"
     assert body["data_versions"]["assembly"] == "GRCh37"
     assert isinstance(body["capabilities_version"], str)
     assert body["capabilities_version"]
