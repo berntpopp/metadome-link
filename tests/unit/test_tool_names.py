@@ -58,8 +58,17 @@ _CANONICAL_VERBS = _TIER1_VERBS | _TIER2_VERBS
 #: Tags that exempt a tool from the verb rule (Standard v1.1 Q3 ops/meta carve-out).
 _OPS_META_TAGS = frozenset({"ops", "meta"})
 
-#: Per-tool exempt set: tools whose verbs are NOT yet in the canon and are pending
-#: a follow-up rename toward the Tier-2 standard.  Each entry is justified above.
+#: Per-tool exempt set: DOMAIN tools whose verbs are NOT yet in the canon, pending a
+#: follow-up rename toward the Tier-2 standard.  Each entry is justified above.
+#:
+#: Fleet-remediation decision (2026-07-03): KEEP these name-exempt rather than
+#: tag them ops/meta.  They are domain-data/compute tools, not operational tools —
+#: tagging them ops/meta would mis-model them and hide real rename debt (contrast
+#: vep's check_upstream_health, a genuine ops tool that WAS retagged).  The rename
+#: itself is a client-facing BREAKING change (MAJOR bump + router transform aliases
+#: + redeploy), so it is deferred to a coordinated breaking-change wave.  Until then
+#: `router doctor --strict-naming` correctly flags these two as rename-owed; that is
+#: the intended signal, not a defect.
 _METADOME_VERB_EXEMPT = frozenset(
     {
         "request_tolerance_landscape",  # 'request' -> rename to submit_landscape_build
