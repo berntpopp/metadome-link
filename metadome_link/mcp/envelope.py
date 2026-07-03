@@ -6,8 +6,12 @@ never raised) so the LLM sees a typed failure rather than an opaque masked
 message.
 
 Every ``_meta`` (success AND error) carries ``data_versions = DATA_VERSIONS`` --
-the universal hg19/data-currency invariant. The per-call ``_meta`` is otherwise
-kept lean and tiered by ``response_mode`` (see :func:`_shape_meta`).
+the universal hg19/data-currency invariant -- and ``unsafe_for_clinical_use =
+True``, the fleet-standard per-call research-use disclaimer (2026-07-03
+standardization: every tool response, every ``response_mode``, success and
+error paths alike). The per-call ``_meta`` is otherwise kept lean and tiered
+by ``response_mode`` (see :func:`_shape_meta`), but these two keys are never
+stripped, not even at ``minimal``.
 """
 
 from __future__ import annotations
@@ -32,9 +36,9 @@ from metadome_link.services.shaping import char_budget_guard
 
 logger = logging.getLogger(__name__)
 
-# Per-call _meta is kept lean: static provenance (research-use restriction,
-# citation, the MetaDome release) lives ONLY in get_server_capabilities. Per-call
-# _meta carries data_versions (always) plus the dynamic fields: tool, request_id,
+# Per-call _meta is kept lean: static provenance (citation, the MetaDome release)
+# lives ONLY in get_server_capabilities. Per-call _meta carries data_versions and
+# unsafe_for_clinical_use (always) plus the dynamic fields: tool, request_id,
 # [next_commands, capabilities_version, elapsed_ms] -- the last three tiered by
 # response_mode (see _shape_meta).
 _RETRYABLE = {"rate_limited", "upstream_unavailable", "data_unavailable"}
@@ -152,11 +156,17 @@ def _default_recovery_action(error_code: str) -> str:
 
 
 def _new_meta(tool_name: str) -> dict[str, Any]:
-    """Seed a ``_meta`` block with the trace essentials + the data-version invariant."""
+    """Seed a ``_meta`` block with the trace essentials + the universal invariants.
+
+    ``data_versions`` and ``unsafe_for_clinical_use`` are both never-stripped
+    invariants (see :func:`_shape_meta`); the latter is the fleet-standard
+    per-call research-use disclaimer.
+    """
     return {
         "tool": tool_name,
         "request_id": _request_id(),
         "data_versions": DATA_VERSIONS,
+        "unsafe_for_clinical_use": True,
     }
 
 
@@ -267,10 +277,10 @@ def _stamp_capabilities_version(meta: dict[str, Any]) -> None:
 def _shape_meta(meta: dict[str, Any], response_mode: str) -> dict[str, Any]:
     """Tier ``_meta`` verbosity by ``response_mode`` to control the per-call token tax.
 
-    - ``minimal``: the trace essentials only -- ``{tool, request_id, data_versions}``.
-      The caller explicitly opted out of guidance, so ``next_commands`` /
-      ``capabilities_version`` / ``elapsed_ms`` are dropped (but the data-version
-      invariant is kept).
+    - ``minimal``: the trace essentials only -- ``{tool, request_id, data_versions,
+      unsafe_for_clinical_use}``. The caller explicitly opted out of guidance, so
+      ``next_commands`` / ``capabilities_version`` / ``elapsed_ms`` are dropped, but
+      the data-version and research-use-disclaimer invariants are kept.
     - ``compact`` (default): keep ``next_commands`` (workflow guidance) and
       ``capabilities_version`` (the warm-client cache key the discovery contract leans
       on), but drop the ``elapsed_ms`` observability echo from the hot path -- it is
@@ -279,13 +289,15 @@ def _shape_meta(meta: dict[str, Any], response_mode: str) -> dict[str, Any]:
 
     The universal ``next_commands`` invariant therefore holds for ``compact`` and
     richer (every default response still chains); ``minimal`` is the documented opt-out.
-    ``data_versions`` is universal across every tier.
+    ``data_versions`` and ``unsafe_for_clinical_use`` are universal across every tier
+    -- neither is ever stripped, including at ``minimal``.
     """
     if response_mode == "minimal":
         return {
             "tool": meta["tool"],
             "request_id": meta["request_id"],
             "data_versions": meta["data_versions"],
+            "unsafe_for_clinical_use": meta["unsafe_for_clinical_use"],
         }
     if response_mode in ("standard", "full"):
         return meta
@@ -317,6 +329,7 @@ async def run_mcp_tool(
                 "tool": tool_name,
                 "request_id": _request_id(),
                 "data_versions": DATA_VERSIONS,
+                "unsafe_for_clinical_use": True,
                 "elapsed_ms": elapsed,
             }
             _stamp_capabilities_version(meta)
