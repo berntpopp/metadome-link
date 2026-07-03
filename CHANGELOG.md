@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Fleet disclaimer standardization: the per-call research-use disclaimer
+  (`_meta.unsafe_for_clinical_use = True`) is now emitted on every tool
+  response -- success and error paths alike -- at every `response_mode`
+  (`minimal | compact | standard | full`), instead of only in
+  `get_server_capabilities`.
+
 ## [0.1.1] - 2026-06-29
 
 ### Security

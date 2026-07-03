@@ -21,14 +21,12 @@ This test exercises the contract at TWO levels:
      ``tests/conftest.py``), so the lock also covers tool-registration wiring,
      not just the envelope helper in isolation.
 
-Ground-truth note (drift from the ideal fleet contract, intentionally NOT
-papered over): metadome-link's ``_meta`` does NOT carry an
-``unsafe_for_clinical_use`` flag on ANY response, success or error. The
-research-use disclaimer (``research_use_only: True`` + a notice string) is
-surfaced only in ``get_server_capabilities`` / discovery resources, not
-per-call. This test asserts what the repo actually ships (``tool``,
-``request_id``, ``data_versions`` on every ``_meta``) rather than asserting
-a key that does not exist.
+Fleet decision (2026-07-03): the research-use disclaimer is now standardized as
+PER-CALL. ``_meta.unsafe_for_clinical_use`` MUST be ``True`` on every tool
+response -- success and error -- at every ``response_mode`` (including
+``minimal``, which otherwise strips most ``_meta`` fields down to the trace
+essentials). This test asserts that invariant alongside the pre-existing
+``tool``/``request_id``/``data_versions`` keys.
 """
 
 from __future__ import annotations
@@ -61,12 +59,10 @@ async def test_v1_success_envelope_is_flat_banner_with_real_meta_keys() -> None:
     assert out["gene_name"] == "TP53"
 
     meta = out["_meta"]
-    # Real, actually-shipped _meta invariants (see module docstring for the
-    # unsafe_for_clinical_use drift note -- that key does not exist here).
     assert meta["tool"] == "resolve_transcript"
     assert isinstance(meta["request_id"], str) and meta["request_id"]
     assert meta["data_versions"] == DATA_VERSIONS
-    assert "unsafe_for_clinical_use" not in meta
+    assert meta["unsafe_for_clinical_use"] is True
 
 
 async def test_v1_error_envelope_is_flat_never_nested() -> None:
@@ -94,7 +90,36 @@ async def test_v1_error_envelope_is_flat_never_nested() -> None:
     assert meta["tool"] == "get_tolerance_landscape"
     assert isinstance(meta["request_id"], str) and meta["request_id"]
     assert meta["data_versions"] == DATA_VERSIONS
-    assert "unsafe_for_clinical_use" not in meta
+    assert meta["unsafe_for_clinical_use"] is True
+
+
+async def test_v1_unsafe_for_clinical_use_survives_minimal_mode_stripping() -> None:
+    """``minimal`` strips ``_meta`` down to trace essentials (see ``_shape_meta``),
+    but the per-call disclaimer is a documented survivor of that filter -- on
+    BOTH the success and the error path."""
+
+    async def ok_call() -> dict[str, Any]:
+        return {"ok": True}
+
+    success = await run_mcp_tool(
+        "resolve_transcript",
+        ok_call,
+        context=McpErrorContext("resolve_transcript", response_mode="minimal"),
+    )
+    assert success["_meta"]["unsafe_for_clinical_use"] is True
+    # minimal still drops the workflow-guidance field -- confirms real stripping happened.
+    assert "next_commands" not in success["_meta"]
+
+    async def bad_call() -> dict[str, Any]:
+        raise NotFoundError("no such transcript")
+
+    error = await run_mcp_tool(
+        "get_tolerance_landscape",
+        bad_call,
+        context=McpErrorContext("get_tolerance_landscape", response_mode="minimal"),
+    )
+    assert error["_meta"]["unsafe_for_clinical_use"] is True
+    assert "next_commands" not in error["_meta"]
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -115,6 +140,7 @@ async def test_v1_real_tool_success_conforms_to_flat_banner(
     assert meta["tool"] == "resolve_transcript"
     assert "request_id" in meta
     assert meta["data_versions"] == DATA_VERSIONS
+    assert meta["unsafe_for_clinical_use"] is True
 
 
 async def test_v1_real_tool_error_conforms_to_flat_banner(
@@ -134,4 +160,4 @@ async def test_v1_real_tool_error_conforms_to_flat_banner(
 
     meta = out["_meta"]
     assert meta["tool"] == "resolve_transcript"
-    assert "unsafe_for_clinical_use" not in meta
+    assert meta["unsafe_for_clinical_use"] is True
