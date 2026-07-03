@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-07-03
+
+### Fixed
+
+- Single-source versioning: `metadome_link.__version__` now derives from the
+  installed package metadata (`importlib.metadata.version`) instead of a
+  hardcoded string, so the version lives only in `pyproject.toml`. The MCP
+  `initialize` response now advertises the package version in
+  `serverInfo.version` (via `FastMCP(version=__version__)`) rather than the
+  FastMCP framework version. `/health` already reported the package version.
+
 ### Changed
 
 - Fleet disclaimer standardization: the per-call research-use disclaimer
