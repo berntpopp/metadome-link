@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 
 from fastmcp import FastMCP
 
+from metadome_link import __version__
 from metadome_link.mcp.capabilities import register_capability_resources
 from metadome_link.mcp.middleware import ArgValidationMiddleware
 from metadome_link.mcp.resources import METADOME_SERVER_INSTRUCTIONS
@@ -50,6 +51,7 @@ def create_metadome_mcp(
     """
     mcp: FastMCP = FastMCP(
         name="metadome-link",
+        version=__version__,
         instructions=METADOME_SERVER_INSTRUCTIONS,
         mask_error_details=True,
     )
