@@ -78,6 +78,6 @@ VOLUME ["/app/data"]
 # Short start-period: no bulk download — the server starts immediately.
 # The healthcheck confirms /health responds after uvicorn is ready.
 HEALTHCHECK --interval=30s --timeout=10s --retries=5 --start-period=30s \
-    CMD curl -f http://127.0.0.1:8000/health || exit 1
+    CMD curl -f -H 'Host: localhost' http://127.0.0.1:8000/health || exit 1
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

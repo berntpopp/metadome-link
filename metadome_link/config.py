@@ -105,6 +105,11 @@ class ServerSettings(BaseSettings):
         description="Server transport mode.",
     )
     mcp_path: str = Field(default="/mcp", description="MCP endpoint path.")
+    allowed_hosts: list[str] = Field(
+        default=["localhost", "127.0.0.1", "::1"],
+        description="Exact HTTP Host allowlist.",
+    )
+    allowed_origins: list[str] = Field(default=[], description="Exact HTTP Origin allowlist.")
 
     cors_origins: list[str] = Field(
         default=[],
@@ -131,6 +136,14 @@ class ServerSettings(BaseSettings):
     def validate_mcp_path(cls, v: str) -> str:
         """Ensure the MCP path starts with a forward slash."""
         return v if v.startswith("/") else f"/{v}"
+
+    @field_validator("allowed_hosts", "allowed_origins")
+    @classmethod
+    def reject_allowlist_wildcards(cls, values: list[str]) -> list[str]:
+        """Require exact entries because FastMCP supports glob matching."""
+        if any(character in entry for entry in values for character in "*?[]"):
+            raise ValueError("wildcard entries are not permitted in HTTP allowlists")
+        return values
 
     @field_validator("cors_origins", mode="before")
     @classmethod

@@ -170,6 +170,8 @@ Copy `.env.example` to `.env` and edit as needed.
 | `METADOME_LINK_PORT` | `8000` | Bind port. |
 | `METADOME_LINK_TRANSPORT` | `unified` | `unified` \| `http` \| `stdio`. |
 | `METADOME_LINK_MCP_PATH` | `/mcp` | MCP endpoint path. |
+| `METADOME_LINK_ALLOWED_HOSTS` | `["localhost","127.0.0.1","::1"]` | Exact HTTP Host allowlist as JSON; wildcards are rejected. |
+| `METADOME_LINK_ALLOWED_ORIGINS` | `[]` | Exact browser Origin allowlist as JSON; absent Origin remains allowed. |
 | `METADOME_LINK_CORS_ORIGINS` | `""` | Comma-separated allowed CORS origins. |
 | `METADOME_LINK_LOG_LEVEL` | `INFO` | `DEBUG`…`CRITICAL`. |
 | `METADOME_LINK_LOG_FORMAT` | `console` | `console` \| `json` (logs to stderr only). |
@@ -185,6 +187,12 @@ Copy `.env.example` to `.env` and edit as needed.
 | `METADOME_LINK_CACHE__TTL_TRANSCRIPTS_S` | `21600` | TTL for transcript list cache (default 6 h). |
 | `METADOME_LINK_CACHE__LRU_RESULTS` | `64` | In-memory LRU size for completed landscapes. |
 | `METADOME_LINK_CACHE__LRU_TRANSCRIPTS` | `256` | In-memory LRU size for transcript lists. |
+
+Host and Origin validation is strict on every HTTP route. Add reverse-proxy
+hostnames as exact entries in `METADOME_LINK_ALLOWED_HOSTS`. Browser deployments
+must configure the same exact origins in both `METADOME_LINK_ALLOWED_ORIGINS`
+and `METADOME_LINK_CORS_ORIGINS`; transport validation and browser CORS are
+independent controls.
 
 ## Docker
 

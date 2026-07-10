@@ -42,9 +42,15 @@ Copy `.env.docker.example` to `.env.docker` and set the values for your deployme
 | `METADOME_LINK_PORT` | `8000` | Bind port. |
 | `METADOME_LINK_TRANSPORT` | `unified` | `unified` \| `http` \| `stdio`. |
 | `METADOME_LINK_MCP_PATH` | `/mcp` | MCP endpoint mount path (must start with `/`). |
+| `METADOME_LINK_ALLOWED_HOSTS` | `["localhost","127.0.0.1","::1"]` | Exact HTTP Host allowlist as JSON; wildcards are rejected. |
+| `METADOME_LINK_ALLOWED_ORIGINS` | `[]` | Exact browser Origin allowlist as JSON. |
 | `METADOME_LINK_CORS_ORIGINS` | `""` | Comma-separated allowed CORS origins. |
 | `METADOME_LINK_LOG_LEVEL` | `INFO` | `DEBUG`…`CRITICAL`. Logs go to stderr. |
 | `METADOME_LINK_LOG_FORMAT` | `console` | `console` (dev) \| `json` (prod). |
+
+Browser deployments must configure the same exact origins in
+`METADOME_LINK_ALLOWED_ORIGINS` and `METADOME_LINK_CORS_ORIGINS`; the strict
+transport guard and browser CORS are independent controls.
 
 ### MetaDome upstream (`METADOME_LINK_METADOME__*`)
 
