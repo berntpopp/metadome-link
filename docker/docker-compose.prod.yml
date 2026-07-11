@@ -11,6 +11,9 @@ services:
       METADOME_LINK_TRANSPORT: unified
       METADOME_LINK_LOG_LEVEL: INFO
       METADOME_LINK_LOG_FORMAT: json
+      METADOME_LINK_ALLOWED_HOSTS: '["localhost","127.0.0.1","::1","metadome-link.genefoundry.org"]'
+      METADOME_LINK_ALLOWED_ORIGINS: '["https://metadome-link.genefoundry.org"]'
+      METADOME_LINK_CORS_ORIGINS: '["https://metadome-link.genefoundry.org"]'
       # Keep the SQLite result cache on the writable volume (read-only rootfs).
       METADOME_LINK_CACHE__DB_PATH: /app/data/metadome_cache.sqlite
 
@@ -50,7 +53,7 @@ services:
 
     # No bulk download — the server starts immediately after uvicorn binds.
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/health"]
+      test: ["CMD", "curl", "-f", "-H", "Host: localhost", "http://127.0.0.1:8000/health"]
       interval: 20s
       timeout: 5s
       retries: 5

@@ -15,6 +15,7 @@ import json
 import logging
 from typing import Any
 
+from fastmcp.exceptions import ValidationError as FastMCPValidationError
 from fastmcp.server.middleware.middleware import CallNext, Middleware, MiddlewareContext
 from fastmcp.tools.tool import ToolResult
 from mcp.types import CallToolRequestParams, TextContent
@@ -66,8 +67,11 @@ class ArgValidationMiddleware(Middleware):
 
         try:
             result = await call_next(context)
-        except ValidationError as exc:
-            return self._error_result(name, valid, schema, exc)
+        except (ValidationError, FastMCPValidationError) as exc:
+            validation_error = exc if isinstance(exc, ValidationError) else exc.__cause__
+            if not isinstance(validation_error, ValidationError):
+                raise
+            return self._error_result(name, valid, schema, validation_error)
 
         if (
             applied

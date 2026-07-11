@@ -24,12 +24,15 @@ services:
       - METADOME_LINK_HOST=0.0.0.0
       - METADOME_LINK_PORT=8000
       - METADOME_LINK_MCP_PATH=/mcp
+      - 'METADOME_LINK_ALLOWED_HOSTS=["localhost","127.0.0.1","::1","metadome-link.genefoundry.org"]'
+      - 'METADOME_LINK_ALLOWED_ORIGINS=["https://metadome-link.genefoundry.org"]'
+      - 'METADOME_LINK_CORS_ORIGINS=["https://metadome-link.genefoundry.org"]'
       - METADOME_LINK_LOG_LEVEL=${LOG_LEVEL_API:-INFO}
       - METADOME_LINK_LOG_FORMAT=json
       - METADOME_LINK_CACHE__DB_PATH=/app/data/metadome_cache.sqlite
     # The ENTRYPOINT sets up the data dir and exec's the unified server.
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/health"]
+      test: ["CMD", "curl", "-f", "-H", "Host: localhost", "http://127.0.0.1:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 5

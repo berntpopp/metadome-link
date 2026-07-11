@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastmcp.server.http import HostOriginGuardMiddleware
 
 from metadome_link import __version__
 from metadome_link.buildinfo import build_info
@@ -48,6 +49,12 @@ def create_app() -> FastAPI:
         allow_credentials=allow_credentials,
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["*"],
+    )
+    app.add_middleware(
+        HostOriginGuardMiddleware,
+        allowed_hosts=settings.allowed_hosts,
+        allowed_origins=settings.allowed_origins,
+        mode="strict",
     )
 
     @app.get("/health")
