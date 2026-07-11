@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-07-11
+
+### Security
+
+- Defense in depth: caller-visible error messages are sanitized of
+  control/zero-width/bidi/NUL code points, the upstream MetaDome error body is no
+  longer echoed, the arg-validation frame maps to fixed reasons and strips the
+  argument name, and the batch-row error is sanitized. Research use only.
+
 ## [0.1.3] - 2026-07-11
 
 ### Security
@@ -83,5 +92,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Full documentation: `README.md`, `CHANGELOG.md`, `docs/architecture.md`,
   `docs/deployment.md`, `docs/usage.md`, `docs/router-registration.md`.
 
-[Unreleased]: https://github.com/berntpopp/metadome-link/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/berntpopp/metadome-link/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/berntpopp/metadome-link/compare/v0.1.0...v0.1.4
 [0.1.0]: https://github.com/berntpopp/metadome-link/releases/tag/v0.1.0
