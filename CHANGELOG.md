@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-07-11
+
+### Security
+
+- Re-enable FastMCP 3.4.4 strict Host/Origin (DNS-rebinding) protection with configurable
+  `ALLOWED_HOSTS` / `ALLOWED_ORIGINS` allowlists (default loopback-only).
+
 ## [0.1.2] - 2026-07-03
 
 ### Fixed
