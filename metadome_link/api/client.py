@@ -167,8 +167,11 @@ class MetaDomeClient:
             if attempt >= self._cfg.max_retries:
                 if response is not None:
                     return response
+                # Do NOT interpolate str(last_exc): a transport/timeout error's
+                # text can carry a host/URL or arbitrary detail. Raise a fixed,
+                # body-free message (the exception is chained for server-side debug).
                 raise UpstreamUnavailableError(
-                    f"MetaDome unreachable after {attempt + 1} attempts: {last_exc}",
+                    f"MetaDome unreachable after {attempt + 1} attempts.",
                     retryable=True,
                 ) from last_exc
             # Full jitter de-synchronises concurrent retries.
@@ -180,16 +183,23 @@ class MetaDomeClient:
 
     @staticmethod
     def _raise_for_status(response: httpx.Response) -> None:
-        """Map a non-2xx response to a typed exception (2xx returns ``None``)."""
+        """Map a non-2xx response to a typed exception (2xx returns ``None``).
+
+        The upstream response BODY is deliberately NOT interpolated into the
+        exception message: a caller-influenced query can make MetaDome reflect
+        hostile prose (incl. control/zero-width/bidi/NUL) into a 4xx body, and
+        echoing it verbatim would smuggle attacker-controlled text into a
+        caller-visible message. Fixed, status-keyed, body-free messages are raised
+        instead (the HTTP status is a safe, non-attacker-controlled scalar); the
+        body is not logged either, preserving the no-PII-in-logs invariant.
+        """
         status = response.status_code
         if status < 400:
             return
         if status == 404:
             raise NotFoundError("MetaDome resource not found.")
         if status == 400:
-            raise InvalidInputError(
-                _extract_error(response) or "MetaDome rejected the request as invalid.",
-            )
+            raise InvalidInputError("MetaDome rejected the request as invalid.")
         if status == 429:
             raise RateLimitedError("MetaDome rate limit hit.", retryable=True)
         raise UpstreamUnavailableError(f"MetaDome upstream error (HTTP {status}).", retryable=True)
@@ -387,16 +397,3 @@ def _coerce_clinvar_ids(variants: object) -> None:
             variant["clinvar_ID"] = str(int(raw))
         else:
             variant["clinvar_ID"] = str(raw)
-
-
-def _extract_error(response: httpx.Response) -> str:
-    """Best-effort human detail from a MetaDome 400 error body."""
-    try:
-        body = response.json()
-    except Exception:
-        return response.text[:200].strip()
-    if isinstance(body, dict):
-        detail = body.get("error")
-        if isinstance(detail, str):
-            return detail[:280]
-    return ""

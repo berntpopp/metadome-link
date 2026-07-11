@@ -24,6 +24,7 @@ from typing import Any
 
 from metadome_link.constants import DATA_CURRENCY_CAVEAT, DEFAULT_PAGE_LIMIT
 from metadome_link.exceptions import InvalidInputError
+from metadome_link.mcp._sanitize import sanitize_message
 from metadome_link.services.citation import recommended_citation
 from metadome_link.services.landscape import (
     domains_for_position,
@@ -111,7 +112,10 @@ def compare_positions_view(
         try:
             entry = position_to_entry(landscape, pos)
         except InvalidInputError as exc:
-            comparison.append({"protein_pos": pos, "error": exc.message})
+            # This per-item ``error`` rides in an OTHERWISE-SUCCESSFUL batch response
+            # (the tool "succeeded"), so it bypasses the MCP error envelope's
+            # sanitation. Strip forbidden code points here at the row builder.
+            comparison.append({"protein_pos": pos, "error": sanitize_message(exc.message)})
             continue
         comparison.append(
             {

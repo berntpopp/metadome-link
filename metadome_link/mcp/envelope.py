@@ -31,6 +31,7 @@ from metadome_link.exceptions import (
     MetaDomeError,
 )
 from metadome_link.mcp import metrics
+from metadome_link.mcp._sanitize import sanitize_message
 from metadome_link.mcp.next_commands import cmd, default_error_next_commands
 from metadome_link.services.shaping import char_budget_guard
 
@@ -104,8 +105,30 @@ def _capabilities_version() -> str | None:
     return str(version) if version else None
 
 
+#: Map a pydantic error ``type`` to a FIXED reason so no caller-supplied input
+#: value (which the pydantic ``msg`` can echo) reaches the caller-visible frame.
+_PYDANTIC_REASONS: dict[str, str] = {
+    "missing": "the argument is required",
+    "int_parsing": "expected an integer",
+    "int_type": "expected an integer",
+    "float_parsing": "expected a number",
+    "string_type": "expected a string",
+    "bool_parsing": "expected a boolean",
+    "list_type": "expected a list",
+    "greater_than": "the value is below the allowed minimum",
+    "greater_than_equal": "the value is below the allowed minimum",
+    "less_than": "the value is above the allowed maximum",
+    "less_than_equal": "the value is above the allowed maximum",
+    "enum": "the value is not one of the allowed options",
+    "extra_forbidden": "the argument is not recognized",
+}
+
+
 def _safe_message(exc: BaseException) -> str:
-    return (str(exc) or exc.__class__.__name__)[:280]
+    # Strip forbidden control/zero-width/bidi/NUL code points from every
+    # caller-visible message (upstream bodies are severed at the API client, so
+    # the text here is server/developer-authored; this is the defensive backstop).
+    return sanitize_message(str(exc) or exc.__class__.__name__)
 
 
 def _classify(exc: BaseException) -> tuple[str, str]:
@@ -132,8 +155,12 @@ def _classify(exc: BaseException) -> tuple[str, str]:
         return code, _safe_message(exc)
     if isinstance(exc, PydanticValidationError):
         first = exc.errors()[0]
-        loc = ".".join(str(p) for p in first["loc"]) or "input"
-        return "invalid_input", f"Invalid input -- `{loc}`: {first['msg']}"
+        # The pydantic ``msg`` can echo the caller's input value; use a FIXED reason
+        # keyed on the error ``type`` instead. The ``loc`` (argument name) is
+        # caller-controlled, so code-point-strip it before echoing.
+        loc = sanitize_message(".".join(str(p) for p in first["loc"]) or "input")
+        reason = _PYDANTIC_REASONS.get(str(first.get("type", "")), "the value is not valid")
+        return "invalid_input", sanitize_message(f"Invalid input -- `{loc}`: {reason}.")
     return "internal_error", "An internal error occurred. The request was not completed."
 
 
@@ -182,7 +209,9 @@ def _error_envelope(exc: BaseException, context: McpErrorContext) -> dict[str, A
     envelope: dict[str, Any] = {
         "success": False,
         "error_code": error_code,
-        "message": message,
+        # Defensive backstop: no forbidden code points reach the caller, whatever
+        # path built the message (rate-limit/upstream generics, ambiguous-query, etc.).
+        "message": sanitize_message(message),
         "retryable": retryable,
         "recovery_action": recovery_action,
         "_meta": _new_meta(context.tool_name),
@@ -228,6 +257,11 @@ def build_arg_error_envelope(
     argument, so ``allowed_values`` carries the valid range/enum (not the list of
     argument *names*) and the message states the constraint.
     """
+    # ``loc`` is a caller-controlled argument NAME (an unknown/misspelled arg on the
+    # ``unexpected_keyword_argument`` path). Code-point-strip it before echoing it
+    # into either the message or the ``field`` value so it cannot smuggle
+    # control/zero-width/bidi/NUL characters into the frame.
+    loc = sanitize_message(loc)
     if constraints is not None:
         allowed, human = constraints
         message = f"Invalid value for argument `{loc}` of {tool_name}: {human}."
@@ -236,7 +270,7 @@ def build_arg_error_envelope(
         return {
             "success": False,
             "error_code": "invalid_input",
-            "message": message[:280],
+            "message": sanitize_message(message),
             "retryable": False,
             "recovery_action": "reformulate_input",
             "field": loc,
@@ -257,7 +291,7 @@ def build_arg_error_envelope(
     return {
         "success": False,
         "error_code": "invalid_input",
-        "message": message[:280],
+        "message": sanitize_message(message),
         "retryable": False,
         "recovery_action": "reformulate_input",
         "field": loc,
