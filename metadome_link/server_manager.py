@@ -23,7 +23,7 @@ import uvicorn
 
 from metadome_link.api.client import MetaDomeClient
 from metadome_link.cache.store import ResultCache
-from metadome_link.config import settings
+from metadome_link.config import check_bind_safety, settings
 from metadome_link.mcp.facade import create_metadome_mcp
 from metadome_link.mcp.service_adapters import set_metadome_service
 from metadome_link.services.metadome_service import MetaDomeService
@@ -69,6 +69,11 @@ class UnifiedServerManager:
 
     async def start_unified_server(self, host: str, port: int) -> None:
         """Start FastAPI + MCP (streamable-http) on the same port."""
+        # F-04: fail-closed at the actual bind site — every path that binds an
+        # interface is guarded here, not only the server.py entry point. Refuses
+        # a non-loopback host unless METADOME_LINK_ALLOW_PUBLIC_BIND is set;
+        # warns loudly when the opt-in is used. Raises BEFORE any bind.
+        check_bind_safety(host, allow_public=settings.allow_public_bind, logger=self.logger)
         if self.logger:
             self.logger.info(
                 "Starting unified server", host=host, port=port, mcp_path=settings.mcp_path
@@ -110,6 +115,8 @@ class UnifiedServerManager:
 
     async def start_http_only_server(self, host: str, port: int) -> None:
         """Start FastAPI only (no MCP)."""
+        # F-04: fail-closed at the actual bind site (see start_unified_server).
+        check_bind_safety(host, allow_public=settings.allow_public_bind, logger=self.logger)
         if self.logger:
             self.logger.info("Starting HTTP-only server", host=host, port=port)
 
