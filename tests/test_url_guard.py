@@ -17,9 +17,10 @@ import respx
 
 from metadome_link.api.client import MetaDomeClient
 from metadome_link.api.url_guard import (
+    HTTP_POLICY_ERROR,
     DisallowedURLError,
     ResponseTooLargeError,
-    build_host_allowlist,
+    build_origin_allowlist,
     make_url_guard,
 )
 from metadome_link.config import ServerSettings
@@ -27,16 +28,19 @@ from metadome_link.config import ServerSettings
 BASE = "https://stuart.radboudumc.nl/metadome/api"
 HOST = "stuart.radboudumc.nl"
 TID = "ENST00000269305.4"
-ALLOWED = frozenset({HOST})
+ALLOWED = frozenset({(HOST, 443)})
 
 
 # -- allowlist derivation -------------------------------------------------------
 
 
-def test_build_host_allowlist_from_base_url() -> None:
-    assert build_host_allowlist(BASE) == frozenset({HOST})
-    # Case-folded, userinfo/port stripped.
-    assert build_host_allowlist("https://User@Example.COM:8443/x") == frozenset({"example.com"})
+def test_build_origin_allowlist_normalizes_host_and_effective_port() -> None:
+    assert build_origin_allowlist(BASE, "https://EXAMPLE.com:443/x") == frozenset(
+        {(HOST, 443), ("example.com", 443)}
+    )
+    assert build_origin_allowlist("https://example.com:8443/x") == frozenset(
+        {("example.com", 8443)}
+    )
 
 
 # -- request event-hook (unit) --------------------------------------------------
@@ -78,6 +82,13 @@ async def test_guard_rejects_cross_host() -> None:
         await guard(httpx.Request("GET", "https://evil.example.com/status/"))
 
 
+async def test_guard_requires_exact_normalized_origin_not_just_host() -> None:
+    guard = make_url_guard(frozenset({("example.com", 8443)}))
+    await guard(httpx.Request("GET", "https://EXAMPLE.com:8443/status/"))
+    with pytest.raises(DisallowedURLError):
+        await guard(httpx.Request("GET", "https://example.com/status/"))
+
+
 def test_guard_exceptions_are_non_retryable_and_not_transport_errors() -> None:
     # The retry loop catches (TimeoutException, TransportError); the guard MUST NOT
     # be caught by it, or a validation/cap failure would be retried 3x.
@@ -86,6 +97,7 @@ def test_guard_exceptions_are_non_retryable_and_not_transport_errors() -> None:
     for exc in (DisallowedURLError("x"), ResponseTooLargeError("y")):
         assert exc.retryable is False
         assert exc.error_code == "upstream_unavailable"
+        assert str(exc) == HTTP_POLICY_ERROR
 
 
 # -- integration through the real client + retry loop ---------------------------

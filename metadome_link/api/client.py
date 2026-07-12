@@ -38,7 +38,8 @@ import httpx
 
 from metadome_link.api.url_guard import (
     MAX_REDIRECTS,
-    build_host_allowlist,
+    DisallowedURLError,
+    build_origin_allowlist,
     make_url_guard,
     read_capped_response,
 )
@@ -121,7 +122,7 @@ class MetaDomeClient:
         self._base_url = self._cfg.base_url.rstrip("/")
         # F-10: derive the redirect/destination allowlist from the CONFIGURED base
         # URL host (never hardcoded, so an operator base-URL override still works).
-        self._url_guard = make_url_guard(build_host_allowlist(self._cfg.base_url))
+        self._url_guard = make_url_guard(build_origin_allowlist(self._cfg.base_url))
         self._client = client
         self._owns_client = client is None
         self._connect_lock = asyncio.Lock()
@@ -184,6 +185,8 @@ class MetaDomeClient:
                     json=json,
                     headers=headers,
                 )
+            except httpx.TooManyRedirects:
+                raise DisallowedURLError() from None
             except (httpx.TimeoutException, httpx.TransportError) as exc:
                 last_exc = exc
             if response is not None and response.status_code not in _RETRYABLE_STATUS:

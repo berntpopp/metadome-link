@@ -30,51 +30,63 @@ from metadome_link.exceptions import UpstreamUnavailableError
 
 #: Maximum redirect hops httpx will follow before erroring (each hop is validated).
 MAX_REDIRECTS = 5
+HTTP_POLICY_ERROR = "Outbound HTTP policy rejected the request."
+Origin = tuple[str, int]
 
 
 class DisallowedURLError(UpstreamUnavailableError):
     """An outbound request/redirect hop targeted a non-allowlisted URL. NON-RETRYABLE."""
 
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: str = HTTP_POLICY_ERROR) -> None:
         """Build a non-retryable, envelope-classified destination-guard error."""
-        super().__init__(message, retryable=False, recovery_action="switch_tool")
+        super().__init__(HTTP_POLICY_ERROR, retryable=False, recovery_action="switch_tool")
 
 
 class ResponseTooLargeError(UpstreamUnavailableError):
     """An upstream response body exceeded the hard byte cap. NON-RETRYABLE."""
 
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: str = HTTP_POLICY_ERROR) -> None:
         """Build a non-retryable, envelope-classified over-cap error."""
-        super().__init__(message, retryable=False, recovery_action="switch_tool")
+        super().__init__(HTTP_POLICY_ERROR, retryable=False, recovery_action="switch_tool")
 
 
-def build_host_allowlist(*base_urls: str) -> frozenset[str]:
-    """Derive an exact, case-folded host allowlist from configured base URL(s)."""
-    hosts: set[str] = set()
+def build_origin_allowlist(*base_urls: str) -> frozenset[Origin]:
+    """Derive exact normalized ``(host, effective_port)`` origins from config."""
+    origins: set[Origin] = set()
     for url in base_urls:
-        host = urlsplit(url).hostname
+        parsed = urlsplit(url)
+        host = parsed.hostname
         if host:
-            hosts.add(host.lower())
-    return frozenset(hosts)
+            try:
+                port = parsed.port
+            except ValueError:
+                continue
+            origins.add((host.lower(), 443 if port is None else port))
+    return frozenset(origins)
 
 
 RequestHook = Callable[[httpx.Request], Awaitable[None]]
 
 
-def make_url_guard(allowed_hosts: frozenset[str]) -> RequestHook:
-    """Build an httpx request event-hook: https + no-userinfo + exact-host only."""
+def make_url_guard(allowed_origins: frozenset[Origin]) -> RequestHook:
+    """Build an httpx request hook: HTTPS, no userinfo, exact normalized origin."""
 
     async def _guard(request: httpx.Request) -> None:
         url = request.url
         if url.scheme != "https":
-            raise DisallowedURLError("outbound request must use https")
+            raise DisallowedURLError()
         # ``url.userinfo`` is the raw bytes (``b''`` when absent), so this also
         # rejects the empty ``:@`` form (username==password=="" but userinfo==b':')
         # that a ``username or password`` check would miss. Subsumes both.
         if url.userinfo:
-            raise DisallowedURLError("outbound request must not carry userinfo")
-        if (url.host or "").lower() not in allowed_hosts:
-            raise DisallowedURLError("outbound request host is not allowlisted")
+            raise DisallowedURLError()
+        try:
+            port = url.port
+        except ValueError:
+            raise DisallowedURLError() from None
+        origin = ((url.host or "").lower(), 443 if port is None else port)
+        if origin not in allowed_origins:
+            raise DisallowedURLError()
 
     return _guard
 
@@ -102,7 +114,7 @@ async def read_capped_response(
         async for chunk in response.aiter_bytes():
             total += len(chunk)
             if total > max_bytes:
-                raise ResponseTooLargeError(f"upstream response exceeded the {max_bytes}-byte cap")
+                raise ResponseTooLargeError()
             chunks.append(chunk)
         status_code = response.status_code
         request = response.request
