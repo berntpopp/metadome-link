@@ -68,7 +68,10 @@ def make_url_guard(allowed_hosts: frozenset[str]) -> RequestHook:
         url = request.url
         if url.scheme != "https":
             raise DisallowedURLError("outbound request must use https")
-        if url.username or url.password:
+        # ``url.userinfo`` is the raw bytes (``b''`` when absent), so this also
+        # rejects the empty ``:@`` form (username==password=="" but userinfo==b':')
+        # that a ``username or password`` check would miss. Subsumes both.
+        if url.userinfo:
             raise DisallowedURLError("outbound request must not carry userinfo")
         if (url.host or "").lower() not in allowed_hosts:
             raise DisallowedURLError("outbound request host is not allowlisted")

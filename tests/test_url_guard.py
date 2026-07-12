@@ -59,6 +59,19 @@ async def test_guard_rejects_userinfo() -> None:
         await guard(httpx.Request("GET", f"https://user:pass@{HOST}/status/{TID}/"))
 
 
+async def test_guard_rejects_empty_userinfo() -> None:
+    # The empty ``:@`` userinfo form must be rejected too (recipe uniformity):
+    # httpx parses ``https://:@stuart.radboudumc.nl/`` to ``url.userinfo == b':'``
+    # while ``url.username`` and ``url.password`` are both ``""`` -- a
+    # ``username or password`` check would MISS it. The guard tests the raw
+    # ``url.userinfo`` bytes, so any non-empty userinfo is rejected.
+    guard = make_url_guard(ALLOWED)
+    with pytest.raises(DisallowedURLError):
+        await guard(httpx.Request("GET", f"https://:@{HOST}/status/{TID}/"))
+    # A clean allowlisted URL (no userinfo) still passes.
+    await guard(httpx.Request("GET", f"https://{HOST}/status/{TID}/"))
+
+
 async def test_guard_rejects_cross_host() -> None:
     guard = make_url_guard(ALLOWED)
     with pytest.raises(DisallowedURLError):
