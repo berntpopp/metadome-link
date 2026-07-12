@@ -35,12 +35,17 @@ RUN pip install --upgrade pip uv && \
 
 FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf AS production
 
+# METADOME_LINK_ALLOW_PUBLIC_BIND=true is the explicit, audited opt-in that the
+# F-04 bind guard requires: inside the container the server intentionally binds
+# 0.0.0.0, but it is only ever reached via the loopback-published port (base
+# compose) or the reverse proxy (prod/npm overlays), never the host's public IP.
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/opt/venv/bin:$PATH" \
     PYTHONPATH="/home/app/web" \
     METADOME_LINK_TRANSPORT=unified \
     METADOME_LINK_HOST=0.0.0.0 \
+    METADOME_LINK_ALLOW_PUBLIC_BIND=true \
     METADOME_LINK_PORT=8000 \
     METADOME_LINK_MCP_PATH=/mcp \
     METADOME_LINK_CACHE__DB_PATH=/app/data/metadome_cache.sqlite \

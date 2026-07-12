@@ -11,10 +11,58 @@ index / ingest step.
 
 from __future__ import annotations
 
+import ipaddress
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class InsecureBindError(RuntimeError):
+    """A non-loopback bind was requested without the explicit public-bind opt-in."""
+
+
+def is_loopback_host(host: str) -> bool:
+    """Return True if binding ``host`` exposes only the loopback interface.
+
+    ``localhost`` and any address in ``127.0.0.0/8`` or ``::1`` are loopback. The
+    wildcard binds (``0.0.0.0`` / ``::``) and every routable address are NOT.
+    """
+    candidate = host.strip().lower()
+    if candidate == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(candidate).is_loopback
+    except ValueError:
+        # Any other hostname (empty, a public DNS name) is treated as non-loopback.
+        return False
+
+
+def check_bind_safety(host: str, *, allow_public: bool, logger: Any = None) -> None:
+    """Fail-closed guard for the direct-run bind interface (F-04).
+
+    metadome-link is **unauthenticated by design** and must sit behind the router
+    / reverse proxy. A loopback bind is always safe. A non-loopback bind requires
+    the explicit ``METADOME_LINK_ALLOW_PUBLIC_BIND`` opt-in: without it startup is
+    refused (``InsecureBindError``); WITH it the server still emits a loud warning
+    so the exposure is audited.
+    """
+    if is_loopback_host(host):
+        return
+    if not allow_public:
+        raise InsecureBindError(
+            f"Refusing to bind non-loopback interface {host!r}: metadome-link is "
+            "unauthenticated and must sit behind the router/reverse proxy. Bind "
+            "127.0.0.1, or set METADOME_LINK_ALLOW_PUBLIC_BIND=true to opt in "
+            "(only when a trusted proxy terminates access in front of it)."
+        )
+    if logger is not None:
+        logger.warning(
+            f"INSECURE PUBLIC BIND: binding the non-loopback interface {host!r} with "
+            "METADOME_LINK_ALLOW_PUBLIC_BIND=true. This unauthenticated backend is "
+            "now reachable off-host; ensure a trusted reverse proxy terminates "
+            "access in front of it."
+        )
 
 
 class MetaDomeSettings(BaseModel):
@@ -97,7 +145,18 @@ class ServerSettings(BaseSettings):
         env_nested_delimiter="__",
     )
 
-    host: str = Field(default="0.0.0.0", description="Server host.")  # noqa: S104
+    host: str = Field(
+        default="127.0.0.1",
+        description="Server bind host (loopback by default; see allow_public_bind).",
+    )
+    allow_public_bind: bool = Field(
+        default=False,
+        description=(
+            "Opt in to a non-loopback (public) bind. Without it a non-loopback host "
+            "is refused at startup: metadome-link is unauthenticated and must sit "
+            "behind the router/reverse proxy."
+        ),
+    )
     port: int = Field(default=8000, ge=1024, le=65535, description="Server port.")
 
     transport: Literal["unified", "http", "stdio"] = Field(

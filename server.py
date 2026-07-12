@@ -14,7 +14,7 @@ import signal
 import sys
 from typing import TYPE_CHECKING
 
-from metadome_link.config import settings
+from metadome_link.config import InsecureBindError, check_bind_safety, settings
 from metadome_link.logging_config import configure_logging
 from metadome_link.server_manager import UnifiedServerManager
 
@@ -41,6 +41,16 @@ async def _run() -> None:
     settings.log_level = args.log_level
 
     logger = configure_logging()
+
+    # F-04: fail-closed unless a non-loopback bind is explicitly opted into. Only
+    # the network transports bind an interface; stdio has none.
+    if args.transport in ("unified", "http"):
+        try:
+            check_bind_safety(settings.host, allow_public=settings.allow_public_bind, logger=logger)
+        except InsecureBindError as exc:
+            logger.error("Refusing insecure bind", error=str(exc))
+            sys.exit(1)
+
     manager = UnifiedServerManager(logger=logger)
 
     shutdown_task: asyncio.Task[None] | None = None
