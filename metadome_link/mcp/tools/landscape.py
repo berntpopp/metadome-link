@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Annotated, Any
 
 from pydantic import Field
 
-from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
+from metadome_link.mcp.annotations import COMPUTE_IDEMPOTENT_OPEN_WORLD, READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, run_mcp_tool
 from metadome_link.mcp.next_commands import _more_steps, cmd
 from metadome_link.mcp.schemas import (
@@ -77,7 +77,9 @@ def register_landscape_tools(mcp: FastMCP) -> None:
     @mcp.tool(
         name="request_tolerance_landscape",
         title="Request Tolerance Landscape",
-        annotations=READ_ONLY_OPEN_WORLD,
+        # F-11: this POSTs /submit_visualization/ (starts a Celery build) -> NOT
+        # read-only. Non-destructive + idempotent (MetaDome dedupes by transcript_id).
+        annotations=COMPUTE_IDEMPOTENT_OPEN_WORLD,
         output_schema=REQUEST_TOLERANCE_LANDSCAPE_SCHEMA,
         tags={"landscape"},
         description=(

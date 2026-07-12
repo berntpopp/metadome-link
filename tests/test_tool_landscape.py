@@ -27,6 +27,40 @@ def _load(name: str) -> Any:
 
 
 # ---------------------------------------------------------------------------
+# annotations (F-11)
+# ---------------------------------------------------------------------------
+
+
+async def test_request_landscape_annotation_marks_compute_side_effect(facade: Any) -> None:
+    """F-11: request_tolerance_landscape POSTs /submit_visualization/ (starts a build).
+
+    It is NOT read-only. It is non-destructive and idempotent (dedupes by
+    transcript_id upstream), so readOnlyHint=false, destructiveHint=false,
+    idempotentHint=true.
+    """
+    from fastmcp import Client
+
+    async with Client(facade) as client:
+        tools = await client.list_tools()
+    ann = next(t for t in tools if t.name == "request_tolerance_landscape").annotations
+    assert ann is not None
+    assert ann.readOnlyHint is False
+    assert ann.destructiveHint is False
+    assert ann.idempotentHint is True
+
+
+async def test_get_landscape_annotation_stays_read_only(facade: Any) -> None:
+    """Control: the cache-first poll get_tolerance_landscape remains read-only."""
+    from fastmcp import Client
+
+    async with Client(facade) as client:
+        tools = await client.list_tools()
+    ann = next(t for t in tools if t.name == "get_tolerance_landscape").annotations
+    assert ann is not None
+    assert ann.readOnlyHint is True
+
+
+# ---------------------------------------------------------------------------
 # request_tolerance_landscape
 # ---------------------------------------------------------------------------
 
