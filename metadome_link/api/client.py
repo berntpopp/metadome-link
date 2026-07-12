@@ -38,6 +38,7 @@ import httpx
 
 from metadome_link.api.url_guard import (
     MAX_REDIRECTS,
+    DisallowedURLError,
     build_origin_allowlist,
     make_url_guard,
     read_capped_response,
@@ -184,6 +185,8 @@ class MetaDomeClient:
                     json=json,
                     headers=headers,
                 )
+            except httpx.TooManyRedirects:
+                raise DisallowedURLError() from None
             except (httpx.TimeoutException, httpx.TransportError) as exc:
                 last_exc = exc
             if response is not None and response.status_code not in _RETRYABLE_STATUS:
