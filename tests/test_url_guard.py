@@ -1,0 +1,134 @@
+"""Adversarial tests for the outbound-destination guard + response cap (F-10).
+
+metadome-link's client follows redirects; without a destination constraint an
+upstream (or a MITM) could redirect a hop to an arbitrary host/scheme, or return
+an unbounded body. These tests pin the guard: every hop must be https, carry no
+userinfo, and target the exact host derived from the configured base URL, and a
+body over the cap fails closed. Critically, the guard exceptions must be
+NON-retryable (not httpx.TimeoutException/TransportError) so the client's retry
+loop never retries them. Research use only; not clinical decision support.
+"""
+
+from __future__ import annotations
+
+import httpx
+import pytest
+import respx
+
+from metadome_link.api.client import MetaDomeClient
+from metadome_link.api.url_guard import (
+    DisallowedURLError,
+    ResponseTooLargeError,
+    build_host_allowlist,
+    make_url_guard,
+)
+from metadome_link.config import ServerSettings
+
+BASE = "https://stuart.radboudumc.nl/metadome/api"
+HOST = "stuart.radboudumc.nl"
+TID = "ENST00000269305.4"
+ALLOWED = frozenset({HOST})
+
+
+# -- allowlist derivation -------------------------------------------------------
+
+
+def test_build_host_allowlist_from_base_url() -> None:
+    assert build_host_allowlist(BASE) == frozenset({HOST})
+    # Case-folded, userinfo/port stripped.
+    assert build_host_allowlist("https://User@Example.COM:8443/x") == frozenset({"example.com"})
+
+
+# -- request event-hook (unit) --------------------------------------------------
+
+
+async def test_guard_allows_allowlisted_https() -> None:
+    guard = make_url_guard(ALLOWED)
+    await guard(httpx.Request("GET", f"{BASE}/status/{TID}/"))  # must not raise
+
+
+async def test_guard_rejects_non_https() -> None:
+    guard = make_url_guard(ALLOWED)
+    with pytest.raises(DisallowedURLError):
+        await guard(httpx.Request("GET", f"http://{HOST}/status/{TID}/"))
+
+
+async def test_guard_rejects_userinfo() -> None:
+    guard = make_url_guard(ALLOWED)
+    with pytest.raises(DisallowedURLError):
+        await guard(httpx.Request("GET", f"https://user:pass@{HOST}/status/{TID}/"))
+
+
+async def test_guard_rejects_cross_host() -> None:
+    guard = make_url_guard(ALLOWED)
+    with pytest.raises(DisallowedURLError):
+        await guard(httpx.Request("GET", "https://evil.example.com/status/"))
+
+
+def test_guard_exceptions_are_non_retryable_and_not_transport_errors() -> None:
+    # The retry loop catches (TimeoutException, TransportError); the guard MUST NOT
+    # be caught by it, or a validation/cap failure would be retried 3x.
+    for exc_type in (DisallowedURLError, ResponseTooLargeError):
+        assert not issubclass(exc_type, (httpx.TimeoutException, httpx.TransportError))
+    for exc in (DisallowedURLError("x"), ResponseTooLargeError("y")):
+        assert exc.retryable is False
+        assert exc.error_code == "upstream_unavailable"
+
+
+# -- integration through the real client + retry loop ---------------------------
+
+
+def _client(*, max_retries: int = 3, max_response_bytes: int | None = None) -> MetaDomeClient:
+    settings = ServerSettings()
+    settings.metadome.max_retries = max_retries
+    if max_response_bytes is not None:
+        settings.metadome.max_response_bytes = max_response_bytes
+    return MetaDomeClient(settings)
+
+
+@respx.mock
+async def test_cross_host_redirect_is_refused_and_not_retried() -> None:
+    """A 302 to a non-allowlisted host raises and is NOT retried by the retry loop."""
+    route = respx.get(f"{BASE}/status/{TID}/").mock(
+        return_value=httpx.Response(302, headers={"Location": "https://evil.example.com/x"})
+    )
+    client = _client(max_retries=3)
+    with pytest.raises(DisallowedURLError):
+        await client.get_status(TID)
+    assert route.call_count == 1  # guard fired once; the retry loop did not re-issue it
+    await client.aclose()
+
+
+@respx.mock
+async def test_non_https_redirect_downgrade_is_refused() -> None:
+    """A 302 downgrading to http (even same host) raises."""
+    respx.get(f"{BASE}/status/{TID}/").mock(
+        return_value=httpx.Response(302, headers={"Location": f"http://{HOST}/status/{TID}/"})
+    )
+    client = _client(max_retries=3)
+    with pytest.raises(DisallowedURLError):
+        await client.get_status(TID)
+    await client.aclose()
+
+
+@respx.mock
+async def test_over_cap_response_is_refused_and_not_retried() -> None:
+    """A body over the byte cap fails closed (never truncates) and is not retried."""
+    big = b'{"status": "' + b"S" * 5000 + b'"}'
+    route = respx.get(f"{BASE}/status/{TID}/").mock(return_value=httpx.Response(200, content=big))
+    client = _client(max_retries=3, max_response_bytes=1024)
+    with pytest.raises(ResponseTooLargeError):
+        await client.get_status(TID)
+    assert route.call_count == 1
+    await client.aclose()
+
+
+@respx.mock
+async def test_happy_path_through_capped_stream_unchanged() -> None:
+    """A normal (no-redirect, under-cap) response still parses correctly."""
+    respx.get(f"{BASE}/status/{TID}/").mock(
+        return_value=httpx.Response(200, json={"status": "SUCCESS"})
+    )
+    client = _client()
+    assert await client.get_status(TID) == "SUCCESS"
+    await client.aclose()

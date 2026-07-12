@@ -36,6 +36,12 @@ from urllib.parse import quote
 
 import httpx
 
+from metadome_link.api.url_guard import (
+    MAX_REDIRECTS,
+    build_host_allowlist,
+    make_url_guard,
+    read_capped_response,
+)
 from metadome_link.config import ServerSettings
 from metadome_link.config import settings as default_settings
 from metadome_link.exceptions import (
@@ -113,6 +119,9 @@ class MetaDomeClient:
         resolved = settings if settings is not None else default_settings
         self._cfg: MetaDomeSettings = resolved.metadome
         self._base_url = self._cfg.base_url.rstrip("/")
+        # F-10: derive the redirect/destination allowlist from the CONFIGURED base
+        # URL host (never hardcoded, so an operator base-URL override still works).
+        self._url_guard = make_url_guard(build_host_allowlist(self._cfg.base_url))
         self._client = client
         self._owns_client = client is None
         self._connect_lock = asyncio.Lock()
@@ -133,6 +142,9 @@ class MetaDomeClient:
         if self._client is None:
             async with self._connect_lock:
                 if self._client is None:
+                    # Keep httpx's redirect machinery; the request event-hook
+                    # validates EVERY hop (scheme/userinfo/host). max_redirects
+                    # bounds the chain (each hop is still guarded).
                     self._client = httpx.AsyncClient(
                         timeout=self._cfg.request_timeout_s,
                         headers={
@@ -140,6 +152,8 @@ class MetaDomeClient:
                             "Accept": "application/json",
                         },
                         follow_redirects=True,
+                        max_redirects=MAX_REDIRECTS,
+                        event_hooks={"request": [self._url_guard]},
                     )
         return self._client
 
@@ -159,7 +173,17 @@ class MetaDomeClient:
             await self._limiter.acquire()
             response: httpx.Response | None = None
             try:
-                response = await client.request(method, url, json=json, headers=headers)
+                # F-10: stream with a hard byte cap. The request event-hook guards
+                # every hop; a DisallowedURLError / ResponseTooLargeError is NOT a
+                # Timeout/TransportError, so it propagates here WITHOUT retry.
+                response = await read_capped_response(
+                    client,
+                    method,
+                    url,
+                    max_bytes=self._cfg.max_response_bytes,
+                    json=json,
+                    headers=headers,
+                )
             except (httpx.TimeoutException, httpx.TransportError) as exc:
                 last_exc = exc
             if response is not None and response.status_code not in _RETRYABLE_STATUS:

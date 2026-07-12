@@ -107,6 +107,15 @@ class MetaDomeSettings(BaseModel):
         ge=0,
         description="Max retries on retryable upstream failures (429/5xx/timeout).",
     )
+    max_response_bytes: int = Field(
+        default=64 * 1024 * 1024,
+        ge=1,
+        description=(
+            "Hard cap (bytes) on an upstream response body. Exceeding it raises a "
+            "non-retryable error (fail-closed, never truncate). Default 64 MiB is "
+            "above titin-scale /result/ landscapes."
+        ),
+    )
 
 
 class CacheSettings(BaseModel):
