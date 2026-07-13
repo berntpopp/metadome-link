@@ -1,47 +1,86 @@
-# Keep the build context small and the image clean. metadome-link is a pure
-# API proxy with no pre-built data — the image only needs the Python package
-# and its runtime dependencies.
+# Keep the public application image code-only and the build context bounded.
 
-# Virtualenvs
-.venv
-venv
-
-# Python caches / build artifacts
-__pycache__
-*.pyc
-*.pyo
-*.egg-info
-dist
-build
-
-# Local data store (SQLite result cache — built at runtime, not shipped in image)
-*.sqlite
-*.sqlite-*
-data
-
-# Tests, docs, and coverage output (not needed in the runtime image)
-tests
-docs
-htmlcov
-.coverage
-coverage.xml
-
-# Tool caches
-.mypy_cache
-.ruff_cache
-.pytest_cache
-
-# VCS and local env
+# Version control and CI metadata
+.git/
 .git
 .gitignore
+.gitattributes
+.github/
+
+# Runtime secrets and local environments
 .env
 .env.*
+!.env.example
 !.env.docker.example
+.venv/
+venv/
+env/
+ENV/
 
-# CI / editor metadata
-.github
+# Python caches, build output, and test artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+wheels/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+
+# Documentation and development-only helpers
+docs/
+scripts/
+tests/
+dev/
 .pre-commit-config.yaml
 
-# Temporary captures and superpowers docs
-/tmp
-.superpowers
+# Docker Compose files are deployment inputs, not image content.
+docker/docker-compose*.yml
+docker/README.md
+.dockerignore
+
+# Authoritative data, runtime state, and bulky biomedical artifacts
+data/
+datasets/
+corpus/
+output/
+outputs/
+*.db
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.parquet
+*.vcf
+*.vcf.gz
+*.bcf
+*.obo
+*.owl
+*.zst
+
+# Logs, temporary files, editor state, and OS metadata
+*.log
+logs/
+*.tmp
+*.temp
+tmp/
+temp/
+.superpowers/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

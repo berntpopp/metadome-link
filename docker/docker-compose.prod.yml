@@ -7,6 +7,11 @@
 
 services:
   metadome-link:
+    build: !reset null
+    image: ${METADOME_LINK_IMAGE:?set a verified digest-addressed image}
+    pull_policy: missing
+    container_name: !reset null
+    env_file: !reset []
     environment:
       METADOME_LINK_TRANSPORT: unified
       METADOME_LINK_LOG_LEVEL: INFO
@@ -15,49 +20,50 @@ services:
       METADOME_LINK_ALLOWED_ORIGINS: '["https://metadome-link.genefoundry.org"]'
       METADOME_LINK_CORS_ORIGINS: '["https://metadome-link.genefoundry.org"]'
       # Keep the SQLite result cache on the writable volume (read-only rootfs).
-      METADOME_LINK_CACHE__DB_PATH: /app/data/metadome_cache.sqlite
+      METADOME_LINK_CACHE__DB_PATH: /data/metadome_cache.sqlite
+      GF_HEALTHCHECK_HOST: localhost
 
     # No published host ports in production; reach the container via the proxy only.
     # !reset (not []) is required: Compose MERGES list fields across -f overlays,
     # so a plain `ports: []` would NOT drop the base file's host mapping.
     ports: !reset []
+    expose:
+      - "8000"
 
     # Read-only root filesystem; writes confined to the named cache volume
-    # (/app/data, inherited from the base file) and an ephemeral tmpfs.
+    # (/data) and an ephemeral tmpfs.
+    volumes: !override
+      - metadome-data:/data
     read_only: true
-    tmpfs:
-      - /tmp/metadome-link:rw,noexec,nosuid,size=64m,mode=1777
+    tmpfs: !override
+      - /tmp:rw,noexec,nosuid,size=64m,mode=1777
 
-    security_opt:
+    security_opt: !override
       - no-new-privileges:true
-    cap_drop:
+    cap_drop: !override
       - ALL
 
-    pids_limit: 256
     init: true
 
-    deploy:
+    deploy: !override
       resources:
         limits:
           memory: 1G
           cpus: "1.0"
           pids: 256
-        reservations:
-          memory: 128M
-          cpus: "0.25"
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-        window: 120s
+    restart: on-failure
 
     # No bulk download — the server starts immediately after uvicorn binds.
     healthcheck:
-      test: ["CMD", "curl", "-f", "-H", "Host: localhost", "http://127.0.0.1:8000/health"]
-      interval: 20s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+      test:
+        - CMD
+        - sh
+        - -c
+        - 'curl -f -H "Host: $${GF_HEALTHCHECK_HOST}" http://localhost:8000/health'
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
     logging:
       driver: "json-file"
@@ -65,3 +71,9 @@ services:
         max-size: "50m"
         max-file: "5"
         labels: "service=metadome-link,environment=production"
+    networks: !reset null
+
+volumes: !override
+  metadome-data: {}
+
+networks: !reset null
