@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-07-13
+
+### Build
+
+- Re-pin the central container CI and release callers to the fixed GeneFoundry
+  release standard (`58d011d`), which corrects seven latent defects in the
+  reusable workflows. No runtime or MCP surface changes. Research use only; not
+  for clinical decision support.
+
 ## [0.1.7] - 2026-07-13
 
 ### Build
