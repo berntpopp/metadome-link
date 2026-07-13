@@ -30,11 +30,11 @@ services:
       METADOME_LINK_ALLOWED_HOSTS: '["localhost","127.0.0.1","::1"]'
       METADOME_LINK_LOG_LEVEL: INFO
       METADOME_LINK_LOG_FORMAT: json
-      METADOME_LINK_CACHE__DB_PATH: /app/data/metadome_cache.sqlite
+      METADOME_LINK_CACHE__DB_PATH: /data/metadome_cache.sqlite
     volumes:
       # Persist the SQLite result cache across container restarts so already-
       # computed tolerance landscapes are served instantly on repeat requests.
-      - metadome-data:/app/data
+      - metadome-data:/data
     healthcheck:
       test: ["CMD", "curl", "-f", "-H", "Host: localhost", "http://127.0.0.1:8000/health"]
       interval: 30s
@@ -52,8 +52,7 @@ services:
       - metadome-network
 
 volumes:
-  metadome-data:
-    driver: local
+  metadome-data: {}
 
 networks:
   metadome-network:

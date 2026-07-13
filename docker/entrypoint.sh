@@ -11,7 +11,7 @@
 #      making it PID 1 so it receives SIGTERM/SIGINT for graceful shutdown.
 set -euo pipefail
 
-DATA_DIR="${METADOME_LINK_CACHE__DB_PATH:-/app/data/metadome_cache.sqlite}"
+DATA_DIR="${METADOME_LINK_CACHE__DB_PATH:-/data/metadome_cache.sqlite}"
 DATA_DIR="$(dirname "${DATA_DIR}")"
 
 echo "[entrypoint] Data directory: ${DATA_DIR}"
