@@ -18,10 +18,19 @@ make docker-down        # docker compose down
 docker compose -f docker/docker-compose.npm.yml --env-file .env.docker up -d --build
 ```
 
+The base compose file publishes the container's port 8000 on **loopback only**
+(`127.0.0.1:${METADOME_LINK_HOST_PORT:-8000}:8000`). Set `METADOME_LINK_HOST_PORT` in
+`docker/.env` to move the host port when a sibling `-link` project already holds 8000;
+`make docker-url` prints the resulting MCP URL.
+
 The production overlay (`docker-compose.npm.yml`) is self-contained (not layered over the
 dev compose). It uses `expose: 8000` only (no host port), `read_only: true`, `tmpfs` scratch,
 `security_opt: [no-new-privileges:true]`, `cap_drop: [ALL]`, resource limits, and dual
 networks (internal bridge + external `${NPM_SHARED_NETWORK_NAME:-npm_default}`).
+
+Like every GeneFoundry backend, `metadome-link` is **unauthenticated by design**: the router
+owns edge auth at the trust boundary. It MUST be reachable only through the router or a
+reverse proxy — never published directly to the internet.
 
 Health check:
 ```bash
@@ -54,6 +63,12 @@ transport guard and browser CORS are independent controls.
 
 ### MetaDome upstream (`METADOME_LINK_METADOME__*`)
 
+The MetaDome web service is public and needs **no API key or token** — there is no credential
+to configure. It is, however, a small academic service: the client is politeness-rate-limited
+by a token bucket (default 3.0 req/s, burst 5) with retries on 429/5xx/timeout. Do not raise
+`POLITENESS_RATE_PER_S` to work around slowness — a cold landscape build is slow upstream
+(Celery), not rate-limited.
+
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `METADOME_LINK_METADOME__BASE_URL` | `https://stuart.radboudumc.nl/metadome/api` | MetaDome API base URL. |
@@ -74,7 +89,19 @@ transport guard and browser CORS are independent controls.
 | `METADOME_LINK_CACHE__LRU_RESULTS` | `64` | In-memory LRU size for completed landscapes. |
 | `METADOME_LINK_CACHE__LRU_TRANSCRIPTS` | `256` | In-memory LRU size for transcript lists. |
 
-## Unified transport
+## Transports
+
+Three transports, selected with `--transport` or `METADOME_LINK_TRANSPORT`.
+
+| Transport | Serves | MCP endpoint? |
+|-----------|--------|---------------|
+| `unified` (default) | FastAPI `/health` + MCP `/mcp` on one port | **yes** — `/mcp` |
+| `http` | FastAPI/REST **only** | **NO** |
+| `stdio` | MCP over stdin/stdout (Claude Desktop) | yes (stdio framing) |
+
+> **Footgun.** `--transport http` is REST/FastAPI-only: it does **not** mount the MCP app, so
+> there is no `/mcp` endpoint. An MCP client (or the GeneFoundry router) pointed at an `http`
+> server will fail to connect. Use `unified` for MCP over HTTP.
 
 In `unified` mode the server mounts the MCP Streamable-HTTP ASGI app alongside the FastAPI
 application on one port:
@@ -87,6 +114,30 @@ application on one port:
 
 This is the transport the GeneFoundry router uses — it proxies the `/mcp` endpoint as
 `https://metadome-link.genefoundry.org/mcp`.
+
+## MCP client configuration
+
+**HTTP (Streamable HTTP).** Start the server in `unified` mode, then register the `/mcp` URL:
+
+```bash
+uv run metadome-link                    # unified, :8000
+claude mcp add --transport http metadome-link --scope user http://127.0.0.1:8000/mcp
+```
+
+**Stdio** (Claude Desktop / Claude Code). Uses the dedicated `metadome-link-mcp` entry point;
+stdout is reserved for the protocol, so logs go to stderr only:
+
+```json
+{
+  "mcpServers": {
+    "metadome-link": {
+      "command": "uv",
+      "args": ["run", "metadome-link-mcp"],
+      "cwd": "/path/to/metadome-link"
+    }
+  }
+}
+```
 
 ## GeneFoundry router registration
 

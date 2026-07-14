@@ -93,6 +93,10 @@ line-ending = "lf"
 "tests/**/*" = ["S101", "S104", "S110", "T20", "B011", "SIM105", "SIM108"]
 "mcp_server.py" = ["T20"]
 "scripts/**/*" = ["T20"]
+# Vendored verbatim from genefoundry-router (README Standard v1 linter). Kept
+# byte-identical across the fleet so it can be re-copied and diffed; do not edit
+# it here. B905 (zip strict=) is the only rule it trips under our stricter select.
+"scripts/check_readme.py" = ["B905"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
