@@ -176,6 +176,50 @@ Parameters:
 - `min_run` (default 3, range 1–100): minimum region length.
 - `top_n` (default 15, range 1–100): maximum regions returned.
 
+## Worked example: TP53
+
+The canonical five-step pattern for a variant-interpretation query.
+
+**Step 1 — resolve the canonical transcript:**
+```json
+{ "tool": "resolve_transcript", "arguments": { "query": "TP53" } }
+```
+Returns all GRCh37 transcripts sorted by length; the longest protein-coding entry is flagged
+`canonical`. For TP53 this is `ENST00000269305.4` (393 aa).
+
+**Step 2 — request the landscape:**
+```json
+{ "tool": "request_tolerance_landscape", "arguments": { "transcript_id": "ENST00000269305.4" } }
+```
+For TP53 the landscape is pre-built; `status:"ready"` is returned immediately.
+
+**Step 3 — fetch the landscape:**
+```json
+{ "tool": "get_tolerance_landscape", "arguments": { "transcript_id": "ENST00000269305.4" } }
+```
+Returns Pfam domains (`PF00870` — P53, `PF07710` — P53_tetramer), paginated
+`positional_annotation` (`sw_dn_ds` per residue), and the data version block. If a cold build
+is running, `status:"processing"` is returned — re-poll after `poll_after_s`.
+
+**Step 4a — inspect a specific residue (p.R175):**
+```json
+{ "tool": "get_position_tolerance", "arguments": { "transcript_id": "ENST00000269305.4", "position": 175 } }
+```
+
+**Step 4b — meta-domain drill-down at p.175:**
+```json
+{ "tool": "get_meta_domain", "arguments": { "transcript_id": "ENST00000269305.4", "position": 175 } }
+```
+Returns ClinVar pathogenic variants observed at the aligned consensus position across all
+homologous proteins in the same Pfam domain family.
+
+**Step 4c — identify the most constrained regions:**
+```json
+{ "tool": "summarize_intolerant_regions", "arguments": { "transcript_id": "ENST00000269305.4" } }
+```
+Returns ranked contiguous intolerant runs (mean `sw_dn_ds` below threshold) annotated with
+overlapping Pfam domains and aggregate gnomAD/ClinVar counts.
+
 ## Recommended workflows
 
 ### Gene → canonical transcript

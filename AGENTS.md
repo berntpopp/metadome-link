@@ -2,8 +2,10 @@
 
 Guidance for agents and contributors working in this repository.
 
-> **Task 17 (docs/router) complete as of 2026-06-20.** See `README.md` for the full tool
-> catalog and `docs/` for architecture, deployment, usage, and router-registration docs.
+> `README.md` is the front door and follows the **GeneFoundry README Standard v1** (hard
+> ceiling 200 lines, fixed section order, machine-checked by `scripts/check_readme.py`).
+> Depth lives in `docs/` — see the documentation index at the bottom of this file. Do not
+> grow the README: relocate.
 
 ## What this is
 
@@ -80,13 +82,38 @@ is a **first-class success state** (not an error), carrying `poll_after_s` /
 format-check   ruff format --check
 lint-ci        ruff check
 lint-loc       scripts/check_file_size.py   (≤ 500 lines/file, hard cap)
+lint-readme    scripts/check_readme.py      (README Standard v1)
 typecheck      mypy --strict
 test-fast      pytest -n auto, coverage ≥ 80%
 ```
 
 `tests/unit/test_output_schemas.py` runs inside `test-fast` (every tool's real
 output — success and error, all response modes — must validate against its own
-`output_schema`).
+`output_schema`). `tests/unit/test_readme_tools.py` asserts the README's `## Tools`
+table matches the registered tool set exactly — **add a tool, update the table**, or
+CI fails.
+
+## Make targets
+
+```
+make install          # uv sync --group dev
+make ci-local         # the definition-of-done gate (see above)
+make test             # pytest, unit only
+make test-fast        # pytest -n auto
+make test-integration # live MetaDome endpoint tests (opt-in)
+make test-cov         # pytest --cov (coverage ≥ 80%)
+make dev              # unified REST + MCP server on 127.0.0.1:8000
+make mcp-serve        # stdio MCP server
+make cache-status     # on-disk result cache stats + pinned data version
+make cache-clear      # drop all cached landscapes
+make cache-warm GENES="TP53 BRCA1"   # pre-warm popular transcripts
+make docker-up        # Docker stack; make docker-url prints the MCP URL
+```
+
+Unit tests are network-free: **respx** mocks the 6 MetaDome endpoints against recorded
+fixtures in `tests/fixtures/`. `scripts/check_readme.py` is vendored verbatim from
+`genefoundry-router` — keep it byte-identical (it is exempted from `B905` in
+`pyproject.toml` rather than edited).
 
 ## Conventions
 
@@ -121,9 +148,9 @@ patient management. MetaDome code is MIT; cite Wiel et al. 2019 (doi:10.1002/hum
 
 | Doc | Purpose |
 |-----|---------|
-| `README.md` | Full tool catalog (11 tools), quick start, TP53 example workflow, configuration, Docker, citation |
+| `README.md` | Front door (Standard v1): what/why, quick start, tool table, provenance & citation |
 | `docs/architecture.md` | Two-plane design, async request+poll model, caching, error taxonomy, envelope |
-| `docs/deployment.md` | Docker, configuration reference, unified transport, cache management |
-| `docs/usage.md` | Tool-by-tool reference, recommended workflows, response_mode tiers, error codes |
+| `docs/deployment.md` | Docker, full env-var reference, transports + MCP client config, Host/Origin, cache management |
+| `docs/usage.md` | Tool-by-tool reference, TP53 worked example, workflows, response_mode tiers, error codes, limits |
 | `docs/router-registration.md` | Exact `servers.yaml` entry, `GF_METADOME_URL`, verify commands |
 | `CHANGELOG.md` | Version history |
