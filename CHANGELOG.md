@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9] - 2026-07-14
+
+### Changed
+
+- **The NPM deployment pulls the released image instead of building from source.**
+  `docker/docker-compose.npm.yml` carried `build:`, so a deploy rebuilt the image on the
+  server even though CI had already published an attested, digest-addressable image to
+  GHCR. It now requires `METADOME_LINK_IMAGE` pinned to a digest and fails closed when it
+  is unset. Nothing else in the overlay changed: `container_name`, the Compose project
+  name, the healthcheck, networks and volumes are all preserved, so the deployed topology
+  and the persisted SQLite result cache are untouched.
+
 ## [Unreleased]
 
 ## [0.1.8] - 2026-07-13

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "metadome-link"
-version = "0.1.8"
+version = "0.1.9"
 description = "MCP/API server wrapping the MetaDome web service for missense tolerance landscapes, Pfam domains, and meta-domain variant aggregation"
 readme = "README.md"
 license = { text = "MIT" }
