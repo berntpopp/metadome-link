@@ -143,24 +143,72 @@ def test_shape_record_full_keeps_all_fields() -> None:
     assert result == record
 
 
-def test_shape_record_minimal_keeps_identity_and_collections() -> None:
+def test_shape_record_minimal_keeps_collection_results() -> None:
+    """minimal must not empty a COLLECTION result (grouped/list payload)."""
     from metadome_link.services.shaping import shape_record
 
     record = {
         "transcript_id": "ENST00000269305.4",
         "gene_name": "TP53",
-        "aa_length": 393,
         "domains": [{"name": "p53"}],
+        "meta_domains": {"PF00870": {"pathogenic_variants": [{"pos": 175}]}},
+        "recommended_citation": "MetaDome ...",
+        "data_currency_caveat": "long redundant caveat string",
     }
     result = shape_record(record, "minimal")
 
-    # minimal mode keeps identity anchors and drops verbose SCALAR prose...
-    assert "transcript_id" in result
-    assert "gene_name" in result
-    assert "aa_length" not in result
-    # ...but MUST NOT destroy the record's data collection (Response-Envelope v1:
-    # response_mode narrows verbosity, it never drops the result rows).
+    assert result["transcript_id"] == "ENST00000269305.4"
     assert result["domains"] == [{"name": "p53"}]
+    assert result["meta_domains"] == {"PF00870": {"pathogenic_variants": [{"pos": 175}]}}
+    # the mandatory citation survives; only the redundant prose caveat is dropped
+    assert result["recommended_citation"] == "MetaDome ..."
+    assert "data_currency_caveat" not in result
+
+
+def test_shape_record_minimal_keeps_scalar_results() -> None:
+    """minimal must not drop SCALAR results -- the N+1 (single-record) tool shape.
+
+    get_position_tolerance returns scalars (protein_pos/ref_aa/sw_dn_ds); a
+    projection that keeps only identity anchors or only collections would silently
+    make this tool unusable at success:true. This is the case that guards the class.
+    """
+    from metadome_link.services.shaping import shape_record
+
+    record = {
+        "transcript_id": "ENST00000269305.4",
+        "protein_pos": 175,
+        "ref_aa": "R",
+        "sw_dn_ds": 0.123,
+        "recommended_citation": "MetaDome ...",
+        "data_currency_caveat": "long redundant caveat string",
+    }
+    result = shape_record(record, "minimal")
+
+    # every essential scalar result survives
+    assert result["protein_pos"] == 175
+    assert result["ref_aa"] == "R"
+    assert result["sw_dn_ds"] == 0.123
+    assert result["recommended_citation"] == "MetaDome ..."
+    # only the verbose/redundant prose is dropped
+    assert "data_currency_caveat" not in result
+
+
+def test_shape_record_minimal_keeps_build_handle_scalars() -> None:
+    """minimal must not drop request_tolerance_landscape's poll handle (job_id/status/poll_after_s)."""
+    from metadome_link.services.shaping import shape_record
+
+    record = {
+        "job_id": "ENST00000269305.4",
+        "status": "processing",
+        "poll_after_s": 30,
+        "recommended_citation": "MetaDome ...",
+    }
+    result = shape_record(record, "minimal")
+
+    assert result["job_id"] == "ENST00000269305.4"
+    assert result["status"] == "processing"
+    assert result["poll_after_s"] == 30
+    assert result["recommended_citation"] == "MetaDome ..."
 
 
 def test_shape_record_compact_preserves_meta_and_success() -> None:
