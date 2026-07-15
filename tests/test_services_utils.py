@@ -143,7 +143,7 @@ def test_shape_record_full_keeps_all_fields() -> None:
     assert result == record
 
 
-def test_shape_record_minimal_keeps_only_identity_anchors() -> None:
+def test_shape_record_minimal_keeps_identity_and_collections() -> None:
     from metadome_link.services.shaping import shape_record
 
     record = {
@@ -154,11 +154,13 @@ def test_shape_record_minimal_keeps_only_identity_anchors() -> None:
     }
     result = shape_record(record, "minimal")
 
-    # minimal mode: only transcript_id + gene_name (identity anchors) kept
+    # minimal mode keeps identity anchors and drops verbose SCALAR prose...
     assert "transcript_id" in result
     assert "gene_name" in result
     assert "aa_length" not in result
-    assert "domains" not in result
+    # ...but MUST NOT destroy the record's data collection (Response-Envelope v1:
+    # response_mode narrows verbosity, it never drops the result rows).
+    assert result["domains"] == [{"name": "p53"}]
 
 
 def test_shape_record_compact_preserves_meta_and_success() -> None:

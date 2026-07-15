@@ -2,8 +2,9 @@
 
 ``standard`` / ``full`` are the identity (the complete record, unmodified).
 ``compact`` (the default) drops null/empty values — ``None``, ``[]``, ``""``,
-``{}`` — to keep token counts low.  ``minimal`` retains only the identity
-anchors (``transcript_id`` + ``gene_name``) and a few system keys.
+``{}`` — to keep token counts low.  ``minimal`` retains the identity anchors
+(``transcript_id`` + ``gene_name``), the system keys, and every non-empty result
+collection (a verbosity mode narrows a payload, it must not destroy it).
 
 ``char_budget_guard`` provides a last-resort token-budget safety valve: when
 the serialised payload exceeds ``max_chars``, it iteratively truncates list
@@ -47,16 +48,31 @@ def _is_empty(value: Any) -> bool:
     return value is None or value == [] or value == "" or value == {}
 
 
+def _is_collection(value: Any) -> bool:
+    """True for a non-empty list/dict — the record's primary result data.
+
+    ``response_mode`` narrows a record's VERBOSITY; it must never DESTROY the
+    result collection (Response-Envelope Standard v1; enforced by the behaviour
+    gate). So even ``minimal`` retains every non-empty list/dict — the paginated
+    rows, grouped variant maps (``meta_domains``), counts — dropping only verbose
+    scalar prose.
+    """
+    return isinstance(value, (list, dict)) and bool(value)
+
+
 def shape_record(record: dict[str, Any], mode: str) -> dict[str, Any]:
     """Project a MetaDome record to the requested verbosity.
 
-    - ``minimal``: ``transcript_id`` + ``gene_name`` (and system keys).
+    - ``minimal``: identity anchors (``transcript_id`` + ``gene_name``) + system
+      keys + every non-empty result collection (a list or dict). ``minimal`` is
+      the terse _meta tier and drops verbose scalar prose, but it MUST NOT drop
+      the record's data collection (Response-Envelope Standard v1).
     - ``compact``: drop null/empty values (``None``, ``[]``, ``""``, ``{}``) ;
       system keys (``_meta``, ``success``) are always preserved.
     - ``standard`` / ``full``: the complete record, unmodified.
     """
     if mode == "minimal":
-        return {k: v for k, v in record.items() if k in _MINIMAL_KEEP}
+        return {k: v for k, v in record.items() if k in _MINIMAL_KEEP or _is_collection(v)}
     if mode in ("standard", "full"):
         return dict(record)
     # compact
