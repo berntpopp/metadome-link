@@ -22,12 +22,8 @@ from metadome_link.mcp.capabilities import (
     build_capabilities,
     capabilities_version,
 )
-from metadome_link.mcp.envelope import McpErrorContext, run_mcp_tool
+from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
 from metadome_link.mcp.next_commands import cmd
-from metadome_link.mcp.schemas import (
-    GET_DIAGNOSTICS_SCHEMA,
-    GET_SERVER_CAPABILITIES_SCHEMA,
-)
 from metadome_link.mcp.service_adapters import get_metadome_service
 from metadome_link.mcp.tools._common import ResponseMode
 
@@ -79,7 +75,7 @@ def register_discovery_tools(mcp: FastMCP) -> None:
         name="get_server_capabilities",
         title="Get Server Capabilities",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=GET_SERVER_CAPABILITIES_SCHEMA,
+        output_schema=None,
         tags={"discovery"},
         description=(
             "Return the metadome-link discovery surface: identity/build/MetaDome data "
@@ -96,7 +92,7 @@ def register_discovery_tools(mcp: FastMCP) -> None:
             Field(description="summary (default, light) or full (adds semantics + notes)."),
         ] = "summary",
         response_mode: ResponseMode = "compact",
-    ) -> dict[str, Any]:
+    ) -> ToolReturn:
         async def call() -> dict[str, Any]:
             payload = _project_capabilities(detail)
             payload.setdefault("_meta", {})["next_commands"] = [
@@ -115,7 +111,7 @@ def register_discovery_tools(mcp: FastMCP) -> None:
         name="get_diagnostics",
         title="Get MetaDome Diagnostics",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=GET_DIAGNOSTICS_SCHEMA,
+        output_schema=None,
         tags={"discovery"},
         description=(
             "Report local runtime health WITHOUT calling MetaDome: build info, "
@@ -128,7 +124,7 @@ def register_discovery_tools(mcp: FastMCP) -> None:
     )
     async def get_diagnostics(
         response_mode: ResponseMode = "compact",
-    ) -> dict[str, Any]:
+    ) -> ToolReturn:
         async def call() -> dict[str, Any]:
             service = get_metadome_service()
             payload: dict[str, Any] = {

@@ -71,8 +71,8 @@ METADOME_USAGE_NOTES = (
 )
 
 METADOME_REFERENCE_NOTES = (
-    f"Error codes (7): invalid_input, not_found, ambiguous_query, data_unavailable, "
-    "rate_limited, upstream_unavailable, internal_error. "
+    f"Error codes (6): invalid_input, not_found, ambiguous_query, "
+    "upstream_unavailable, rate_limited, internal. "
     "All tools require a versioned Ensembl transcript id (ENST\\d{11}\\.\\d+, e.g. "
     "ENST00000269305.4). Tolerance scores (sw_dn_ds) are background-corrected "
     "missense/synonymous ratios over a ±10-residue sliding window; lower values "

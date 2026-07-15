@@ -59,6 +59,10 @@ def create_metadome_mcp(
         version=__version__,
         instructions=METADOME_SERVER_INSTRUCTIONS,
         mask_error_details=True,
+        # Tool-Surface Budget Standard v1: do not inline $defs/$ref at every use
+        # site (the constructor default is True). Free and safe -- no input schema
+        # contains a $ref -- and it trims the advertised surface.
+        dereference_schemas=False,
     )
 
     if service_factory is not None:

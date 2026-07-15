@@ -48,7 +48,7 @@ GeneOrIdArg = Annotated[
 #: A single 1-based protein residue position.
 PositionArg = Annotated[
     int,
-    Field(ge=1, description="1-based protein residue position."),
+    Field(ge=1, description="1-based protein residue position.", examples=[273]),
 ]
 
 #: A batch of 1-based protein residue positions (e.g. for compare_positions).

@@ -2,8 +2,11 @@
 
 ``standard`` / ``full`` are the identity (the complete record, unmodified).
 ``compact`` (the default) drops null/empty values — ``None``, ``[]``, ``""``,
-``{}`` — to keep token counts low.  ``minimal`` retains only the identity
-anchors (``transcript_id`` + ``gene_name``) and a few system keys.
+``{}`` — to keep token counts low.  ``minimal`` keeps the mandatory envelope and
+every ESSENTIAL field — identity anchors, scalar results, collections, and the
+mandatory ``recommended_citation`` — dropping only verbose/redundant prose (the
+data-currency caveat, already carried in ``_meta``). A verbosity mode narrows a
+payload; it must never empty a result, of any shape.
 
 ``char_budget_guard`` provides a last-resort token-budget safety valve: when
 the serialised payload exceeds ``max_chars``, it iteratively truncates list
@@ -33,8 +36,16 @@ __all__ = [
 #: System-level keys that are always preserved (never dropped by compact/minimal).
 _PRESERVE_KEYS: frozenset[str] = frozenset({"_meta", "success"})
 
-#: Identity anchors kept in ``minimal`` mode.
-_MINIMAL_KEEP: frozenset[str] = frozenset({"transcript_id", "gene_name", "_meta", "success"})
+#: The ONLY record fields ``minimal`` may drop: verbose/redundant PROSE that
+#: duplicates provenance already carried in every ``_meta`` (``data_versions`` +
+#: ``unsafe_for_clinical_use``). Everything else in a record -- identity anchors,
+#: scalar RESULTS (``sw_dn_ds``, ``ref_aa``, ``protein_pos``, ``job_id``,
+#: ``status``, ``poll_after_s`` ...), collections, and the mandatory
+#: ``recommended_citation`` -- is ESSENTIAL and survives ``minimal``. This is a
+#: DENYLIST of prose, not an allowlist of results, so a scalar-result tool keeps
+#: its scalars automatically (Response-Envelope v1: ``minimal`` narrows verbosity,
+#: it must never empty a result).
+_MINIMAL_DROP_PROSE: frozenset[str] = frozenset({"data_currency_caveat"})
 
 #: Identity/grounding anchors a sparse fieldset always retains.
 _FIELD_ANCHORS: frozenset[str] = frozenset(
@@ -50,13 +61,22 @@ def _is_empty(value: Any) -> bool:
 def shape_record(record: dict[str, Any], mode: str) -> dict[str, Any]:
     """Project a MetaDome record to the requested verbosity.
 
-    - ``minimal``: ``transcript_id`` + ``gene_name`` (and system keys).
+    - ``minimal``: keep the mandatory envelope + identifiers and every ESSENTIAL
+      result -- identity anchors, scalar results, collections, and the mandatory
+      ``recommended_citation`` -- dropping only verbose/redundant prose
+      (:data:`_MINIMAL_DROP_PROSE`, already carried in ``_meta``) and null/empty
+      values. It MUST NOT empty a result of any shape (scalar OR collection);
+      Response-Envelope v1, enforced by the behaviour gate.
     - ``compact``: drop null/empty values (``None``, ``[]``, ``""``, ``{}``) ;
       system keys (``_meta``, ``success``) are always preserved.
     - ``standard`` / ``full``: the complete record, unmodified.
     """
     if mode == "minimal":
-        return {k: v for k, v in record.items() if k in _MINIMAL_KEEP}
+        return {
+            key: value
+            for key, value in record.items()
+            if key in _PRESERVE_KEYS or (key not in _MINIMAL_DROP_PROSE and not _is_empty(value))
+        }
     if mode in ("standard", "full"):
         return dict(record)
     # compact

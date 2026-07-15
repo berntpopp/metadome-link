@@ -18,12 +18,8 @@ from typing import TYPE_CHECKING, Annotated, Any
 from pydantic import Field
 
 from metadome_link.mcp.annotations import COMPUTE_IDEMPOTENT_OPEN_WORLD, READ_ONLY_OPEN_WORLD
-from metadome_link.mcp.envelope import McpErrorContext, run_mcp_tool
+from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
 from metadome_link.mcp.next_commands import _more_steps, cmd
-from metadome_link.mcp.schemas import (
-    GET_TOLERANCE_LANDSCAPE_SCHEMA,
-    REQUEST_TOLERANCE_LANDSCAPE_SCHEMA,
-)
 from metadome_link.mcp.service_adapters import get_metadome_service
 from metadome_link.mcp.tools._common import (
     LimitArg,
@@ -36,8 +32,10 @@ if TYPE_CHECKING:
     from fastmcp import FastMCP
 
 #: Optional 1-based protein position bound (``position_start`` / ``position_stop``).
+#: The ``Field`` wraps ``int | None`` so the description lands on the PROPERTY, not
+#: inside the ``anyOf`` int branch (where FastMCP would not surface it to the model).
 _PositionBoundArg = Annotated[
-    int,
+    int | None,
     Field(ge=1, description="1-based protein residue position (inclusive range bound)."),
 ]
 
@@ -80,7 +78,7 @@ def register_landscape_tools(mcp: FastMCP) -> None:
         # F-11: this POSTs /submit_visualization/ (starts a Celery build) -> NOT
         # read-only. Non-destructive + idempotent (MetaDome dedupes by transcript_id).
         annotations=COMPUTE_IDEMPOTENT_OPEN_WORLD,
-        output_schema=REQUEST_TOLERANCE_LANDSCAPE_SCHEMA,
+        output_schema=None,
         tags={"landscape"},
         description=(
             "Submit (or re-confirm) a MetaDome tolerance-landscape build for a versioned "
@@ -93,7 +91,7 @@ def register_landscape_tools(mcp: FastMCP) -> None:
     async def request_tolerance_landscape(
         transcript_id: TranscriptIdArg,
         response_mode: ResponseMode = "compact",
-    ) -> dict[str, Any]:
+    ) -> ToolReturn:
         async def call() -> dict[str, Any]:
             service = get_metadome_service()
             payload = await service.request_landscape(transcript_id, response_mode=response_mode)
@@ -116,7 +114,7 @@ def register_landscape_tools(mcp: FastMCP) -> None:
         name="get_tolerance_landscape",
         title="Get Tolerance Landscape",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=GET_TOLERANCE_LANDSCAPE_SCHEMA,
+        output_schema=None,
         tags={"landscape"},
         description=(
             "Return the (cache-first) MetaDome tolerance landscape for a built transcript: "
@@ -130,12 +128,12 @@ def register_landscape_tools(mcp: FastMCP) -> None:
     )
     async def get_tolerance_landscape(
         transcript_id: TranscriptIdArg,
-        position_start: _PositionBoundArg | None = None,
-        position_stop: _PositionBoundArg | None = None,
+        position_start: _PositionBoundArg = None,
+        position_stop: _PositionBoundArg = None,
         limit: LimitArg = 200,
         offset: OffsetArg = 0,
         response_mode: ResponseMode = "compact",
-    ) -> dict[str, Any]:
+    ) -> ToolReturn:
         async def call() -> dict[str, Any]:
             service = get_metadome_service()
             payload = await service.get_landscape(

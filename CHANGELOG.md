@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-15
+
+MCP contract-hardening sweep — GeneFoundry fleet standards
+(genefoundry-router#73 Tool-Surface Budget, #75 Tool-Schema Documentation, #76
+Response-Envelope). Verified against a locally-running server with the vendored
+behaviour gate (`tests/conformance/behaviour.py`, byte-identical to router
+`791363c`): NON-CONFORMANT (19 fail, 2 UNGATED) → CONFORMANT (0 fail, 0 UNGATED).
+
+### Changed
+
+- **BREAKING (error taxonomy): the `error_code` enum is closed to the fleet's six
+  values** — `invalid_input`, `not_found`, `ambiguous_query`, `upstream_unavailable`,
+  `rate_limited`, `internal`. The two off-enum codes are mapped at the single
+  classification chokepoint: `data_unavailable` → `upstream_unavailable` and
+  `internal_error` → `internal`. Discovery (`get_server_capabilities`, the
+  `metadome://` reference notes) is updated to advertise the same six.
+- **Error envelopes now carry MCP `isError: true`.** A tool error is returned as
+  `ToolResult(structured_content=<envelope>, is_error=True)` at both chokepoints —
+  the `run_mcp_tool` error boundary and the argument-validation middleware — so a
+  client that branches on `isError` sees the failure instead of a silent success.
+  The structured envelope (`success:false`, `error_code`, `message`, …) is unchanged.
+- **`response_mode="minimal"` no longer empties a result.** It kept only
+  `transcript_id`/`gene_name`, so it silently deleted `get_meta_domain`'s
+  `meta_domains` collection, `get_position_tolerance`'s scalar results
+  (`protein_pos`/`ref_aa`/`sw_dn_ds`), `request_tolerance_landscape`'s poll handle
+  (`job_id`/`status`/`poll_after_s`), and every response's mandatory
+  `recommended_citation` — all at `success:true` and therefore unusable. `minimal`
+  now keeps the mandatory envelope + identifiers and **every essential result**
+  (scalars, collections, and `recommended_citation`), dropping only verbose/redundant
+  prose (`data_currency_caveat`, already carried in every `_meta`) and null/empty
+  values (Response-Envelope v1: a verbosity mode narrows a payload, it must never
+  empty a result). Surfaced by the behaviour gate once `get_meta_domain` became
+  probeable.
+
+### Removed
+
+- **`outputSchema` is no longer advertised on any tool** (`output_schema=None` on all
+  11 tools; `FastMCP(dereference_schemas=False)`). It is an optional field the model
+  never reads and was 38% of the surface. Total tool surface drops **6,585 → 4,016
+  tokens**; `structuredContent` is unaffected (every tool returns a dict envelope).
+
+### Fixed
+
+- **Schema documentation reaches 100%.** The required `position` argument
+  (`get_position_tolerance`, `get_meta_domain`) now carries an `examples` value, so
+  the behaviour gate can construct a valid call (was UNGATED / S2). `position_start`
+  and `position_stop` on `get_tolerance_landscape` now surface their `description` at
+  the property level (the `Field` wraps `int | None` instead of nesting under
+  `anyOf`). doc% 95 → 100.
+
 ## [0.1.9] - 2026-07-14
 
 ### Changed

@@ -4,7 +4,7 @@ The MCP tool surface resolves its service through :func:`get_metadome_service`.
 The running server registers a concrete ``MetaDomeService`` (built from a real
 ``MetaDomeClient`` + ``ResultCache``) via :func:`set_metadome_service` during
 startup; tests inject a fake. If nothing is registered, the registry raises an
-:class:`InternalError` (mapped to ``internal_error`` by the envelope) rather than
+:class:`InternalError` (mapped to ``internal`` by the envelope) rather than
 returning ``None`` -- the service is a hard dependency for every data tool.
 
 ``MetaDomeService`` lands in a later task (``services/metadome_service.py``); this

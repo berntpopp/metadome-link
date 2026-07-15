@@ -14,7 +14,7 @@ from __future__ import annotations
 class MetaDomeError(Exception):
     """Base exception for all metadome-link data/client/service errors."""
 
-    error_code = "internal_error"
+    error_code = "internal"
 
     def __init__(
         self,
@@ -78,9 +78,14 @@ class AmbiguousQueryError(MetaDomeError):
 
 
 class DataUnavailableError(MetaDomeError):
-    """Required local data (e.g. the result cache) is missing or unreadable."""
+    """Required upstream landscape data is missing or could not be delivered.
 
-    error_code = "data_unavailable"
+    Wire error_code is ``upstream_unavailable`` (the closed six-value enum); this
+    subclass is the NON-retryable variant (a completed-but-failed MetaDome build),
+    distinct from the retryable :class:`UpstreamUnavailableError`.
+    """
+
+    error_code = "upstream_unavailable"
 
 
 class RateLimitedError(MetaDomeError):
@@ -98,7 +103,7 @@ class UpstreamUnavailableError(MetaDomeError):
 class InternalError(MetaDomeError):
     """An unexpected internal error (the catch-all default code)."""
 
-    error_code = "internal_error"
+    error_code = "internal"
 
 
 # ---------------------------------------------------------------------------
@@ -125,7 +130,7 @@ def metadome_build_failure(transcript_id: str, error: object) -> MetaDomeError:
     The dominant cause is a transcript with ``has_protein_data == false`` (no
     protein mapping), which crashes the builder; that case becomes an
     ``invalid_input`` pointing the caller at a protein-coding transcript. Any
-    other crash becomes a non-retryable ``data_unavailable``. The raw upstream
+    other crash becomes a non-retryable ``upstream_unavailable``. The raw upstream
     stacktrace is used only to classify and is never echoed to the client.
     """
     stacktrace = ""

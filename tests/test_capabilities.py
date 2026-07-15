@@ -121,10 +121,9 @@ def test_build_capabilities_has_error_codes() -> None:
         "invalid_input",
         "not_found",
         "ambiguous_query",
-        "data_unavailable",
-        "rate_limited",
         "upstream_unavailable",
-        "internal_error",
+        "rate_limited",
+        "internal",
     }
     assert set(caps["error_codes"]) == expected
 

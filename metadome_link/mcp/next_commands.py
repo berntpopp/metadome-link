@@ -78,6 +78,6 @@ def default_error_next_commands(
                 cmd("request_tolerance_landscape", transcript_id=transcript_id),
                 cmd("get_tolerance_landscape", transcript_id=transcript_id),
             ]
-    if error_code == "data_unavailable":
+    if error_code == "upstream_unavailable":
         return [cmd("get_diagnostics")]
     return [cmd("get_server_capabilities")]

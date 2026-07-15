@@ -22,13 +22,8 @@ from typing import TYPE_CHECKING, Annotated, Any
 from pydantic import Field
 
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
-from metadome_link.mcp.envelope import McpErrorContext, run_mcp_tool
+from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
 from metadome_link.mcp.next_commands import _more_steps, cmd
-from metadome_link.mcp.schemas import (
-    COMPARE_POSITIONS_SCHEMA,
-    GET_POSITION_TOLERANCE_SCHEMA,
-    GET_VARIANT_COUNTS_SCHEMA,
-)
 from metadome_link.mcp.service_adapters import get_metadome_service
 from metadome_link.mcp.tools._common import (
     LimitArg,
@@ -141,7 +136,7 @@ def register_position_tools(mcp: FastMCP) -> None:
         name="get_position_tolerance",
         title="Get Position Tolerance",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=GET_POSITION_TOLERANCE_SCHEMA,
+        output_schema=None,
         tags={"positions"},
         description=(
             "Return one residue's missense tolerance (sw_dn_ds + sliding-window coverage), "
@@ -155,7 +150,7 @@ def register_position_tools(mcp: FastMCP) -> None:
         transcript_id: TranscriptIdArg,
         position: PositionArg,
         response_mode: ResponseMode = "compact",
-    ) -> dict[str, Any]:
+    ) -> ToolReturn:
         async def call() -> dict[str, Any]:
             service = get_metadome_service()
             payload = await service.get_position(
@@ -180,7 +175,7 @@ def register_position_tools(mcp: FastMCP) -> None:
         name="get_variant_counts",
         title="Get Variant Counts",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=GET_VARIANT_COUNTS_SCHEMA,
+        output_schema=None,
         tags={"positions"},
         description=(
             "Return per-position gnomAD and/or ClinVar variant counts on a built landscape, "
@@ -206,7 +201,7 @@ def register_position_tools(mcp: FastMCP) -> None:
         limit: LimitArg = 200,
         offset: OffsetArg = 0,
         response_mode: ResponseMode = "compact",
-    ) -> dict[str, Any]:
+    ) -> ToolReturn:
         async def call() -> dict[str, Any]:
             service = get_metadome_service()
             payload = await service.get_variant_counts(
@@ -249,7 +244,7 @@ def register_position_tools(mcp: FastMCP) -> None:
         name="compare_positions",
         title="Compare Positions",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=COMPARE_POSITIONS_SCHEMA,
+        output_schema=None,
         tags={"positions"},
         description=(
             "Return a side-by-side tolerance table (sw_dn_ds, ref_aa, domain ids, variant "
@@ -263,7 +258,7 @@ def register_position_tools(mcp: FastMCP) -> None:
         transcript_id: TranscriptIdArg,
         positions: PositionsArg,
         response_mode: ResponseMode = "compact",
-    ) -> dict[str, Any]:
+    ) -> ToolReturn:
         async def call() -> dict[str, Any]:
             service = get_metadome_service()
             payload = await service.compare_positions(

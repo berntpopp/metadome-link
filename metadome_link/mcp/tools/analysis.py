@@ -13,9 +13,8 @@ from typing import TYPE_CHECKING, Annotated, Any
 from pydantic import Field
 
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
-from metadome_link.mcp.envelope import McpErrorContext, run_mcp_tool
+from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
 from metadome_link.mcp.next_commands import cmd
-from metadome_link.mcp.schemas import SUMMARIZE_INTOLERANT_REGIONS_SCHEMA
 from metadome_link.mcp.service_adapters import get_metadome_service
 from metadome_link.mcp.tools._common import ResponseMode, TranscriptIdArg
 
@@ -67,7 +66,7 @@ def register_analysis_tools(mcp: FastMCP) -> None:
         name="summarize_intolerant_regions",
         title="Summarize Intolerant Regions",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=SUMMARIZE_INTOLERANT_REGIONS_SCHEMA,
+        output_schema=None,
         tags={"analysis"},
         description=(
             "Return the top ranked contiguous intolerant regions of a MetaDome tolerance "
@@ -115,7 +114,7 @@ def register_analysis_tools(mcp: FastMCP) -> None:
             ),
         ] = 15,
         response_mode: ResponseMode = "compact",
-    ) -> dict[str, Any]:
+    ) -> ToolReturn:
         service = get_metadome_service()
 
         async def call() -> dict[str, Any]:
