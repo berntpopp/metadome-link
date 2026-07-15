@@ -120,4 +120,5 @@ class ArgValidationMiddleware(Middleware):
         return ToolResult(
             structured_content=envelope,
             content=[TextContent(type="text", text=json.dumps(envelope))],
+            is_error=True,
         )

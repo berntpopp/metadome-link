@@ -33,9 +33,26 @@ from __future__ import annotations
 
 from typing import Any
 
+from fastmcp.tools.tool import ToolResult
+
 from metadome_link.constants import DATA_VERSIONS
 from metadome_link.exceptions import NotFoundError
 from metadome_link.mcp.envelope import McpErrorContext, run_mcp_tool
+
+
+async def _run(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    """Await a tool and return its envelope dict.
+
+    On error run_mcp_tool returns a ToolResult flagged is_error=True (Response-
+    Envelope v1); unwrap its structured_content so the flat-banner assertions read
+    the same dict on both paths."""
+    res = await run_mcp_tool(*args, **kwargs)
+    if isinstance(res, ToolResult):
+        assert res.is_error is True
+        assert isinstance(res.structured_content, dict)
+        return res.structured_content
+    return res
+
 
 _BAD_TID = "ENST00000269305"  # missing the required `.N` version suffix
 
@@ -51,7 +68,7 @@ async def test_v1_success_envelope_is_flat_banner_with_real_meta_keys() -> None:
     async def call() -> dict[str, Any]:
         return {"transcript_id": "ENST00000269305.4", "gene_name": "TP53"}
 
-    out = await run_mcp_tool("resolve_transcript", call)
+    out = await _run("resolve_transcript", call)
 
     assert out["success"] is True
     # Payload keys live at the top level, not nested under a "result"/"data" wrapper.
@@ -71,7 +88,7 @@ async def test_v1_error_envelope_is_flat_never_nested() -> None:
     async def call() -> dict[str, Any]:
         raise NotFoundError("no such transcript")
 
-    out = await run_mcp_tool(
+    out = await _run(
         "get_tolerance_landscape",
         call,
         context=McpErrorContext("get_tolerance_landscape"),
@@ -101,7 +118,7 @@ async def test_v1_unsafe_for_clinical_use_survives_minimal_mode_stripping() -> N
     async def ok_call() -> dict[str, Any]:
         return {"ok": True}
 
-    success = await run_mcp_tool(
+    success = await _run(
         "resolve_transcript",
         ok_call,
         context=McpErrorContext("resolve_transcript", response_mode="minimal"),
@@ -113,7 +130,7 @@ async def test_v1_unsafe_for_clinical_use_survives_minimal_mode_stripping() -> N
     async def bad_call() -> dict[str, Any]:
         raise NotFoundError("no such transcript")
 
-    error = await run_mcp_tool(
+    error = await _run(
         "get_tolerance_landscape",
         bad_call,
         context=McpErrorContext("get_tolerance_landscape", response_mode="minimal"),

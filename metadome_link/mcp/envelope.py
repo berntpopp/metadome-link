@@ -23,6 +23,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
+from fastmcp.tools.tool import ToolResult
 from pydantic import ValidationError as PydanticValidationError
 
 from metadome_link.constants import DATA_VERSIONS, DEFAULT_RESPONSE_MODE, MAX_RESPONSE_CHARS
@@ -42,24 +43,48 @@ logger = logging.getLogger(__name__)
 # unsafe_for_clinical_use (always) plus the dynamic fields: tool, request_id,
 # [next_commands, capabilities_version, elapsed_ms] -- the last three tiered by
 # response_mode (see _shape_meta).
-_RETRYABLE = {"rate_limited", "upstream_unavailable", "data_unavailable"}
+_RETRYABLE = {"rate_limited", "upstream_unavailable"}
 
-#: The 7-code error taxonomy (Global Constraints). The default code is the
-#: catch-all ``internal_error``; ``MetaDomeError`` subclasses each pin one.
+#: The fleet's closed six-value error taxonomy (Response-Envelope Standard v1).
+#: The default/catch-all code is ``internal``; ``MetaDomeError`` subclasses each
+#: pin one. No path may emit a code outside this set.
 _TAXONOMY = frozenset(
     {
         "invalid_input",
         "not_found",
         "ambiguous_query",
-        "data_unavailable",
-        "rate_limited",
         "upstream_unavailable",
-        "internal_error",
+        "rate_limited",
+        "internal",
     }
 )
 
+#: Map any legacy/off-enum code onto the closed six-value enum. Applied at the
+#: single classification chokepoint so no path -- typed exception, McpToolError,
+#: or fallback -- can surface a code outside :data:`_TAXONOMY`. ``data_unavailable``
+#: (a MetaDome landscape the upstream could not deliver) folds into
+#: ``upstream_unavailable``; ``internal_error`` into ``internal``.
+_CANON: dict[str, str] = {
+    "data_unavailable": "upstream_unavailable",
+    "internal_error": "internal",
+}
+
+
+def _canonical_code(code: str) -> str:
+    """Return the canonical fleet error code (map legacy, then validate)."""
+    canon = _CANON.get(code, code)
+    return canon if canon in _TAXONOMY else "internal"
+
+
 #: Structured error fields lifted from ``MetaDomeError.extra`` onto the envelope.
 _EXTRA_FIELDS = ("field", "hint", "allowed_values", "candidates")
+
+#: A tool body returns either a plain success dict (``success``/``_meta`` injected
+#: here) or, on error, a :class:`ToolResult` flagged ``is_error=True`` that carries
+#: the structured error envelope. The ``is_error`` flag is REQUIRED by
+#: Response-Envelope Standard v1 so a client that branches on MCP ``isError`` sees
+#: the failure (a plain error dict is ``isError=false`` -- a silent success).
+type ToolReturn = dict[str, Any] | ToolResult
 
 
 @dataclass
@@ -136,15 +161,12 @@ def _classify(exc: BaseException) -> tuple[str, str]:
 
     Any :class:`MetaDomeError` subclass maps to its declared ``error_code`` (and
     surfaces its own message). ``McpToolError`` carries an explicit code. Pydantic
-    binding errors become ``invalid_input``; anything else is ``internal_error``.
+    binding errors become ``invalid_input``; anything else is ``internal``.
     """
     if isinstance(exc, McpToolError):
-        code = exc.error_code if exc.error_code in _TAXONOMY else "internal_error"
-        return code, exc.message
+        return _canonical_code(exc.error_code), exc.message
     if isinstance(exc, MetaDomeError):
-        code = getattr(exc, "error_code", "internal_error")
-        if code not in _TAXONOMY:
-            code = "internal_error"
+        code = _canonical_code(getattr(exc, "error_code", "internal"))
         if code in ("rate_limited", "upstream_unavailable"):
             # Don't leak upstream detail; give a stable, actionable message.
             generic = {
@@ -161,7 +183,7 @@ def _classify(exc: BaseException) -> tuple[str, str]:
         loc = sanitize_message(".".join(str(p) for p in first["loc"]) or "input")
         reason = _PYDANTIC_REASONS.get(str(first.get("type", "")), "the value is not valid")
         return "invalid_input", sanitize_message(f"Invalid input -- `{loc}`: {reason}.")
-    return "internal_error", "An internal error occurred. The request was not completed."
+    return "internal", "An internal error occurred. The request was not completed."
 
 
 def classify_exception(exc: BaseException) -> tuple[str, str]:
@@ -343,8 +365,14 @@ async def run_mcp_tool(
     call: Callable[[], Awaitable[dict[str, Any]]],
     *,
     context: McpErrorContext | None = None,
-) -> dict[str, Any]:
-    """Execute a tool body, returning the result dict or a structured error dict."""
+) -> ToolReturn:
+    """Execute a tool body, returning the success dict or an ``is_error`` ToolResult.
+
+    On success the raw dict is returned (FastMCP injects it as ``structuredContent``).
+    On failure the structured envelope is wrapped in ``ToolResult(..., is_error=True)``
+    so the MCP ``isError`` flag is set -- a plain error dict would be ``isError=false``
+    and read by the client as a successful call (Response-Envelope Standard v1).
+    """
     ctx = context or McpErrorContext(tool_name=tool_name)
     start = time.perf_counter()
     try:
@@ -383,4 +411,4 @@ async def run_mcp_tool(
             envelope["error_code"],
             exc.__class__.__name__,
         )
-        return envelope
+        return ToolResult(structured_content=envelope, is_error=True)

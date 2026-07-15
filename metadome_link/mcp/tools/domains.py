@@ -22,12 +22,8 @@ from typing import TYPE_CHECKING, Annotated, Any
 from pydantic import Field
 
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
-from metadome_link.mcp.envelope import McpErrorContext, run_mcp_tool
+from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
 from metadome_link.mcp.next_commands import cmd
-from metadome_link.mcp.schemas import (
-    GET_META_DOMAIN_SCHEMA,
-    GET_PROTEIN_DOMAINS_SCHEMA,
-)
 from metadome_link.mcp.service_adapters import get_metadome_service
 from metadome_link.mcp.tools._common import (
     LimitArg,
@@ -127,7 +123,7 @@ def register_domain_tools(mcp: FastMCP) -> None:
         name="get_protein_domains",
         title="Get Protein Domains",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=GET_PROTEIN_DOMAINS_SCHEMA,
+        output_schema=None,
         tags={"domains"},
         description=(
             "List the Pfam protein domains annotated on a transcript's tolerance "
@@ -140,7 +136,7 @@ def register_domain_tools(mcp: FastMCP) -> None:
     async def get_protein_domains(
         transcript_id: TranscriptIdArg,
         response_mode: ResponseMode = "compact",
-    ) -> dict[str, Any]:
+    ) -> ToolReturn:
         async def call() -> dict[str, Any]:
             service = get_metadome_service()
             payload = await service.get_domains(transcript_id, response_mode=response_mode)
@@ -163,7 +159,7 @@ def register_domain_tools(mcp: FastMCP) -> None:
         name="get_meta_domain",
         title="Get Meta-Domain Variants",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=GET_META_DOMAIN_SCHEMA,
+        output_schema=None,
         tags={"domains"},
         description=(
             "Return homologous (meta-domain) variant evidence for one residue: "
@@ -183,7 +179,7 @@ def register_domain_tools(mcp: FastMCP) -> None:
         limit: LimitArg = _DEFAULT_META_DOMAIN_LIMIT,
         offset: OffsetArg = 0,
         response_mode: ResponseMode = "compact",
-    ) -> dict[str, Any]:
+    ) -> ToolReturn:
         async def call() -> dict[str, Any]:
             service = get_metadome_service()
             payload = await service.get_meta_domain(

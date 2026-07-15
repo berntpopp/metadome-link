@@ -33,10 +33,9 @@ ERROR_CODES: list[str] = [
     "invalid_input",
     "not_found",
     "ambiguous_query",
-    "data_unavailable",
-    "rate_limited",
     "upstream_unavailable",
-    "internal_error",
+    "rate_limited",
+    "internal",
 ]
 
 #: Frozen tool surface (11 tools). TOOLS must equal the registered tool set.

@@ -15,9 +15,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
-from metadome_link.mcp.envelope import McpErrorContext, run_mcp_tool
+from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
 from metadome_link.mcp.next_commands import cmd
-from metadome_link.mcp.schemas import RESOLVE_TRANSCRIPT_SCHEMA
 from metadome_link.mcp.service_adapters import get_metadome_service
 from metadome_link.mcp.tools._common import GeneOrIdArg, ResponseMode
 
@@ -64,7 +63,7 @@ def register_transcript_tools(mcp: FastMCP) -> None:
         name="resolve_transcript",
         title="Resolve Gene or Transcript ID",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=RESOLVE_TRANSCRIPT_SCHEMA,
+        output_schema=None,
         tags={"transcripts"},
         description=(
             "Resolve a gene symbol or versioned Ensembl transcript id to MetaDome "
@@ -79,7 +78,7 @@ def register_transcript_tools(mcp: FastMCP) -> None:
     async def resolve_transcript(
         query: GeneOrIdArg,
         response_mode: ResponseMode = "compact",
-    ) -> dict[str, Any]:
+    ) -> ToolReturn:
         async def call() -> dict[str, Any]:
             service = get_metadome_service()
             payload = await service.resolve_transcript(query, response_mode=response_mode)

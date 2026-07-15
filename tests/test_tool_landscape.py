@@ -99,7 +99,7 @@ async def test_request_landscape_processing(
 async def test_request_landscape_failure_is_non_retryable(
     facade: Any, call_tool: Any, mocked_metadome: respx.MockRouter
 ) -> None:
-    """A FAILURE build status maps to a NON-retryable data_unavailable (no retry loop)."""
+    """A FAILURE build status maps to a NON-retryable upstream_unavailable (no retry loop)."""
     mocked_metadome.get(f"/status/{TID}/").mock(
         return_value=httpx.Response(200, json={"status": "FAILURE"})
     )
@@ -108,7 +108,7 @@ async def test_request_landscape_failure_is_non_retryable(
     )
     data = await call_tool(facade, "request_tolerance_landscape", {"transcript_id": TID})
     assert data["success"] is False
-    assert data["error_code"] == "data_unavailable"
+    assert data["error_code"] == "upstream_unavailable"
     assert data["retryable"] is False
 
 
@@ -214,7 +214,7 @@ async def test_get_landscape_failure_is_non_retryable(
     call_tool: Any,
     mocked_metadome: respx.MockRouter,
 ) -> None:
-    """A FAILURE build status surfaces a NON-retryable data_unavailable (no retry loop)."""
+    """A FAILURE build status surfaces a NON-retryable upstream_unavailable (no retry loop)."""
     mocked_metadome.get(f"/status/{TID}/").mock(
         return_value=httpx.Response(200, json={"status": "FAILURE"})
     )
@@ -226,7 +226,7 @@ async def test_get_landscape_failure_is_non_retryable(
     )
     data = await call_tool(facade, "get_tolerance_landscape", {"transcript_id": TID})
     assert data["success"] is False
-    assert data["error_code"] == "data_unavailable"
+    assert data["error_code"] == "upstream_unavailable"
     assert data["retryable"] is False
 
 
