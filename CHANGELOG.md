@@ -28,13 +28,18 @@ behaviour gate (`tests/conformance/behaviour.py`, byte-identical to router
   the `run_mcp_tool` error boundary and the argument-validation middleware — so a
   client that branches on `isError` sees the failure instead of a silent success.
   The structured envelope (`success:false`, `error_code`, `message`, …) is unchanged.
-- **`response_mode="minimal"` no longer destroys the result collection.** It kept
-  only `transcript_id`/`gene_name`, silently emptying `get_meta_domain`'s
-  `meta_domains` (and any list/grouped payload) to zero rows with `success:true`.
-  `minimal` now retains identity anchors **and** every non-empty result collection,
-  dropping only verbose scalar prose (Response-Envelope v1: a verbosity mode narrows
-  a payload, it must not destroy it). Surfaced by the behaviour gate once the tool
-  became probeable.
+- **`response_mode="minimal"` no longer empties a result.** It kept only
+  `transcript_id`/`gene_name`, so it silently deleted `get_meta_domain`'s
+  `meta_domains` collection, `get_position_tolerance`'s scalar results
+  (`protein_pos`/`ref_aa`/`sw_dn_ds`), `request_tolerance_landscape`'s poll handle
+  (`job_id`/`status`/`poll_after_s`), and every response's mandatory
+  `recommended_citation` — all at `success:true` and therefore unusable. `minimal`
+  now keeps the mandatory envelope + identifiers and **every essential result**
+  (scalars, collections, and `recommended_citation`), dropping only verbose/redundant
+  prose (`data_currency_caveat`, already carried in every `_meta`) and null/empty
+  values (Response-Envelope v1: a verbosity mode narrows a payload, it must never
+  empty a result). Surfaced by the behaviour gate once `get_meta_domain` became
+  probeable.
 
 ### Removed
 
