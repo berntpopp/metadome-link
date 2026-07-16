@@ -152,8 +152,8 @@ Every tool response follows the same envelope:
 }
 ```
 
-`_meta` verbosity is tiered by `response_mode`:
-- **minimal**: `{tool, request_id}` only.
+`_meta` verbosity is tiered by `response_mode`; the data payload always retains its core answer:
+- **minimal**: core answer plus `{tool, request_id, data_versions, unsafe_for_clinical_use}`.
 - **compact** (default): adds `next_commands` + `capabilities_version` + `data_versions`.
 - **standard / full**: adds `elapsed_ms`.
 

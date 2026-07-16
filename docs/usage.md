@@ -109,23 +109,28 @@ All three operate on a built landscape. A cache miss attempts one live poll; if 
 #### `get_position_tolerance(transcript_id, position, response_mode="compact")`
 
 One residue (1-based position): `sw_dn_ds`, `sw_coverage`, codon context, `ref_aa`, genomic
-coordinates, domain membership, and aggregate variant counts. Out-of-range position →
+coordinates, domain membership, and explicitly scoped `variant_evidence`. Out-of-range position →
 `invalid_input`.
 
 #### `get_variant_counts(transcript_id, position?, position_start?, position_stop?, source="both"|"gnomad"|"clinvar", response_mode="compact")`
 
-Per-position gnomAD and/or ClinVar variant counts. Accepts:
+Residue-level ClinVar annotations plus separately labelled Pfam meta-domain homolog aggregates.
+`variant_evidence.residue_level.gnomad` is always `available:false`: MetaDome does not provide
+true per-residue gnomAD counts, so it never reports a misleading zero. Accepts:
 - A single position (`position=175`).
 - An inclusive range (`position_start=100, position_stop=200`).
 - The whole protein (omit all three — paginated).
 
 When `source` includes `clinvar`, each residue's ClinVar variants are listed with `clinvar_ID`
-(coerced to str) and an NCBI URL.
+(coerced to str) and an NCBI URL. `residue_level.clinvar.variant_count` matches that list;
+`meta_domain_homolog_aggregate` is cross-gene aligned-domain evidence, never this residue's
+ClinVar or gnomAD count.
 
 #### `compare_positions(transcript_id, positions, response_mode="compact")`
 
 Side-by-side tolerance table for a batch of residue positions (≤ 50). Returns one row per
-position: `protein_pos`, `ref_aa`, `sw_dn_ds`, `domain_ids`, aggregate variant counts.
+position: `protein_pos`, `ref_aa`, `sw_dn_ds`, `domain_ids`, and explicitly scoped
+`variant_evidence`.
 Out-of-range positions get a per-item error row — the whole batch never fails for one bad
 position.
 
@@ -168,8 +173,9 @@ Scan the cached landscape and return the top ranked contiguous intolerant region
 
 - A region is a stretch of `min_run` or more consecutive residues with `sw_dn_ds < threshold`.
 - Regions are ranked by `mean_sw_dn_ds` ascending (most constrained first).
-- Each region is annotated with overlapping Pfam domain IDs and aggregate gnomAD/ClinVar
-  variant counts.
+- Each region is annotated with overlapping Pfam domain IDs, actual summed per-residue ClinVar
+  annotations, and separately labelled Pfam homolog aggregates. Region homolog aggregates are
+  not unique-variant or transcript-residue counts.
 
 Parameters:
 - `threshold` (default 0.5, range 0–2): intolerant residue cutoff.
@@ -218,7 +224,7 @@ homologous proteins in the same Pfam domain family.
 { "tool": "summarize_intolerant_regions", "arguments": { "transcript_id": "ENST00000269305.4" } }
 ```
 Returns ranked contiguous intolerant runs (mean `sw_dn_ds` below threshold) annotated with
-overlapping Pfam domains and aggregate gnomAD/ClinVar counts.
+overlapping Pfam domains and explicitly scoped variant evidence.
 
 ## Recommended workflows
 

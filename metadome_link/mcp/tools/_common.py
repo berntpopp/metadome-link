@@ -76,8 +76,8 @@ OffsetArg = Annotated[
     Field(ge=0, description="Zero-based offset into the result list (for paging)."),
 ]
 
-#: Variant-source selector for per-position counts.
+#: Variant-source selector for explicitly-scoped residue and homolog evidence.
 SourceArg = Annotated[
     Literal["both", "gnomad", "clinvar"],
-    Field(description="Variant source to report: both|gnomad|clinvar (default both)."),
+    Field(description="Evidence source to report: both|gnomad|clinvar (default both)."),
 ]

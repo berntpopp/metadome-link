@@ -33,7 +33,7 @@ from metadome_link.services.landscape import (
     intolerant_runs,
     position_to_entry,
     slice_positions,
-    variant_counts_for,
+    variant_evidence_for,
 )
 from metadome_link.services.metadome_service import MetaDomeService
 from metadome_link.services.resolution import (
@@ -178,17 +178,20 @@ def test_domains_for_position_empty_for_non_domain_residue() -> None:
     assert domains_for_position(landscape, 35) == {}
 
 
-def test_variant_counts_for_source_filter() -> None:
-    """variant_counts_for filters by source."""
+def test_variant_evidence_for_source_filter() -> None:
+    """variant_evidence_for filters residue and homolog sources together."""
     landscape = _load("result_TP53.json")
     entry = position_to_entry(landscape, 175)
-    both = variant_counts_for(entry, "both")
-    assert both["gnomad"]["variant_count"] == 2
-    assert both["clinvar"]["variant_count"] == 2
-    gnomad_only = variant_counts_for(entry, "gnomad")
-    assert "gnomad" in gnomad_only and "clinvar" not in gnomad_only
-    clinvar_only = variant_counts_for(entry, "clinvar")
-    assert "clinvar" in clinvar_only and "gnomad" not in clinvar_only
+    both = variant_evidence_for(entry, "both")
+    assert both["residue_level"]["gnomad"]["available"] is False
+    assert both["residue_level"]["clinvar"]["variant_count"] == 1
+    assert both["meta_domain_homolog_aggregate"]["gnomad"]["variant_count"] == 2
+    gnomad_only = variant_evidence_for(entry, "gnomad")
+    assert "gnomad" in gnomad_only["residue_level"]
+    assert "clinvar" not in gnomad_only["residue_level"]
+    clinvar_only = variant_evidence_for(entry, "clinvar")
+    assert "clinvar" in clinvar_only["residue_level"]
+    assert "gnomad" not in clinvar_only["residue_level"]
 
 
 # ---------------------------------------------------------------------------

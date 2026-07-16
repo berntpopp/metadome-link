@@ -22,16 +22,22 @@ from __future__ import annotations
 
 from typing import Any
 
-from metadome_link.constants import DATA_CURRENCY_CAVEAT, DEFAULT_PAGE_LIMIT
+from metadome_link.constants import (
+    DATA_CURRENCY_CAVEAT,
+    DEFAULT_PAGE_LIMIT,
+    META_DOMAIN_HOMOLOG_AGGREGATE_PROVENANCE,
+    RESIDUE_GNOMAD_UNAVAILABLE_REASON,
+)
 from metadome_link.exceptions import InvalidInputError
 from metadome_link.mcp._sanitize import sanitize_message
 from metadome_link.services.citation import recommended_citation
 from metadome_link.services.landscape import (
     domains_for_position,
+    has_meta_domain_homolog_aggregate,
     intolerant_runs,
     position_to_entry,
     slice_positions,
-    variant_counts_for,
+    variant_evidence_for,
 )
 from metadome_link.services.pagination import paginate
 from metadome_link.services.shaping import shape_record
@@ -40,11 +46,12 @@ from metadome_link.services.shaping import shape_record
 def get_position_view(
     landscape: dict[str, Any], transcript_id: str, position: int, *, response_mode: str
 ) -> dict[str, Any]:
-    """Return one residue's tolerance + domain + variant-count context."""
+    """Return one residue's tolerance + explicitly-scoped variant evidence."""
     entry = position_to_entry(landscape, position)
     payload = dict(entry)
+    payload["domains"] = _position_domain_memberships(entry)
     payload["transcript_id"] = transcript_id
-    payload["counts"] = variant_counts_for(entry, "both")
+    payload["variant_evidence"] = variant_evidence_for(entry, "both")
     payload["recommended_citation"] = recommended_citation(
         transcript_id=transcript_id, gene_name=landscape.get("gene_name")
     )
@@ -63,7 +70,7 @@ def get_variant_counts_view(
     offset: int = 0,
     response_mode: str,
 ) -> dict[str, Any]:
-    """Return per-position gnomAD/ClinVar counts (filtered by ``source``)."""
+    """Return explicitly-scoped residue and homolog evidence (filtered by ``source``)."""
     if position is not None:
         entries = [position_to_entry(landscape, position)]
     elif position_start is not None and position_stop is not None:
@@ -78,7 +85,7 @@ def get_variant_counts_view(
             "protein_pos": entry.get("protein_pos"),
             "ref_aa": entry.get("ref_aa"),
             "sw_dn_ds": entry.get("sw_dn_ds"),
-            "counts": variant_counts_for(entry, source),
+            "variant_evidence": variant_evidence_for(entry, source),
         }
         if source in ("both", "clinvar"):
             clinvar = entry.get("ClinVar")
@@ -123,7 +130,7 @@ def compare_positions_view(
                 "ref_aa": entry.get("ref_aa"),
                 "sw_dn_ds": entry.get("sw_dn_ds"),
                 "domain_ids": sorted(_domain_ids(entry)),
-                "counts": variant_counts_for(entry, "both"),
+                "variant_evidence": variant_evidence_for(entry, "both"),
             }
         )
     payload: dict[str, Any] = {
@@ -231,13 +238,11 @@ def summarize_intolerant_regions_view(
     regions: list[dict[str, Any]] = []
     for run in runs:
         overlapping = sorted(_overlapping_domains(domain_spans, run["start"], run["stop"]))
-        gnomad_total, clinvar_total = _region_counts(landscape, run["start"], run["stop"])
         regions.append(
             {
                 **run,
                 "domains": overlapping,
-                "gnomad_variant_count": gnomad_total,
-                "clinvar_variant_count": clinvar_total,
+                "variant_evidence": _region_variant_evidence(landscape, run["start"], run["stop"]),
             }
         )
     payload: dict[str, Any] = {
@@ -263,6 +268,19 @@ def _domain_ids(entry: dict[str, Any]) -> set[str]:
     return set()
 
 
+def _position_domain_memberships(entry: dict[str, Any]) -> dict[str, dict[str, bool]]:
+    """Keep domain membership while removing raw, unscoped upstream count fields."""
+    domains = entry.get("domains")
+    if not isinstance(domains, dict):
+        return {}
+    return {
+        str(pfam_id): {
+            "meta_domain_homolog_aggregate_available": has_meta_domain_homolog_aggregate(mapping)
+        }
+        for pfam_id, mapping in domains.items()
+    }
+
+
 def _overlapping_domains(domain_spans: list[dict[str, Any]], start: int, stop: int) -> set[str]:
     """Return Pfam ids whose ``[start, stop]`` span overlaps ``[start, stop]``."""
     out: set[str] = set()
@@ -281,15 +299,60 @@ def _overlapping_domains(domain_spans: list[dict[str, Any]], start: int, stop: i
     return out
 
 
-def _region_counts(landscape: dict[str, Any], start: int, stop: int) -> tuple[int, int]:
-    """Sum gnomAD + ClinVar variant counts across the residues of a region."""
+def _region_variant_evidence(landscape: dict[str, Any], start: int, stop: int) -> dict[str, Any]:
+    """Summarise true ClinVar and separately-labelled homolog evidence for a region."""
     gnomad_total = 0
-    clinvar_total = 0
+    gnomad_missense = 0
+    residue_clinvar_total = 0
+    residue_clinvar_missense = 0
+    homolog_clinvar_total = 0
+    homolog_clinvar_missense = 0
+    any_homolog_aggregate = False
     for entry in slice_positions(landscape, start, stop):
-        counts = variant_counts_for(entry, "both")
-        gnomad_total += int(counts.get("gnomad", {}).get("variant_count", 0))
-        clinvar_total += int(counts.get("clinvar", {}).get("variant_count", 0))
-    return gnomad_total, clinvar_total
+        evidence = variant_evidence_for(entry, "both")
+        residue_clinvar = evidence["residue_level"].get("clinvar", {})
+        residue_clinvar_total += int(residue_clinvar.get("variant_count", 0))
+        residue_clinvar_missense += int(residue_clinvar.get("missense_variant_count", 0))
+        homologs = evidence["meta_domain_homolog_aggregate"]
+        if homologs["available"]:
+            any_homolog_aggregate = True
+            gnomad = homologs.get("gnomad", {})
+            clinvar = homologs.get("clinvar", {})
+            gnomad_total += int(gnomad.get("variant_count", 0))
+            gnomad_missense += int(gnomad.get("missense_variant_count", 0))
+            # This is intentionally distinct from ``residue_clinvar`` above.
+            homolog_clinvar_total += int(clinvar.get("variant_count", 0))
+            homolog_clinvar_missense += int(clinvar.get("missense_variant_count", 0))
+
+    homolog_aggregate: dict[str, Any] = {
+        "available": any_homolog_aggregate,
+        "provenance": META_DOMAIN_HOMOLOG_AGGREGATE_PROVENANCE,
+        "scope": "sum of per-residue aligned-homolog aggregates; not a unique-variant count",
+    }
+    if any_homolog_aggregate:
+        homolog_aggregate["gnomad"] = {
+            "variant_count": gnomad_total,
+            "missense_variant_count": gnomad_missense,
+        }
+        homolog_aggregate["clinvar"] = {
+            "variant_count": homolog_clinvar_total,
+            "missense_variant_count": homolog_clinvar_missense,
+        }
+    else:
+        homolog_aggregate["reason"] = "No Pfam meta-domain maps any residue in this region."
+
+    return {
+        "residue_level": {
+            "gnomad": {"available": False, "reason": RESIDUE_GNOMAD_UNAVAILABLE_REASON},
+            "clinvar": {
+                "available": True,
+                "variant_count": residue_clinvar_total,
+                "missense_variant_count": residue_clinvar_missense,
+                "provenance": "Sum of MetaDome's per-residue ClinVar annotations in this region.",
+            },
+        },
+        "meta_domain_homolog_aggregate": homolog_aggregate,
+    }
 
 
 def _clinvar_row(variant: dict[str, Any]) -> dict[str, Any]:

@@ -42,8 +42,12 @@ if TYPE_CHECKING:
 def _has_metadomain(payload: dict[str, Any]) -> bool:
     """Whether a position payload maps into at least one Pfam (meta-)domain."""
     domains = payload.get("domains")
-    if isinstance(domains, dict) and domains:
-        return True
+    if isinstance(domains, dict):
+        return any(
+            isinstance(membership, dict)
+            and membership.get("meta_domain_homolog_aggregate_available") is True
+            for membership in domains.values()
+        )
     domain_ids = payload.get("domain_ids")
     return bool(isinstance(domain_ids, list) and domain_ids)
 
@@ -140,7 +144,7 @@ def register_position_tools(mcp: FastMCP) -> None:
         tags={"positions"},
         description=(
             "Return one residue's missense tolerance (sw_dn_ds + sliding-window coverage), "
-            "its Pfam/meta-domain membership, and gnomAD/ClinVar variant counts on a built "
+            "its Pfam/meta-domain membership, and explicitly scoped variant evidence on a built "
             "tolerance landscape. Out-of-range positions raise invalid_input; a not-yet-built "
             "landscape raises not_found (request_tolerance_landscape first). "
             "Signature: get_position_tolerance(transcript_id=, position=, response_mode=)."
@@ -178,10 +182,11 @@ def register_position_tools(mcp: FastMCP) -> None:
         output_schema=None,
         tags={"positions"},
         description=(
-            "Return per-position gnomAD and/or ClinVar variant counts on a built landscape, "
-            "filtered by source (both|gnomad|clinvar). Accepts a single position, a "
-            "[position_start, position_stop] range, or the whole protein (paginated); when "
-            "source includes clinvar each residue's ClinVar variants are listed with NCBI urls. "
+            "Return residue-level ClinVar annotations and explicitly-labelled Pfam homolog "
+            "aggregates on a built landscape, filtered by source (both|gnomad|clinvar). "
+            "MetaDome has no true residue-level gnomAD count, so it is marked unavailable, "
+            "never zero. Accepts one position, an inclusive range, or the whole protein "
+            "(paginated); ClinVar variants include NCBI urls. "
             "Signature: get_variant_counts(transcript_id=, position=, position_start=, "
             "position_stop=, source=, limit=, offset=, response_mode=)."
         ),
@@ -233,6 +238,9 @@ def register_position_tools(mcp: FastMCP) -> None:
                 response_mode=response_mode,
                 arguments={
                     "transcript_id": transcript_id,
+                    "position": position,
+                    "position_start": position_start,
+                    "position_stop": position_stop,
                     "source": source,
                     "limit": limit,
                     "offset": offset,
@@ -247,8 +255,9 @@ def register_position_tools(mcp: FastMCP) -> None:
         output_schema=None,
         tags={"positions"},
         description=(
-            "Return a side-by-side tolerance table (sw_dn_ds, ref_aa, domain ids, variant "
-            "counts) for a batch of residue positions on a built landscape. Out-of-range "
+            "Return a side-by-side tolerance table (sw_dn_ds, ref_aa, domain ids, explicitly "
+            "scoped variant evidence) for a batch of residue positions on a built landscape. "
+            "Out-of-range "
             "positions get a per-item error row -- the whole batch never fails for one bad "
             "position; the batch size is capped. "
             "Signature: compare_positions(transcript_id=, positions=, response_mode=)."

@@ -323,7 +323,7 @@ class MetaDomeService:
         offset: int = 0,
         response_mode: str,
     ) -> dict[str, Any]:
-        """Return per-position gnomAD/ClinVar counts (filtered by ``source``).
+        """Return explicitly-scoped residue and homolog evidence (filtered by ``source``).
 
         Accepts a single ``position`` OR a ``[position_start, position_stop]``
         range (defaulting to the whole protein when neither is given). The result
@@ -443,7 +443,7 @@ class MetaDomeService:
 
         Each region is the mean-``sw_dn_ds``-ranked run of consecutive residues
         below ``threshold`` (length >= ``min_run``), annotated with overlapping
-        Pfam domain ids and aggregate variant counts. Thin delegator over
+        Pfam domain ids and explicitly-scoped variant evidence. Thin delegator over
         :func:`landscape_views.summarize_intolerant_regions_view`.
 
         Raises:
