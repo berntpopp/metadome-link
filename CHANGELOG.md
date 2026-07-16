@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-07-16
+
+### Fixed
+
+- Do not expose raw, unscoped ClinVar annotations from position-tolerance responses;
+  variant evidence remains provenance-scoped and null homolog mappings are unavailable
+  rather than misleading zero-count aggregates.
+- Make the vendored README-standard checker resolve the repository name from `origin`,
+  so isolated Git worktrees validate their checked-in badge correctly.
+
 ## [0.3.0] - 2026-07-16
 
 ### Changed
