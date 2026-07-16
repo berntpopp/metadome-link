@@ -128,16 +128,16 @@ async def test_get_position_out_of_range_raises_invalid_input(cache: ResultCache
 
 @respx.mock
 async def test_get_variant_counts_single_position_source_filter(cache: ResultCache) -> None:
-    """A single position with source='clinvar' returns only clinvar counts."""
+    """A single position with source='clinvar' returns only ClinVar evidence."""
     cache.put_result(TID, _load("result_TP53.json"))
     svc = _make_service(cache)
     out = await svc.get_variant_counts(
         TID, position=175, source="clinvar", response_mode="standard"
     )
     assert out["positions"][0]["protein_pos"] == 175
-    counts = out["positions"][0]["counts"]
-    assert "clinvar" in counts
-    assert "gnomad" not in counts
+    evidence = out["positions"][0]["variant_evidence"]
+    assert "clinvar" in evidence["residue_level"]
+    assert "gnomad" not in evidence["residue_level"]
     await svc.aclose()
 
 
@@ -155,8 +155,11 @@ async def test_get_variant_counts_range_both(cache: ResultCache) -> None:
     )
     assert out["pagination"]["total"] == 5
     p175 = next(p for p in out["positions"] if p["protein_pos"] == 175)
-    assert p175["counts"]["gnomad"]["variant_count"] == 2
-    assert p175["counts"]["clinvar"]["variant_count"] == 2
+    evidence = p175["variant_evidence"]
+    assert evidence["residue_level"]["gnomad"]["available"] is False
+    assert evidence["residue_level"]["clinvar"]["variant_count"] == 1
+    assert evidence["meta_domain_homolog_aggregate"]["gnomad"]["variant_count"] == 2
+    assert evidence["meta_domain_homolog_aggregate"]["clinvar"]["variant_count"] == 2
     await svc.aclose()
 
 

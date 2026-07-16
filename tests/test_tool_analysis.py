@@ -89,7 +89,7 @@ async def test_summarize_intolerant_regions_domain_overlap(facade: Any, call_too
 
 
 async def test_summarize_intolerant_regions_counts_present(facade: Any, call_tool: Any) -> None:
-    """Every region carries gnomad_variant_count and clinvar_variant_count."""
+    """Every region separates actual ClinVar from aligned-homolog evidence."""
     data = await call_tool(
         facade,
         "summarize_intolerant_regions",
@@ -97,10 +97,10 @@ async def test_summarize_intolerant_regions_counts_present(facade: Any, call_too
     )
     assert data["success"] is True
     for region in data["regions"]:
-        assert "gnomad_variant_count" in region
-        assert "clinvar_variant_count" in region
-        assert isinstance(region["gnomad_variant_count"], int)
-        assert isinstance(region["clinvar_variant_count"], int)
+        evidence = region["variant_evidence"]
+        assert evidence["residue_level"]["gnomad"]["available"] is False
+        assert isinstance(evidence["residue_level"]["clinvar"]["variant_count"], int)
+        assert "provenance" in evidence["meta_domain_homolog_aggregate"]
 
 
 async def test_summarize_intolerant_regions_recommended_citation(

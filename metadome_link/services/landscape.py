@@ -15,7 +15,18 @@ from __future__ import annotations
 
 from typing import Any
 
+from metadome_link.constants import (
+    META_DOMAIN_HOMOLOG_AGGREGATE_PROVENANCE,
+    RESIDUE_GNOMAD_UNAVAILABLE_REASON,
+)
 from metadome_link.exceptions import InvalidInputError
+
+_HOMOLOG_COUNT_KEYS = (
+    "normal_variant_count",
+    "normal_missense_variant_count",
+    "pathogenic_variant_count",
+    "pathogenic_missense_variant_count",
+)
 
 
 def _positions(landscape: dict[str, Any]) -> list[dict[str, Any]]:
@@ -112,14 +123,21 @@ def domains_for_position(landscape: dict[str, Any], pos: int) -> dict[str, list[
     return out
 
 
-def variant_counts_for(entry: dict[str, Any], source: str) -> dict[str, Any]:
-    """Project per-position gnomAD/ClinVar variant counts from a residue *entry*.
+def has_meta_domain_homolog_aggregate(mapping: object) -> bool:
+    """Whether a domain mapping carries at least one usable homolog-count field."""
+    return isinstance(mapping, dict) and any(
+        isinstance(mapping.get(key), int | float) for key in _HOMOLOG_COUNT_KEYS
+    )
 
-    ``source`` is one of ``"both"`` / ``"gnomad"`` / ``"clinvar"``. The counts are
-    aggregated across the residue's meta-domain ``domains`` map (gnomAD
-    ``normal_*`` counts) and its present ``ClinVar[]`` entries plus the
-    ``pathogenic_*`` meta-domain counts (ClinVar). The returned dict contains only
-    the requested source group(s).
+
+def variant_evidence_for(entry: dict[str, Any], source: str) -> dict[str, Any]:
+    """Return explicitly-scoped residue and aligned-homolog variant evidence.
+
+    MetaDome provides actual per-residue ``ClinVar`` annotations, but it does not
+    expose true per-residue gnomAD observations.  Its domain ``normal_*`` and
+    ``pathogenic_*`` fields are instead aggregates over aligned Pfam homologs.
+    Keep those meanings structurally separate so consumers cannot treat a
+    cross-gene aggregate as evidence for the requested transcript residue.
     """
     gnomad_total = 0
     gnomad_missense = 0
@@ -127,31 +145,60 @@ def variant_counts_for(entry: dict[str, Any], source: str) -> dict[str, Any]:
     patho_missense = 0
 
     domains = entry.get("domains")
-    if isinstance(domains, dict):
-        for mapping in domains.values():
-            if not isinstance(mapping, dict):
-                continue
-            gnomad_total += _as_int(mapping.get("normal_variant_count"))
-            gnomad_missense += _as_int(mapping.get("normal_missense_variant_count"))
-            patho_total += _as_int(mapping.get("pathogenic_variant_count"))
-            patho_missense += _as_int(mapping.get("pathogenic_missense_variant_count"))
+    mappings = (
+        [mapping for mapping in domains.values() if has_meta_domain_homolog_aggregate(mapping)]
+        if isinstance(domains, dict)
+        else []
+    )
+    for mapping in mappings:
+        gnomad_total += _as_int(mapping.get("normal_variant_count"))
+        gnomad_missense += _as_int(mapping.get("normal_missense_variant_count"))
+        patho_total += _as_int(mapping.get("pathogenic_variant_count"))
+        patho_missense += _as_int(mapping.get("pathogenic_missense_variant_count"))
 
     clinvar_entries = entry.get("ClinVar")
     clinvar_here = clinvar_entries if isinstance(clinvar_entries, list) else []
 
-    out: dict[str, Any] = {}
+    residue_level: dict[str, Any] = {}
     if source in ("both", "gnomad"):
-        out["gnomad"] = {
-            "variant_count": gnomad_total,
-            "missense_variant_count": gnomad_missense,
+        residue_level["gnomad"] = {
+            "available": False,
+            "reason": RESIDUE_GNOMAD_UNAVAILABLE_REASON,
         }
     if source in ("both", "clinvar"):
-        out["clinvar"] = {
-            "variant_count": patho_total,
-            "missense_variant_count": patho_missense,
-            "at_position_count": len(clinvar_here),
+        residue_level["clinvar"] = {
+            "available": True,
+            "variant_count": len(clinvar_here),
+            "missense_variant_count": sum(
+                1
+                for variant in clinvar_here
+                if isinstance(variant, dict) and variant.get("type") == "missense"
+            ),
+            "provenance": "MetaDome's per-residue ClinVar annotation for this transcript.",
         }
-    return out
+
+    homolog_aggregate: dict[str, Any] = {
+        "available": bool(mappings),
+        "provenance": META_DOMAIN_HOMOLOG_AGGREGATE_PROVENANCE,
+    }
+    if homolog_aggregate["available"]:
+        if source in ("both", "gnomad"):
+            homolog_aggregate["gnomad"] = {
+                "variant_count": gnomad_total,
+                "missense_variant_count": gnomad_missense,
+            }
+        if source in ("both", "clinvar"):
+            homolog_aggregate["clinvar"] = {
+                "variant_count": patho_total,
+                "missense_variant_count": patho_missense,
+            }
+    else:
+        homolog_aggregate["reason"] = "No Pfam meta-domain maps this residue."
+
+    return {
+        "residue_level": residue_level,
+        "meta_domain_homolog_aggregate": homolog_aggregate,
+    }
 
 
 def intolerant_runs(

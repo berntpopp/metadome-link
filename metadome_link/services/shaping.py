@@ -176,5 +176,43 @@ def char_budget_guard(payload: dict[str, Any], *, max_chars: int) -> dict[str, A
     if dropped:
         parts = [f"{k}: {n} item(s) dropped" for k, n in sorted(dropped.items())]
         result["dropped_summary"] = "Truncated to fit response budget. " + "; ".join(parts) + "."
+        _reconcile_pagination(result)
 
     return result
+
+
+def _reconcile_pagination(payload: dict[str, Any]) -> None:
+    """Make pagination describe the list rows that survived response-budget shaping."""
+    pagination = payload.get("pagination")
+    if isinstance(pagination, dict):
+        for key in ("positional_annotation", "positions"):
+            _reconcile_page_block(payload.get(key), pagination)
+
+    meta_domains = payload.get("meta_domains")
+    if not isinstance(meta_domains, dict):
+        return
+    for meta_domain in meta_domains.values():
+        if not isinstance(meta_domain, dict):
+            continue
+        nested_pagination = meta_domain.get("pagination")
+        if not isinstance(nested_pagination, dict):
+            continue
+        for key in ("normal_variants", "pathogenic_variants"):
+            block = nested_pagination.get(key)
+            if isinstance(block, dict):
+                _reconcile_page_block(meta_domain.get(key), block)
+
+
+def _reconcile_page_block(items: object, block: dict[str, Any]) -> None:
+    """Set a page block's returned/truncated/next_offset from its actual list."""
+    if not isinstance(items, list):
+        return
+    total = block.get("total")
+    offset = block.get("offset")
+    if not isinstance(total, int) or not isinstance(offset, int):
+        return
+    returned = len(items)
+    next_offset = offset + returned
+    block["returned"] = returned
+    block["truncated"] = next_offset < total
+    block["next_offset"] = next_offset if next_offset < total else None

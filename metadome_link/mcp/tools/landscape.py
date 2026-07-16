@@ -119,7 +119,7 @@ def register_landscape_tools(mcp: FastMCP) -> None:
         description=(
             "Return the (cache-first) MetaDome tolerance landscape for a built transcript: "
             "Pfam domains plus the paginated per-residue positional_annotation (sw_dn_ds "
-            "tolerance, variant counts). Optional position_start/position_stop slice an "
+            "tolerance and upstream annotations). Optional position_start/position_stop slice an "
             "inclusive residue range. If the build is still running this returns a "
             "first-class status='processing' success -- poll again after poll_after_s. "
             "Signature: get_tolerance_landscape(transcript_id=, position_start=, "
@@ -154,7 +154,13 @@ def register_landscape_tools(mcp: FastMCP) -> None:
             call,
             context=McpErrorContext(
                 "get_tolerance_landscape",
-                arguments={"transcript_id": transcript_id},
+                arguments={
+                    "transcript_id": transcript_id,
+                    "position_start": position_start,
+                    "position_stop": position_stop,
+                    "limit": limit,
+                    "offset": offset,
+                },
                 response_mode=response_mode,
             ),
         )

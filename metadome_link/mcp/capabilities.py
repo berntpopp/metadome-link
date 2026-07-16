@@ -159,7 +159,8 @@ def build_capabilities() -> dict[str, Any]:
         "provenance_policy": (
             "Static provenance (research-use restriction, data-currency caveat, "
             "citation, MetaDome data version) is declared here and applies to ALL tool "
-            "outputs; _meta.data_versions echoes it per call."
+            "outputs; _meta.data_versions echoes it per call. Per-residue gnomAD counts "
+            "are unavailable; Pfam homolog aggregates are explicitly scoped and may span genes."
         ),
         "per_call_meta": [
             "tool",
@@ -170,10 +171,10 @@ def build_capabilities() -> dict[str, Any]:
             "data_versions",
         ],
         "per_call_meta_semantics": (
-            "_meta verbosity is tiered by response_mode: minimal returns only "
-            "{tool, request_id}; compact (default) adds next_commands and "
+            "_meta verbosity is tiered by response_mode: minimal preserves the core answer "
+            "with trace/provenance fields; compact (default) adds next_commands and "
             "capabilities_version; standard/full add elapsed_ms. "
-            "data_versions is always present in compact+."
+            "data_versions is always present."
         ),
         "notes": METADOME_REFERENCE_NOTES,
     }

@@ -360,6 +360,56 @@ def _shape_meta(meta: dict[str, Any], response_mode: str) -> dict[str, Any]:
     return {k: v for k, v in meta.items() if k != "elapsed_ms"}
 
 
+def _shaped_forward_offset(payload: dict[str, Any]) -> int | None:
+    """Return a safe forward offset after response-budget list trimming."""
+    pagination = payload.get("pagination")
+    if isinstance(pagination, dict) and pagination.get("truncated"):
+        next_offset = pagination.get("next_offset")
+        if isinstance(next_offset, int):
+            return next_offset
+
+    offsets: list[int] = []
+    meta_domains = payload.get("meta_domains")
+    if not isinstance(meta_domains, dict):
+        return None
+    for meta_domain in meta_domains.values():
+        if not isinstance(meta_domain, dict):
+            continue
+        nested_pagination = meta_domain.get("pagination")
+        if not isinstance(nested_pagination, dict):
+            continue
+        for page_block in nested_pagination.values():
+            if not isinstance(page_block, dict) or not page_block.get("truncated"):
+                continue
+            next_offset = page_block.get("next_offset")
+            if isinstance(next_offset, int):
+                offsets.append(next_offset)
+    return min(offsets) if offsets else None
+
+
+def _sync_shaped_page_command(
+    meta: dict[str, Any], payload: dict[str, Any], tool_name: str, arguments: dict[str, Any]
+) -> None:
+    """Advance a forward-page call no later than the first shaped-list omission."""
+    next_offset = _shaped_forward_offset(payload)
+    if next_offset is None:
+        return
+    page_arguments = {key: value for key, value in arguments.items() if value is not None}
+    page_arguments["offset"] = next_offset
+    commands = meta.get("next_commands")
+    if not isinstance(commands, list):
+        meta["next_commands"] = [cmd(tool_name, **page_arguments)]
+        return
+    for command in commands:
+        if not isinstance(command, dict) or command.get("tool") != tool_name:
+            continue
+        command_arguments = command.get("arguments")
+        if isinstance(command_arguments, dict) and "offset" in command_arguments:
+            command["arguments"] = {**command_arguments, **page_arguments}
+            return
+    commands.append(cmd(tool_name, **page_arguments))
+
+
 async def run_mcp_tool(
     tool_name: str,
     call: Callable[[], Awaitable[dict[str, Any]]],
@@ -386,6 +436,7 @@ async def run_mcp_tool(
             # truncation intact, then re-attach the shaped _meta.
             result.pop("_meta", None)
             result = char_budget_guard(result, max_chars=MAX_RESPONSE_CHARS)
+            _sync_shaped_page_command(existing_meta, result, tool_name, ctx.arguments)
             meta = {
                 **existing_meta,
                 "tool": tool_name,

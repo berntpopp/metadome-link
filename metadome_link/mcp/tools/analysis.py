@@ -3,7 +3,7 @@
 Registers one tool on the FastMCP instance: ``summarize_intolerant_regions``,
 which identifies the most constrained contiguous protein regions in a MetaDome
 tolerance landscape, annotates each run with overlapping Pfam domain ids, and
-aggregates gnomAD/ClinVar variant counts per region.
+separates true ClinVar annotations from Pfam homolog aggregates per region.
 """
 
 from __future__ import annotations
@@ -70,8 +70,8 @@ def register_analysis_tools(mcp: FastMCP) -> None:
         tags={"analysis"},
         description=(
             "Return the top ranked contiguous intolerant regions of a MetaDome tolerance "
-            "landscape, each annotated with overlapping Pfam domain ids and aggregate "
-            "gnomAD/ClinVar variant counts. Regions are stretches of consecutive residues "
+            "landscape, each annotated with overlapping Pfam domain ids and explicitly scoped "
+            "variant evidence. Regions are stretches of consecutive residues "
             "with sw_dn_ds below `threshold` (length >= `min_run`), ranked by mean "
             "sw_dn_ds ascending (most constrained first). "
             "Signature: summarize_intolerant_regions(transcript_id, threshold=0.5, "

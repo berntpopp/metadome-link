@@ -7,11 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-16
+
 ### Changed
 
 - Re-vendored the behaviour conformance gate from genefoundry-router `56db958`
   (`docs/conformance/behaviour.py` blob `c69801687`) so live MCP contract checks
   treat not-found example probes as inconclusive and keep empty auxiliary objects from hiding counted rows.
+- **BREAKING (variant-evidence provenance):** position, comparison, variant-count, and
+  intolerant-region outputs no longer expose cross-gene Pfam meta-domain aggregates as
+  per-residue `counts.gnomad` / `counts.clinvar`. They now return `variant_evidence`,
+  which separates historical per-residue ClinVar annotations from
+  `meta_domain_homolog_aggregate` (explicitly marked as cross-gene aligned-domain
+  evidence). MetaDome has no true per-residue gnomAD count, which is now
+  `available:false` rather than a misleading zero. Region aggregates are explicitly
+  non-unique sums of aligned-homolog aggregates.
+- **BREAKING (pagination):** response-budget shaping now reconciles `returned`,
+  `truncated`, and `next_offset` to the rows actually delivered. A forward page starts
+  no later than the first omitted row, including for nested meta-domain variant lists,
+  so it cannot silently skip shaped-out data.
+
+### Fixed
+
+- Residue-level ClinVar annotation counts now agree with the listed ClinVar variants;
+  separately reported Pfam homolog aggregates are no longer contradictory headline counts.
 
 ## [0.2.0] - 2026-07-15
 

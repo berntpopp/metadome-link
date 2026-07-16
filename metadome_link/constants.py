@@ -48,7 +48,23 @@ RESEARCH_USE_NOTICE = (
 #: Prominent data-currency caveat (the hg19 / historical-counts warning).
 DATA_CURRENCY_CAVEAT = (
     "MetaDome data are GRCh37/hg19 with gnomAD r2.0.2 and ClinVar 2018-06-03; "
-    "per-position counts are historical. Use live gnomAD/ClinVar for current data."
+    "per-residue ClinVar annotations are historical and MetaDome does not provide true "
+    "per-residue gnomAD counts. Its Pfam meta-domain aggregates can include other genes; "
+    "use live gnomAD/ClinVar for current evidence."
+)
+
+#: Provenance carried next to every Pfam meta-domain variant aggregate.  The
+#: upstream counts are aligned-homolog aggregates, never evidence at the queried
+#: transcript residue.
+META_DOMAIN_HOMOLOG_AGGREGATE_PROVENANCE = (
+    "Aggregated across aligned Pfam meta-domain homologs and can include other genes; "
+    "not residue-level evidence for this transcript."
+)
+
+#: MetaDome's landscape payload has no true per-residue gnomAD observations.
+RESIDUE_GNOMAD_UNAVAILABLE_REASON = (
+    "MetaDome does not provide true residue-level gnomAD counts; do not interpret an "
+    "absent meta-domain aggregate as zero population variation."
 )
 
 #: Hard cap on positions accepted by a single batch tool call.

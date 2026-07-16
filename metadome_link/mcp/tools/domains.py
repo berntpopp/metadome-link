@@ -200,7 +200,13 @@ def register_domain_tools(mcp: FastMCP) -> None:
             call,
             context=McpErrorContext(
                 "get_meta_domain",
-                arguments={"transcript_id": transcript_id, "position": position},
+                arguments={
+                    "transcript_id": transcript_id,
+                    "position": position,
+                    "domains": domains,
+                    "limit": limit,
+                    "offset": offset,
+                },
                 response_mode=response_mode,
             ),
         )

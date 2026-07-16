@@ -9,7 +9,9 @@ A read-only **MCP** server (Streamable HTTP or stdio) that wraps the
 [MetaDome](https://stuart.radboudumc.nl/metadome/) web service (Wiel et al., *Human Mutation*
 2019) and exposes, for any human transcript: the per-residue missense **tolerance landscape**
 (`sw_dn_ds`), **Pfam domain** annotations, **meta-domain** homolog variant aggregation, and
-per-position gnomAD/ClinVar counts. It is one backend in the GeneFoundry `-link` fleet.
+per-residue ClinVar annotations. MetaDome does not expose true per-residue gnomAD counts; its
+explicitly-labelled Pfam meta-domain aggregates can include other genes. It is one backend in the
+GeneFoundry `-link` fleet.
 
 > [!IMPORTANT]
 > Research use only. Not clinical decision support. Do not use for diagnosis,
@@ -66,12 +68,12 @@ Health check: `curl localhost:8000/health`. Cache state: `make cache-status`.
 | `resolve_transcript` | Resolve a gene symbol or versioned ENST id to MetaDome's GRCh37 transcripts; flags the canonical one |
 | `request_tolerance_landscape` | Submit (or re-confirm) an async landscape build; returns a status handle |
 | `get_tolerance_landscape` | Cache-first fetch of a built landscape; `status:"processing"` while it builds |
-| `get_position_tolerance` | One residue: `sw_dn_ds`, codon context, domain membership, variant counts |
-| `get_variant_counts` | Per-position gnomAD / ClinVar counts, with ClinVar IDs and NCBI links |
+| `get_position_tolerance` | One residue: `sw_dn_ds`, codon context, domains, and explicitly scoped variant evidence |
+| `get_variant_counts` | Residue-level ClinVar annotations plus separately labelled Pfam homolog aggregates |
 | `compare_positions` | Side-by-side tolerance table for a batch of positions (≤ 50) |
 | `get_protein_domains` | Pfam domains on a transcript: id, name, span, meta-domain flag, alignment depth |
 | `get_meta_domain` | Homolog drill-down: gnomAD and ClinVar variants at the aligned consensus position across the Pfam family |
-| `summarize_intolerant_regions` | Rank the most constrained contiguous runs, with Pfam overlap and variant counts |
+| `summarize_intolerant_regions` | Rank constrained runs, with Pfam overlap and scoped variant evidence |
 | `get_server_capabilities` | Discovery surface: tool list, data versions, workflows, error codes, limits |
 | `get_diagnostics` | Runtime health: build info, cache stats, metrics, upstream reachability |
 
@@ -100,9 +102,13 @@ landscapes survive restarts. In Docker, mount a volume at `/app/data`.
 
 **Data currency — read this before interpreting a number.** MetaDome data are frozen at
 **GRCh37/hg19**, **gnomAD r2.0.2**, **ClinVar 2018-06-03** (Gencode v19, Pfam 30.0).
-Per-position variant counts are **historical** and do not reflect later gnomAD or ClinVar
-releases; for current allele frequencies or clinical classifications use the live `gnomad-link`
-and `clinvar-link` siblings. Every response carries `_meta.data_versions` surfacing these pins.
+Per-residue ClinVar annotations are **historical** and do not reflect later releases. MetaDome
+does **not** provide true per-residue gnomAD counts: `variant_evidence.residue_level.gnomad`
+therefore reports `available:false`, never a confident zero. Pfam figures live separately under
+`variant_evidence.meta_domain_homolog_aggregate`; they can include other genes and are not
+evidence at the queried transcript residue. For current allele frequencies or clinical
+classifications use the live `gnomad-link` and `clinvar-link` siblings. Every response carries
+`_meta.data_versions` surfacing these pins.
 
 **Score semantics.** `sw_dn_ds` is a sliding-window, background-corrected dN/dS ratio computed
 over homologous Pfam-domain positions. **Lower = more constrained** (less tolerant of missense

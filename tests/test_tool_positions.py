@@ -66,16 +66,16 @@ async def test_get_position_tolerance_suggests_meta_domain(
 async def test_get_variant_counts_source_both(
     facade: Any, call_tool: Any, mocked_metadome: Any
 ) -> None:
-    """source='both' returns both gnomad and clinvar count groups for p.35."""
+    """source='both' returns both explicitly-scoped evidence groups for p.35."""
     data = await call_tool(
         facade,
         "get_variant_counts",
         {"transcript_id": TID, "position": 35, "source": "both"},
     )
     assert data["success"] is True
-    counts = data["positions"][0]["counts"]
-    assert "gnomad" in counts
-    assert "clinvar" in counts
+    evidence = data["positions"][0]["variant_evidence"]
+    assert "gnomad" in evidence["residue_level"]
+    assert "clinvar" in evidence["residue_level"]
 
 
 async def test_get_variant_counts_source_gnomad_only(
@@ -89,8 +89,9 @@ async def test_get_variant_counts_source_gnomad_only(
     )
     assert data["success"] is True
     row = data["positions"][0]
-    assert "gnomad" in row["counts"]
-    assert "clinvar" not in row["counts"]
+    evidence = row["variant_evidence"]
+    assert "gnomad" in evidence["residue_level"]
+    assert "clinvar" not in evidence["residue_level"]
     assert "clinvar_variants" not in row
 
 
@@ -105,7 +106,7 @@ async def test_get_variant_counts_clinvar_id_present(
     )
     assert data["success"] is True
     row = data["positions"][0]
-    assert "gnomad" not in row["counts"]
+    assert "gnomad" not in row["variant_evidence"]["residue_level"]
     variants = row["clinvar_variants"]
     assert any(v.get("clinvar_ID") == "12371" for v in variants)
     assert all(v["url"].startswith("https://www.ncbi.nlm.nih.gov/clinvar/") for v in variants)

@@ -88,7 +88,7 @@ _POSITION_ENTRY = {
         "sw_coverage": _NUM_NULL,
         "sw_size": _INT,
         "domain_ids": _ARR,
-        "variant_count_total": _INT,
+        "variant_evidence": _OBJ,
     },
 }
 
@@ -115,8 +115,7 @@ _INTOLERANT_REGION = {
         "mean_sw_dn_ds": _NUM_NULL,
         "min_sw_dn_ds": _NUM_NULL,
         "domains": _ARR,
-        "gnomad_variant_count": _INT,
-        "clinvar_variant_count": _INT,
+        "variant_evidence": _OBJ,
     },
 }
 
@@ -182,7 +181,7 @@ GET_POSITION_TOLERANCE_SCHEMA = _envelope(
     sw_coverage=_NUM_NULL,
     sw_size=_INT,
     domain_ids=_ARR,
-    variant_count_total=_INT,
+    variant_evidence=_OBJ,
 )
 
 GET_VARIANT_COUNTS_SCHEMA = _envelope(
