@@ -50,6 +50,7 @@ def get_position_view(
     entry = position_to_entry(landscape, position)
     payload = dict(entry)
     payload["domains"] = _position_domain_memberships(entry)
+    payload.pop("ClinVar", None)
     payload["transcript_id"] = transcript_id
     payload["variant_evidence"] = variant_evidence_for(entry, "both")
     payload["recommended_citation"] = recommended_citation(
