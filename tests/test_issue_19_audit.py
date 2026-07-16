@@ -94,10 +94,10 @@ async def test_null_domain_mapping_is_unavailable_not_a_homolog_zero(
     assert "gnomad" not in homologs
 
 
-async def test_position_view_hides_unscoped_upstream_aggregate_counts(
+async def test_position_view_hides_unscoped_upstream_variant_fields(
     facade: Any, call_tool: Any
 ) -> None:
-    """The position view may expose domain membership but not raw homolog-count fields."""
+    """The position view keeps only explicitly-scoped variant evidence."""
     data = await call_tool(
         facade,
         "get_position_tolerance",
@@ -108,6 +108,7 @@ async def test_position_view_hides_unscoped_upstream_aggregate_counts(
     assert membership == {"meta_domain_homolog_aggregate_available": True}
     assert "normal_variant_count" not in membership
     assert "pathogenic_variant_count" not in membership
+    assert "ClinVar" not in data
 
 
 async def test_region_summary_labels_homolog_aggregates_and_actual_clinvar(
