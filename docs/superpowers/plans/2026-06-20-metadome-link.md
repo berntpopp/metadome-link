@@ -1,5 +1,8 @@
 # metadome-link Implementation Plan
 
+> Historical record — this document records the implementation plan as of its date. Current
+> behavior is defined by implemented code, standards, release evidence, and tests.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build `metadome-link`, a read-only FastMCP server wrapping the MetaDome web API (per-protein-position missense tolerance landscapes, Pfam domains, meta-domain homolog variant aggregation, gnomAD/ClinVar per-position counts), federated in the GeneFoundry `-link` fleet.

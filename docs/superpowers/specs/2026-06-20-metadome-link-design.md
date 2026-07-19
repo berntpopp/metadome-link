@@ -1,5 +1,8 @@
 # metadome-link — Design Spec
 
+> Historical record — this document records the design as of its date. Current behavior is
+> defined by implemented code, standards, release evidence, and tests.
+
 **Status:** Approved design (key forks decided by user 2026-06-20)
 **Author:** MCP engineering (Claude)
 **Date:** 2026-06-20
