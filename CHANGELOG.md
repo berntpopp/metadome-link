@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-07-30
+
+### Added
+
+- **Dependabot coverage.** This repository previously had no
+  `.github/dependabot.yml`, so Dependabot only ever ran *security* updates here —
+  no version update had ever been raised against it. Added the fleet-standard
+  four-ecosystem config (`uv` @ `/`, `github-actions` @ `/`, `docker` @ `/docker`,
+  `docker-compose` @ `/docker`; weekly Monday, Europe/Berlin, staggered).
+
+### Changed
+
+- Swept the accumulated dependency drift (`uv lock --upgrade`, 32 packages), most
+  notably `fastapi` 0.138.0 → 0.141.1, `fastmcp` 3.4.4 → 3.4.5, `mcp` 1.28.1 →
+  1.29.0, `uvicorn` 0.49.0 → 0.52.0, `mypy` 2.1.0 → 2.3.0 and `ruff` 0.15.18 →
+  0.16.0. `pyproject` floors stay permissive (wide floor + major upper cap).
+- Pinned the ruff rule set with `select` instead of `extend-select`. ruff 0.16
+  grows the implicit default rule set from 59 to 413 rules; the configured list is
+  already a superset of the pre-0.16 default, so the effective lint policy is
+  unchanged.
+- Refreshed the SHA-pinned GitHub Actions: `actions/checkout` → v7.0.1 (five call
+  sites, three of which were still on the v6 line), `actions/setup-python` →
+  v7.0.0, `astral-sh/setup-uv` → v9.0.0.
+- Repinned `github/codeql-action` from the moving-`v4` tag-object SHA — untrackable
+  by Dependabot and silently frozen — to the commit SHA for v4.37.4.
+- Refreshed the `python:3.12-slim` base-image digest (Debian 13.5 → 13.6, CPython
+  3.12.13 unchanged), staying within the 3.12 line.
+
 ## [0.3.1] - 2026-07-16
 
 ### Fixed
