@@ -92,9 +92,11 @@ Landscape response (when ready):
   ],
   "pagination": { "total": 393, "returned": 200, "limit": 200, "offset": 0,
                   "truncated": true, "next_offset": 200 },
-  "data_versions": { "assembly": "GRCh38.p14", "gnomad": "v4.1", ... },
   "recommended_citation": "MetaDome: Pathogenicity analysis ...",
-  "success": true
+  "success": true,
+  "_meta": {
+    "data_versions": { "assembly": "GRCh38.p14", "gnomad": "v4.1", ... }
+  }
 }
 ```
 
@@ -291,10 +293,10 @@ when the payload exceeds budget.
 | `invalid_input` | Bad argument (unversioned ENST, out-of-range position, validation failure) | false |
 | `not_found` | Unknown gene, landscape not yet built, empty result | false |
 | `ambiguous_query` | Query matches multiple candidates (returns `candidates` list) | false |
-| `data_unavailable` | Data source temporarily unreachable or empty | false |
+| `upstream_unavailable` | Data source temporarily unreachable, empty, or returned an invalid schema | false |
 | `rate_limited` | MetaDome returned HTTP 429 | true |
 | `upstream_unavailable` | 5xx / timeout / Celery FAILURE | true |
-| `internal_error` | Unexpected server error | false |
+| `internal` | Unexpected server error | false |
 
 On a `not_found` for a missing landscape, `recovery_action` is `"switch_tool"` and
 `_meta.next_commands` offers `request_tolerance_landscape` + `get_tolerance_landscape`.

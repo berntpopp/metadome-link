@@ -128,7 +128,7 @@ async def test_resolve_unknown_gene_returns_not_found(
     mocked_metadome.get("/get_transcripts/GRCh38.p14/NOSUCHGENE999").mock(
         return_value=httpx.Response(
             200,
-            json={"message": "No transcripts", "transcript_ids": []},
+            json={"message": "No transcripts", "genome_build": "GRCh38.p14", "transcript_ids": []},
         )
     )
     data = await call_tool(facade, "resolve_transcript", {"query": "NOSUCHGENE999"})  # type: ignore[operator]

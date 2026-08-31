@@ -74,7 +74,12 @@ async def test_unknown_gene_returns_empty_list() -> None:
     """Unknown gene is HTTP 200 with an empty list -> [] (does not raise)."""
     respx.get(f"{BASE}/get_transcripts/GRCh38.p14/NOSUCHGENE").mock(
         return_value=httpx.Response(
-            200, json={"message": "No transcripts...", "transcript_ids": []}
+            200,
+            json={
+                "message": "No transcripts...",
+                "genome_build": "GRCh38.p14",
+                "transcript_ids": [],
+            },
         )
     )
     client = MetaDomeClient()
@@ -86,7 +91,7 @@ async def test_unknown_gene_returns_empty_list() -> None:
 async def test_get_transcripts_url_encodes_gene_metacharacters() -> None:
     """A gene segment with metacharacters is URL-encoded so it cannot rewrite the path."""
     route = respx.get(url__regex=rf"^{re.escape(BASE)}/get_transcripts/GRCh38.p14/.*$").mock(
-        return_value=httpx.Response(200, json={"transcript_ids": []})
+        return_value=httpx.Response(200, json={"genome_build": "GRCh38.p14", "transcript_ids": []})
     )
     client = MetaDomeClient()
     await client.get_transcripts("../status/x?y=z")

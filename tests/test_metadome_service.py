@@ -256,7 +256,9 @@ async def test_resolve_transcript_id_passthrough(cache: ResultCache) -> None:
 async def test_resolve_transcript_unknown_gene_raises_not_found(cache: ResultCache) -> None:
     """An unknown gene (empty upstream list) raises NotFoundError."""
     respx.get(f"{BASE}/get_transcripts/GRCh38.p14/NOSUCHGENE").mock(
-        return_value=httpx.Response(200, json={"message": "none", "transcript_ids": []})
+        return_value=httpx.Response(
+            200, json={"message": "none", "genome_build": "GRCh38.p14", "transcript_ids": []}
+        )
     )
     svc = _make_service(cache)
     with pytest.raises(NotFoundError):
@@ -464,6 +466,7 @@ async def test_resolve_transcript_not_analyzable_when_no_protein_data(cache: Res
             200,
             json={
                 "message": "Retrieved transcripts for gene 'BRCA2'",
+                "genome_build": "GRCh38.p14",
                 "transcript_ids": [
                     {
                         "aa_length": 3418,

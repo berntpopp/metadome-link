@@ -38,6 +38,12 @@ curl http://localhost:8000/health
 # → {"status": "ok", "data_versions": {"assembly": "GRCh38.p14", ...}}
 ```
 
+The health endpoint is an operational REST response; MCP tool responses place the same
+build-specific provenance under `_meta.data_versions`. The configured build selects the
+complete profile (GRCh37.p13 or GRCh38.p14), including its GENCODE, UniProt, Pfam, gnomAD,
+and ClinVar snapshots. Do not represent either profile with a single unqualified
+`METADOME_DATA_VERSION` string.
+
 ## Configuration (environment variables)
 
 All settings use the `METADOME_LINK_` prefix; nested models use `__` as the delimiter.

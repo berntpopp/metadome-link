@@ -79,7 +79,7 @@ The tool surface implements an explicit **request + poll split**:
 ```
 request_tolerance_landscape(transcript_id)
   → submit (POST /submit_visualization/)
-  → one status check (GET /status/<tid>/)
+  → one status check (GET /status/<genome_build>/<tid>)
   → returns {job_id, status:"ready"|"processing", poll_after_s, eta_hint, cold_build_warning}
 
 get_tolerance_landscape(transcript_id, ...)
@@ -128,10 +128,10 @@ All errors are **returned** (not raised) as a structured envelope:
 | `invalid_input` | Bad/unversioned transcript id, out-of-range position, field validation failure |
 | `not_found` | Unknown gene symbol, landscape not yet built (recovery: request → get landscape) |
 | `ambiguous_query` | Query matches multiple candidates (returns `candidates` list) |
-| `data_unavailable` | Data source temporarily unreachable or empty |
+| `upstream_unavailable` | Data source temporarily unreachable, empty, or returned an invalid schema |
 | `rate_limited` | Upstream 429 (retryable) |
 | `upstream_unavailable` | 5xx / timeout / Celery FAILURE (retryable) |
-| `internal_error` | Unexpected server-side error |
+| `internal` | Unexpected server-side error |
 
 ## Response envelope
 

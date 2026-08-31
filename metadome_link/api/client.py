@@ -36,7 +36,11 @@ from urllib.parse import quote
 
 import httpx
 
-from metadome_link.api.models import validate_positional_annotations, validate_transcript_entries
+from metadome_link.api.models import (
+    validate_metadomain_blocks,
+    validate_positional_annotations,
+    validate_transcript_entries,
+)
 from metadome_link.api.url_guard import (
     MAX_REDIRECTS,
     DisallowedURLError,
@@ -293,6 +297,11 @@ class MetaDomeClient:
                 "MetaDome transcript response is missing transcript_ids.",
                 field="transcript_ids",
             )
+        if body.get("genome_build") != self._genome_build:
+            raise UpstreamSchemaError(
+                "MetaDome transcript response has an unexpected genome build.",
+                field="genome_build",
+            )
         raw = body["transcript_ids"]
         entries = validate_transcript_entries(raw)
         out: list[dict[str, Any]] = []
@@ -357,6 +366,11 @@ class MetaDomeClient:
                 "MetaDome result response has an invalid object shape.",
                 field="result",
             )
+        if body.get("transcript_id") != transcript_id:
+            raise UpstreamSchemaError(
+                "MetaDome result response has an unexpected transcript id.",
+                field="transcript_id",
+            )
         positions = validate_positional_annotations(body.get("positional_annotation"))
         for entry in positions:
             _coerce_clinvar_ids(entry.get("ClinVar"))
@@ -394,6 +408,7 @@ class MetaDomeClient:
         )
         if not isinstance(body, dict):
             raise UpstreamUnavailableError("MetaDome metadomain had an unexpected shape.")
+        validate_metadomain_blocks(body)
         for domain in body.values():
             if isinstance(domain, dict):
                 _coerce_clinvar_ids(domain.get("pathogenic_variants"))
