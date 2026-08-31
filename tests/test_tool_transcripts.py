@@ -9,8 +9,8 @@ fixtures from ``conftest.py``:
 - ``mocked_metadome``— the live respx router so individual tests can override
   routes before calling the tool.
 
-The canonical transcript for TP53 in the fixture is ENST00000269305.4
-(aa_length=393, has_protein_data=true, picked first by pick_canonical).
+The canonical transcript for TP53 in the fixture is ENST00000269305.9
+(aa_length=393, has_protein_data=true, MANE Select).
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ async def test_resolve_tp53_returns_success(facade: object, call_tool: object) -
 
 
 async def test_resolve_tp53_canonical_flagged(facade: object, call_tool: object) -> None:
-    """The longest protein-coding transcript is flagged canonical."""
+    """The analyzable MANE Select transcript is flagged canonical."""
     data = await call_tool(facade, "resolve_transcript", {"query": "TP53"})  # type: ignore[operator]
     assert data.get("canonical_transcript_id") == TID
     transcripts = data.get("transcripts", [])
@@ -78,7 +78,7 @@ async def test_resolve_tp53_meta_data_versions_present(facade: object, call_tool
     """_meta always carries data_versions."""
     data = await call_tool(facade, "resolve_transcript", {"query": "TP53"})  # type: ignore[operator]
     assert "data_versions" in data.get("_meta", {})
-    assert data["_meta"]["data_versions"].get("assembly") == "GRCh37"
+    assert data["_meta"]["data_versions"].get("assembly") == "GRCh38.p14"
 
 
 # ---------------------------------------------------------------------------
@@ -125,10 +125,10 @@ async def test_resolve_unknown_gene_returns_not_found(
     mocked_metadome: respx.MockRouter, facade: object, call_tool: object
 ) -> None:
     """An unknown gene symbol → error_code:"not_found"."""
-    mocked_metadome.get("/get_transcripts/NOSUCHGENE999").mock(
+    mocked_metadome.get("/get_transcripts/GRCh38.p14/NOSUCHGENE999").mock(
         return_value=httpx.Response(
             200,
-            json={"message": "No transcripts", "trancript_ids": []},
+            json={"message": "No transcripts", "transcript_ids": []},
         )
     )
     data = await call_tool(facade, "resolve_transcript", {"query": "NOSUCHGENE999"})  # type: ignore[operator]

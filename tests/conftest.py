@@ -38,8 +38,8 @@ from metadome_link.mcp.service_adapters import set_metadome_service
 from metadome_link.services.metadome_service import MetaDomeService
 
 FX = pathlib.Path(__file__).parent / "fixtures" / "metadome"
-BASE = "https://stuart.radboudumc.nl/metadome/api"
-TID = "ENST00000269305.4"
+BASE = "https://www.metadome.app/metadome/api"
+TID = "ENST00000269305.9"
 
 
 def _load(name: str) -> Any:
@@ -74,19 +74,23 @@ def mocked_metadome() -> Iterator[respx.MockRouter]:
     yielded router to exercise alternate paths (PENDING/FAILURE/404/unknown gene).
     """
     with respx.mock(base_url=BASE, assert_all_called=False) as router:
-        router.get("/get_transcripts/TP53").mock(
+        router.get("/get_transcripts/GRCh38.p14/TP53").mock(
             return_value=httpx.Response(200, json=_load("get_transcripts_TP53.json"))
         )
         router.post("/submit_visualization/").mock(
-            return_value=httpx.Response(200, json={"transcript_id": TID})
+            return_value=httpx.Response(
+                200, json={"transcript_id": TID, "genome_build": "GRCh38.p14"}
+            )
         )
-        router.get(f"/status/{TID}/").mock(
+        router.get(f"/status/GRCh38.p14/{TID}").mock(
             return_value=httpx.Response(200, json={"status": "SUCCESS"})
         )
-        router.get(f"/result/{TID}/").mock(
+        router.get(f"/result/GRCh38.p14/{TID}").mock(
             return_value=httpx.Response(200, json=_load("result_TP53.json"))
         )
-        router.get(f"/error/{TID}/").mock(return_value=httpx.Response(200, json={"error": "stub"}))
+        router.get(f"/error/GRCh38.p14/{TID}").mock(
+            return_value=httpx.Response(200, json={"error": "stub"})
+        )
         router.post("/get_metadomain_annotation/").mock(
             return_value=httpx.Response(200, json=_load("metadomain_p175.json"))
         )

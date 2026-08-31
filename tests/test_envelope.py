@@ -46,11 +46,11 @@ def _reset_metrics() -> None:
 
 async def test_success_injects_success_and_meta() -> None:
     async def call() -> dict[str, Any]:
-        return {"transcript_id": "ENST00000269305.4"}
+        return {"transcript_id": "ENST00000269305.9"}
 
     out = await _run("resolve_transcript", call)
     assert out["success"] is True
-    assert out["transcript_id"] == "ENST00000269305.4"
+    assert out["transcript_id"] == "ENST00000269305.9"
     meta = out["_meta"]
     assert meta["tool"] == "resolve_transcript"
     assert "request_id" in meta
@@ -134,7 +134,7 @@ async def test_retryable_error_marks_retryable() -> None:
 
 
 async def test_ambiguous_query_surfaces_candidates() -> None:
-    candidates = [{"transcript_id": "ENST00000269305.4"}]
+    candidates = [{"transcript_id": "ENST00000269305.9"}]
 
     async def call() -> dict[str, Any]:
         raise AmbiguousQueryError("which one?", candidates=candidates)
@@ -172,7 +172,7 @@ async def test_error_path_sets_mcp_is_error_success_path_does_not() -> None:
     assert err.structured_content["error_code"] == "not_found"
 
     async def ok() -> dict[str, Any]:
-        return {"transcript_id": "ENST00000269305.4"}
+        return {"transcript_id": "ENST00000269305.9"}
 
     good = await run_mcp_tool("resolve_transcript", ok)
     assert not isinstance(good, ToolResult)
@@ -213,7 +213,7 @@ async def test_error_envelope_carries_next_commands_for_compact() -> None:
         call,
         context=McpErrorContext(
             "get_tolerance_landscape",
-            arguments={"transcript_id": "ENST00000269305.4"},
+            arguments={"transcript_id": "ENST00000269305.9"},
         ),
     )
     assert "next_commands" in out["_meta"]
@@ -263,7 +263,7 @@ async def test_oversized_success_payload_is_budget_guarded() -> None:
         # ~1500 fat rows -> well over MAX_RESPONSE_CHARS as a top-level list,
         # plus a nested meta-domain list to exercise the nested-truncation path.
         return {
-            "transcript_id": "ENST00000269305.4",
+            "transcript_id": "ENST00000269305.9",
             "gene_name": "TP53",
             "positional_annotation": [
                 {"protein_pos": i, "ref_aa": "A", "sw_dn_ds": 0.123456789, "pad": "x" * 40}
@@ -301,7 +301,7 @@ async def test_normal_payload_unaffected_by_budget_guard() -> None:
     """A small payload passes through the guard untouched (no dropped_summary)."""
 
     async def call() -> dict[str, Any]:
-        return {"transcript_id": "ENST00000269305.4", "positions": [1, 2, 3]}
+        return {"transcript_id": "ENST00000269305.9", "positions": [1, 2, 3]}
 
     out = await _run("get_position_tolerance", call)
     assert "dropped_summary" not in out

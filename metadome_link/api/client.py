@@ -1,16 +1,16 @@
 """Async HTTP client for the MetaDome web API.
 
-MetaDome (https://stuart.radboudumc.nl/metadome/api) is a fully-open, no-auth
+MetaDome (https://www.metadome.app/metadome/api) is a fully-open, no-auth
 service. It builds per-transcript tolerance landscapes **asynchronously** (a
 Celery job, cold builds up to ~1 h), so the workflow is a submit -> poll-status
 -> fetch-result split. This client wraps the six endpoints behind typed methods
 and normalizes their quirks:
 
-- Endpoint 1 (``/get_transcripts/<gene>``) returns a misspelled ``trancript_ids``
-  key and a comma-joined ``refseq_nm_numbers`` string -> normalized to a
+- Endpoint 1 (``/get_transcripts/<genome_build>/<gene>``) returns a
+  comma-joined ``refseq_nm_numbers`` string -> normalized to a
   ``refseq_ids`` list. An unknown gene is **HTTP 200 with an empty list**, not an
   error, so :meth:`get_transcripts` returns ``[]`` rather than raising.
-- Endpoints 2-6 require a **trailing slash**; endpoint 1 has **none**.
+- POST endpoints require a trailing slash; build-scoped GET endpoints do not.
 - Transcript ids must carry the ``.N`` version suffix or ``submit`` returns 400.
 - ``clinvar_ID`` is a ``str`` in ``/result/`` but a ``float`` in
   ``/get_metadomain_annotation/`` -> coerced to ``str`` in both.
@@ -120,6 +120,7 @@ class MetaDomeClient:
         resolved = settings if settings is not None else default_settings
         self._cfg: MetaDomeSettings = resolved.metadome
         self._base_url = self._cfg.base_url.rstrip("/")
+        self._genome_build = self._cfg.genome_build
         # F-10: derive the redirect/destination allowlist from the CONFIGURED base
         # URL host (never hardcoded, so an operator base-URL override still works).
         self._url_guard = make_url_guard(build_origin_allowlist(self._cfg.base_url))
@@ -256,9 +257,10 @@ class MetaDomeClient:
         """
         # URL-encode the gene segment so metacharacters in a free-text query
         # cannot rewrite the request path (normalize_gene_symbol still upstream).
-        body = await self._get_json(f"/get_transcripts/{quote(gene, safe='')}")
-        # NOTE: upstream key is the misspelled ``trancript_ids`` (sic).
-        raw = body.get("trancript_ids", []) if isinstance(body, dict) else []
+        body = await self._get_json(
+            f"/get_transcripts/{quote(self._genome_build, safe='')}/{quote(gene, safe='')}"
+        )
+        raw = body.get("transcript_ids", []) if isinstance(body, dict) else []
         out: list[dict[str, Any]] = []
         for entry in raw:
             if not isinstance(entry, dict):
@@ -268,6 +270,7 @@ class MetaDomeClient:
                     "gencode_id": entry.get("gencode_id"),
                     "aa_length": entry.get("aa_length"),
                     "has_protein_data": bool(entry.get("has_protein_data", False)),
+                    "mane_transcript_type": entry.get("mane_transcript_type", ""),
                     "refseq_ids": _split_refseq(entry.get("refseq_nm_numbers", "")),
                 }
             )
@@ -280,7 +283,10 @@ class MetaDomeClient:
         :class:`InvalidInputError` by ``_raise_for_status``.
         """
         tid = validate_transcript_id(transcript_id)
-        body = await self._post_json("/submit_visualization/", {"transcript_id": tid})
+        body = await self._post_json(
+            "/submit_visualization/",
+            {"transcript_id": tid, "genome_build": self._genome_build},
+        )
         if isinstance(body, dict):
             echoed = body.get("transcript_id")
             if isinstance(echoed, str):
@@ -288,24 +294,24 @@ class MetaDomeClient:
         return tid
 
     async def get_status(self, transcript_id: str) -> str:
-        """GET ``/status/<transcript_id>/`` (endpoint 3); return the raw status string.
+        """GET ``/status/<genome_build>/<transcript_id>``; return the raw status string.
 
         One of ``PENDING|SENT|STARTED|RECEIVED|RETRY|SUCCESS|FAILURE`` (empty
         string if the upstream body lacks a ``status`` key).
         """
-        body = await self._get_json(f"/status/{transcript_id}/")
+        body = await self._get_json(f"/status/{self._genome_build}/{transcript_id}")
         if isinstance(body, dict):
             return str(body.get("status", ""))
         return ""
 
     async def get_result(self, transcript_id: str) -> dict[str, Any]:
-        """GET ``/result/<transcript_id>/`` (endpoint 4); return the normalized landscape.
+        """GET ``/result/<genome_build>/<transcript_id>``; return the normalized landscape.
 
         Every ``positional_annotation[i].ClinVar[].clinvar_ID`` is coerced to a
         ``str``. The ``positional_annotation`` length is left as-is (== protein
         length upstream). A 404 (not built yet) raises :class:`NotFoundError`.
         """
-        body = await self._get_json(f"/result/{transcript_id}/")
+        body = await self._get_json(f"/result/{self._genome_build}/{transcript_id}")
         if not isinstance(body, dict):
             raise UpstreamUnavailableError("MetaDome result had an unexpected shape.")
         positions = body.get("positional_annotation")
@@ -316,8 +322,8 @@ class MetaDomeClient:
         return body
 
     async def get_error(self, transcript_id: str) -> dict[str, Any]:
-        """GET ``/error/<transcript_id>/`` (endpoint 5); return the stored error dict."""
-        body = await self._get_json(f"/error/{transcript_id}/")
+        """GET ``/error/<genome_build>/<transcript_id>``; return the stored error dict."""
+        body = await self._get_json(f"/error/{self._genome_build}/{transcript_id}")
         if isinstance(body, dict):
             return body
         return {"error": str(body)}
@@ -340,6 +346,7 @@ class MetaDomeClient:
             "/get_metadomain_annotation/",
             {
                 "transcript_id": tid,
+                "genome_build": self._genome_build,
                 "protein_position": protein_position,
                 "requested_domains": requested_domains,
             },

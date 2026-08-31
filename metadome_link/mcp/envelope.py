@@ -6,7 +6,7 @@ never raised) so the LLM sees a typed failure rather than an opaque masked
 message.
 
 Every ``_meta`` (success AND error) carries ``data_versions = DATA_VERSIONS`` --
-the universal hg19/data-currency invariant -- and ``unsafe_for_clinical_use =
+the universal pinned-data/data-currency invariant -- and ``unsafe_for_clinical_use =
 True``, the fleet-standard per-call research-use disclaimer (2026-07-03
 standardization: every tool response, every ``response_mode``, success and
 error paths alike). The per-call ``_meta`` is otherwise kept lean and tiered

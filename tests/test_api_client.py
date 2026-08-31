@@ -1,7 +1,7 @@
 """Tests for the async MetaDome API client (all upstream calls mocked via respx).
 
 Covers all six endpoints plus the three quirks the client must normalize:
-the ``trancript_ids`` typo + refseq split, unknown-gene -> ``[]`` (not 404),
+the ``transcript_ids`` typo + refseq split, unknown-gene -> ``[]`` (not 404),
 submit 400 -> :class:`InvalidInputError`, ``clinvar_ID`` -> ``str`` in both the
 result and metadomain payloads, and the three ``poll_until_ready`` outcomes.
 """
@@ -27,8 +27,8 @@ from metadome_link.exceptions import (
 )
 
 FX = pathlib.Path(__file__).parent / "fixtures" / "metadome"
-BASE = "https://stuart.radboudumc.nl/metadome/api"
-TID = "ENST00000269305.4"
+BASE = "https://www.metadome.app/metadome/api"
+TID = "ENST00000269305.9"
 
 
 def _load(name: str) -> Any:
@@ -48,9 +48,9 @@ def _fast_client() -> MetaDomeClient:
 
 
 @respx.mock
-async def test_get_transcripts_parses_typo_key_and_splits_refseq() -> None:
-    """Reads the misspelled ``trancript_ids`` key and splits refseq into a list."""
-    respx.get(f"{BASE}/get_transcripts/TP53").mock(
+async def test_get_transcripts_parses_v2_key_and_splits_refseq() -> None:
+    """Reads the v2 ``transcript_ids`` key and splits refseq into a list."""
+    respx.get(f"{BASE}/get_transcripts/GRCh38.p14/TP53").mock(
         return_value=httpx.Response(200, json=_load("get_transcripts_TP53.json"))
     )
     client = MetaDomeClient()
@@ -61,20 +61,21 @@ async def test_get_transcripts_parses_typo_key_and_splits_refseq() -> None:
     )
     canonical = next(t for t in out if t["gencode_id"] == TID)
     assert isinstance(canonical["refseq_ids"], list)
-    assert canonical["refseq_ids"][0] == "NM_000546.5"
-    assert len(canonical["refseq_ids"]) == 5
-    # has_protein_data=false entries still parse, with an empty refseq list.
-    no_protein = next(t for t in out if t["gencode_id"] == "ENST00000413465.2")
-    assert no_protein["has_protein_data"] is False
-    assert no_protein["refseq_ids"] == []
+    assert canonical["refseq_ids"][0] == "NM_000546.6"
+    assert len(canonical["refseq_ids"]) == 1
+    assert canonical["mane_transcript_type"] == "MANE_Select"
+    no_refseq = next(t for t in out if t["gencode_id"] == "ENST00000509690.6")
+    assert no_refseq["refseq_ids"] == []
     await client.aclose()
 
 
 @respx.mock
 async def test_unknown_gene_returns_empty_list() -> None:
     """Unknown gene is HTTP 200 with an empty list -> [] (does not raise)."""
-    respx.get(f"{BASE}/get_transcripts/NOSUCHGENE").mock(
-        return_value=httpx.Response(200, json={"message": "No transcripts...", "trancript_ids": []})
+    respx.get(f"{BASE}/get_transcripts/GRCh38.p14/NOSUCHGENE").mock(
+        return_value=httpx.Response(
+            200, json={"message": "No transcripts...", "transcript_ids": []}
+        )
     )
     client = MetaDomeClient()
     assert await client.get_transcripts("NOSUCHGENE") == []
@@ -84,8 +85,8 @@ async def test_unknown_gene_returns_empty_list() -> None:
 @respx.mock
 async def test_get_transcripts_url_encodes_gene_metacharacters() -> None:
     """A gene segment with metacharacters is URL-encoded so it cannot rewrite the path."""
-    route = respx.get(url__regex=rf"^{re.escape(BASE)}/get_transcripts/.*$").mock(
-        return_value=httpx.Response(200, json={"trancript_ids": []})
+    route = respx.get(url__regex=rf"^{re.escape(BASE)}/get_transcripts/GRCh38.p14/.*$").mock(
+        return_value=httpx.Response(200, json={"transcript_ids": []})
     )
     client = MetaDomeClient()
     await client.get_transcripts("../status/x?y=z")
@@ -93,9 +94,9 @@ async def test_get_transcripts_url_encodes_gene_metacharacters() -> None:
 
     assert route.called
     raw_path = route.calls.last.request.url.raw_path.decode()
-    # The gene is a single percent-encoded path segment under /get_transcripts/;
+    # The gene is a single percent-encoded path segment under /get_transcripts/GRCh38.p14/;
     # it never escapes into a new segment or a query string.
-    assert raw_path == "/metadome/api/get_transcripts/..%2Fstatus%2Fx%3Fy%3Dz"
+    assert raw_path == "/metadome/api/get_transcripts/GRCh38.p14/..%2Fstatus%2Fx%3Fy%3Dz"
     assert "%2F" in raw_path  # '/' -> %2F (path traversal neutralised)
     assert "%3F" in raw_path  # '?' -> %3F (query injection neutralised)
     assert "?" not in raw_path  # no real query string was introduced
@@ -117,7 +118,10 @@ async def test_submit_visualization_echoes_id() -> None:
     sent = route.calls.last.request
     assert sent.url.path.endswith("/submit_visualization/")
     assert sent.headers["content-type"].startswith("application/json")
-    assert json.loads(sent.content)["transcript_id"] == TID
+    assert json.loads(sent.content) == {
+        "transcript_id": TID,
+        "genome_build": "GRCh38.p14",
+    }
     await client.aclose()
 
 
@@ -126,7 +130,7 @@ async def test_submit_visualization_400_raises_invalid_input() -> None:
     """A 400 from upstream maps to InvalidInputError."""
     respx.post(f"{BASE}/submit_visualization/").mock(
         return_value=httpx.Response(
-            400, json={"error": "not a valid transcript id: ENST00000269305.4"}
+            400, json={"error": "not a valid transcript id: ENST00000269305.9"}
         )
     )
     client = MetaDomeClient()
@@ -150,7 +154,7 @@ async def test_submit_visualization_unversioned_id_raises_before_request() -> No
 @respx.mock
 async def test_get_status_passthrough() -> None:
     """get_status returns the raw status string verbatim."""
-    respx.get(f"{BASE}/status/{TID}/").mock(
+    respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "SUCCESS"})
     )
     client = MetaDomeClient()
@@ -164,7 +168,7 @@ async def test_get_status_passthrough() -> None:
 @respx.mock
 async def test_get_result_coerces_clinvar_id_to_str() -> None:
     """Every positional ClinVar clinvar_ID is a str after normalization."""
-    respx.get(f"{BASE}/result/{TID}/").mock(
+    respx.get(f"{BASE}/result/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json=_load("result_TP53.json"))
     )
     client = MetaDomeClient()
@@ -186,7 +190,7 @@ async def test_get_result_coerces_clinvar_id_to_str() -> None:
 @respx.mock
 async def test_get_result_404_raises_not_found() -> None:
     """A 404 (result not built yet) maps to NotFoundError."""
-    respx.get(f"{BASE}/result/{TID}/").mock(return_value=httpx.Response(404))
+    respx.get(f"{BASE}/result/GRCh38.p14/{TID}").mock(return_value=httpx.Response(404))
     client = MetaDomeClient()
     with pytest.raises(NotFoundError):
         await client.get_result(TID)
@@ -199,7 +203,7 @@ async def test_get_result_404_raises_not_found() -> None:
 @respx.mock
 async def test_get_error_returns_dict() -> None:
     """get_error returns the stored error dict."""
-    respx.get(f"{BASE}/error/{TID}/").mock(
+    respx.get(f"{BASE}/error/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(
             200, json={"error": "error running visualization job", "stacktrace": "..."}
         )
@@ -228,12 +232,13 @@ async def test_get_metadomain_annotation_coerces_clinvar_id() -> None:
         assert isinstance(variant["clinvar_ID"], str)
     # 6527.0 (float) -> "6527" (no trailing .0).
     assert patho[0]["clinvar_ID"] == "6527"
-    # request shape: trailing slash + the three required keys.
+    # request shape: trailing slash + all four required keys.
     sent = route.calls.last.request
     assert sent.url.path.endswith("/get_metadomain_annotation/")
     body = json.loads(sent.content)
     assert body == {
         "transcript_id": TID,
+        "genome_build": "GRCh38.p14",
         "protein_position": 175,
         "requested_domains": {"PF00870": [81]},
     }
@@ -249,10 +254,10 @@ async def test_poll_ready_immediate_success() -> None:
     respx.post(f"{BASE}/submit_visualization/").mock(
         return_value=httpx.Response(200, json={"transcript_id": TID})
     )
-    respx.get(f"{BASE}/status/{TID}/").mock(
+    respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "SUCCESS"})
     )
-    respx.get(f"{BASE}/result/{TID}/").mock(
+    respx.get(f"{BASE}/result/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json=_load("result_TP53.json"))
     )
     client = _fast_client()
@@ -270,10 +275,10 @@ async def test_poll_pending_then_success() -> None:
         return_value=httpx.Response(200, json={"transcript_id": TID})
     )
     statuses = iter(["PENDING", "STARTED", "SUCCESS"])
-    respx.get(f"{BASE}/status/{TID}/").mock(
+    respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         side_effect=lambda request: httpx.Response(200, json={"status": next(statuses)})
     )
-    respx.get(f"{BASE}/result/{TID}/").mock(
+    respx.get(f"{BASE}/result/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json=_load("result_TP53.json"))
     )
     client = _fast_client()
@@ -289,10 +294,10 @@ async def test_poll_failure_returns_error_dict() -> None:
     respx.post(f"{BASE}/submit_visualization/").mock(
         return_value=httpx.Response(200, json={"transcript_id": TID})
     )
-    respx.get(f"{BASE}/status/{TID}/").mock(
+    respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "FAILURE"})
     )
-    respx.get(f"{BASE}/error/{TID}/").mock(
+    respx.get(f"{BASE}/error/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(
             200, json={"error": "error running visualization job", "stacktrace": "..."}
         )
@@ -311,7 +316,7 @@ async def test_poll_processing_at_deadline() -> None:
     respx.post(f"{BASE}/submit_visualization/").mock(
         return_value=httpx.Response(200, json={"transcript_id": TID})
     )
-    respx.get(f"{BASE}/status/{TID}/").mock(
+    respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "PENDING"})
     )
     client = MetaDomeClient()
@@ -327,7 +332,7 @@ async def test_poll_processing_at_deadline() -> None:
 @respx.mock
 async def test_429_after_retries_raises_rate_limited() -> None:
     """A persistent 429 (after retries) maps to RateLimitedError."""
-    respx.get(f"{BASE}/status/{TID}/").mock(return_value=httpx.Response(429))
+    respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(return_value=httpx.Response(429))
     settings = ServerSettings()
     settings.metadome.max_retries = 1
     client = MetaDomeClient(settings)
@@ -339,7 +344,7 @@ async def test_429_after_retries_raises_rate_limited() -> None:
 @respx.mock
 async def test_5xx_after_retries_raises_upstream_unavailable() -> None:
     """A persistent 503 (after retries) maps to UpstreamUnavailableError."""
-    respx.get(f"{BASE}/status/{TID}/").mock(return_value=httpx.Response(503))
+    respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(return_value=httpx.Response(503))
     settings = ServerSettings()
     settings.metadome.max_retries = 1
     client = MetaDomeClient(settings)
@@ -351,7 +356,7 @@ async def test_5xx_after_retries_raises_upstream_unavailable() -> None:
 @respx.mock
 async def test_timeout_raises_upstream_unavailable() -> None:
     """A connect timeout (after retries) maps to UpstreamUnavailableError."""
-    respx.get(f"{BASE}/status/{TID}/").mock(side_effect=httpx.ConnectTimeout("boom"))
+    respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(side_effect=httpx.ConnectTimeout("boom"))
     settings = ServerSettings()
     settings.metadome.max_retries = 0
     client = MetaDomeClient(settings)

@@ -74,7 +74,7 @@ def create_app() -> FastAPI:
         return {
             "name": "metadome-link",
             "version": __version__,
-            "data_source": "MetaDome (stuart.radboudumc.nl/metadome)",
+            "data_source": "MetaDome (www.metadome.app/metadome)",
             "mcp_endpoint": settings.mcp_path,
             "docs": "/docs",
             "health": "/health",

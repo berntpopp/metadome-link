@@ -102,7 +102,8 @@ backoff (initial→max interval) and a token-bucket politeness limiter.
 | On-disk SQLite | Completed landscapes | `data/metadome_cache.sqlite` | Permanent (per `metadome_data_version`) |
 | In-memory TTL | Transcript lists | RAM | Time-based (default 6 h) |
 
-Cache keys include `metadome_data_version` (`gencode19-gnomad2.0.2-clinvar20180603-pfam30-app1.0.1`)
+Cache keys include `metadome_data_version`
+(`metadome2.0-grch38.p14-gencode45-uniprot2025_01-pfam37.4-gnomad4.1-clinvar2025-10-06`)
 so a MetaDome upstream update automatically invalidates stale entries when the constant is bumped.
 
 `/status` is **never cached** — always fetched live.
@@ -144,7 +145,7 @@ Every tool response follows the same envelope:
   "_meta": {
     "tool": "...",
     "request_id": "...",
-    "data_versions": { "assembly": "GRCh37", "gnomad": "r2.0.2", ... },
+    "data_versions": { "assembly": "GRCh38.p14", "gnomad": "v4.1", ... },
     "capabilities_version": "...",     ← compact+
     "next_commands": [ ... ],          ← compact+
     "elapsed_ms": 42                   ← standard/full only

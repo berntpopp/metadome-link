@@ -1,10 +1,4 @@
-"""Domain constants for metadome-link: schema/data versions, citation, caveats, limits.
-
-MetaDome data is GRCh37/hg19, frozen at gnomAD r2.0.2 and ClinVar 2018-06-03
-(Gencode v19, Pfam 30.0). ``METADOME_DATA_VERSION`` pins the upstream release;
-the on-disk result cache and ``capabilities_version`` derive from it. Bump it
-manually if MetaDome ships a new release.
-"""
+"""Domain constants for metadome-link: schema/data versions, citation, caveats, limits."""
 
 from __future__ import annotations
 
@@ -15,17 +9,21 @@ SCHEMA_VERSION = "1"
 
 #: Pinned MetaDome upstream data release. Cache keys + capabilities_version derive
 #: from this; bump manually if MetaDome updates.
-METADOME_DATA_VERSION = "gencode19-gnomad2.0.2-clinvar20180603-pfam30-app1.0.1"
+METADOME_DATA_VERSION = (
+    "metadome2.0-grch38.p14-gencode45-uniprot2025_01-pfam37.4-gnomad4.1-clinvar2025-10-06"
+)
 
 #: Structured component versions of the pinned MetaDome release. Surfaced in
-#: ``_meta.data_versions`` on EVERY response (the hg19/data-currency caveat surface).
+#: ``_meta.data_versions`` on EVERY response (the data-currency caveat surface).
 DATA_VERSIONS: dict[str, str] = {
-    "assembly": "GRCh37",
-    "gencode": "v19",
-    "gnomad": "r2.0.2",
-    "clinvar": "2018-06-03",
-    "pfam": "30.0",
-    "metadome_app": "1.0.1",
+    "assembly": "GRCh38.p14",
+    "gencode": "v45",
+    "uniprot": "2025_01",
+    "gnomad": "v4.1",
+    "clinvar": "2025-10-06",
+    "pfam": "37.4",
+    "metadome_app": "2.0",
+    "data_doi": "10.5281/zenodo.19376150",
 }
 
 #: Canonical citation pasted verbatim into capability/_meta/record payloads.
@@ -37,7 +35,10 @@ RECOMMENDED_CITATION = (
 )
 
 #: License attribution for the MetaDome software/data.
-METADOME_LICENSE = "MIT (https://github.com/laurensvdwiel/metadome)"
+METADOME_LICENSE = (
+    "MetaDome 2.0 data: CC BY 4.0 (doi:10.5281/zenodo.19376150); "
+    "software: MIT (https://github.com/laurensvdwiel/metadome)"
+)
 
 #: Research-use disclaimer surfaced in instructions + capabilities + resources.
 RESEARCH_USE_NOTICE = (
@@ -45,10 +46,10 @@ RESEARCH_USE_NOTICE = (
     "or patient management."
 )
 
-#: Prominent data-currency caveat (the hg19 / historical-counts warning).
+#: Prominent data-currency caveat (the pinned-release / aggregate-counts warning).
 DATA_CURRENCY_CAVEAT = (
-    "MetaDome data are GRCh37/hg19 with gnomAD r2.0.2 and ClinVar 2018-06-03; "
-    "per-residue ClinVar annotations are historical and MetaDome does not provide true "
+    "MetaDome 2.0 data use GRCh38.p14, GENCODE v45, UniProt 2025_01, Pfam 37.4, "
+    "gnomAD v4.1, and ClinVar 2025-10-06; MetaDome does not provide true "
     "per-residue gnomAD counts. Its Pfam meta-domain aggregates can include other genes; "
     "use live gnomAD/ClinVar for current evidence."
 )
@@ -86,5 +87,5 @@ MAX_RESPONSE_CHARS = 90_000
 RESPONSE_MODES = ["minimal", "compact", "standard", "full"]
 DEFAULT_RESPONSE_MODE = "compact"
 
-#: Ensembl transcript id with a version suffix, e.g. ``ENST00000269305.4``.
+#: Ensembl transcript id with a version suffix, e.g. ``ENST00000269305.9``.
 ENST_RE = re.compile(r"^ENST\d{11}\.\d+$")

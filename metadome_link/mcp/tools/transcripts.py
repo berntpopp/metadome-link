@@ -67,7 +67,7 @@ def register_transcript_tools(mcp: FastMCP) -> None:
         tags={"transcripts"},
         description=(
             "Resolve a gene symbol or versioned Ensembl transcript id to MetaDome "
-            "GRCh37 transcript candidate(s). A gene symbol returns all transcripts "
+            "GRCh38.p14 transcript candidate(s). A gene symbol returns all transcripts "
             "sorted by protein length (aa_length descending) with the longest "
             "protein-coding entry flagged canonical. A bare ENST id (version suffix "
             "required) is validated and echoed directly. Use the canonical_transcript_id "

@@ -54,9 +54,9 @@ _TOOL_SCHEMAS: dict[str, dict[str, Any]] = {
 }
 
 # ── Constants shared across tests ──────────────────────────────────────────
-_TID = "ENST00000269305.4"
+_TID = "ENST00000269305.9"
 _BAD_TID = "ENST00000269305"  # missing .N version suffix → invalid_input
-_BASE = "https://stuart.radboudumc.nl/metadome/api"
+_BASE = "https://www.metadome.app/metadome/api"
 _RESPONSE_MODES = ["minimal", "compact", "standard", "full"]
 
 # ── Success-path args per tool ─────────────────────────────────────────────

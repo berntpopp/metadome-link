@@ -18,8 +18,8 @@ import respx
 # Constants from conftest.py (re-used to construct fixture-specific scenarios)
 # ---------------------------------------------------------------------------
 
-BASE = "https://stuart.radboudumc.nl/metadome/api"
-TID = "ENST00000269305.4"
+BASE = "https://www.metadome.app/metadome/api"
+TID = "ENST00000269305.9"
 
 
 # ---------------------------------------------------------------------------
@@ -252,7 +252,7 @@ async def test_summarize_intolerant_regions_not_found(
     respx.post(f"{BASE}/submit_visualization/").mock(
         return_value=httpx.Response(200, json={"transcript_id": unknown_tid})
     )
-    respx.get(f"{BASE}/status/{unknown_tid}/").mock(
+    respx.get(f"{BASE}/status/GRCh38.p14/{unknown_tid}").mock(
         return_value=httpx.Response(200, json={"status": "PENDING"})
     )
     data = await call_tool(

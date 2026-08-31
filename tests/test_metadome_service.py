@@ -43,8 +43,8 @@ from metadome_link.services.resolution import (
 )
 
 FX = pathlib.Path(__file__).parent / "fixtures" / "metadome"
-BASE = "https://stuart.radboudumc.nl/metadome/api"
-TID = "ENST00000269305.4"
+BASE = "https://www.metadome.app/metadome/api"
+TID = "ENST00000269305.9"
 
 
 def _load(name: str) -> Any:
@@ -102,6 +102,28 @@ def test_pick_canonical_is_first_protein_coding() -> None:
     assert pick_canonical(ts) == "C"
 
 
+def test_pick_canonical_prefers_analyzable_mane_select() -> None:
+    """MetaDome v2's MANE Select wins over an equally long earlier entry."""
+    transcripts = sort_transcripts(
+        [
+            {
+                "gencode_id": "ENST00000503591.2",
+                "aa_length": 393,
+                "has_protein_data": True,
+                "mane_transcript_type": "",
+            },
+            {
+                "gencode_id": "ENST00000269305.9",
+                "aa_length": 393,
+                "has_protein_data": True,
+                "mane_transcript_type": "MANE_Select",
+            },
+        ]
+    )
+
+    assert pick_canonical(transcripts) == "ENST00000269305.9"
+
+
 def test_pick_canonical_none_when_no_protein_data() -> None:
     """No protein-coding transcript -> no canonical."""
     ts = [{"gencode_id": "A", "aa_length": 100, "has_protein_data": False}]
@@ -110,7 +132,7 @@ def test_pick_canonical_none_when_no_protein_data() -> None:
 
 def test_detect_query_type() -> None:
     """ENST queries are 'id'; gene symbols are 'gene'."""
-    assert detect_query_type("ENST00000269305.4") == "id"
+    assert detect_query_type("ENST00000269305.9") == "id"
     assert detect_query_type("TP53") == "gene"
 
 
@@ -202,7 +224,7 @@ def test_variant_evidence_for_source_filter() -> None:
 @respx.mock
 async def test_resolve_transcript_gene_flags_canonical(cache: ResultCache) -> None:
     """A gene query returns transcripts sorted desc with the canonical flagged."""
-    respx.get(f"{BASE}/get_transcripts/TP53").mock(
+    respx.get(f"{BASE}/get_transcripts/GRCh38.p14/TP53").mock(
         return_value=httpx.Response(200, json=_load("get_transcripts_TP53.json"))
     )
     svc = _make_service(cache)
@@ -210,7 +232,7 @@ async def test_resolve_transcript_gene_flags_canonical(cache: ResultCache) -> No
     assert out["resolved_from"] == "gene"
     assert out["gene_name"] == "TP53"
     assert out["canonical_transcript_id"] == TID
-    # Sorted by aa_length descending; first protein-coding 393 is canonical.
+    # Sorted by aa_length descending; the analyzable MANE Select is canonical.
     lengths = [t["aa_length"] for t in out["transcripts"]]
     assert lengths == sorted(lengths, reverse=True)
     canon = next(t for t in out["transcripts"] if t["gencode_id"] == TID)
@@ -233,8 +255,8 @@ async def test_resolve_transcript_id_passthrough(cache: ResultCache) -> None:
 @respx.mock
 async def test_resolve_transcript_unknown_gene_raises_not_found(cache: ResultCache) -> None:
     """An unknown gene (empty upstream list) raises NotFoundError."""
-    respx.get(f"{BASE}/get_transcripts/NOSUCHGENE").mock(
-        return_value=httpx.Response(200, json={"message": "none", "trancript_ids": []})
+    respx.get(f"{BASE}/get_transcripts/GRCh38.p14/NOSUCHGENE").mock(
+        return_value=httpx.Response(200, json={"message": "none", "transcript_ids": []})
     )
     svc = _make_service(cache)
     with pytest.raises(NotFoundError):
@@ -253,7 +275,7 @@ async def test_request_landscape_ready(cache: ResultCache) -> None:
     respx.post(f"{BASE}/submit_visualization/").mock(
         return_value=httpx.Response(200, json={"transcript_id": TID})
     )
-    respx.get(f"{BASE}/status/{TID}/").mock(
+    respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "SUCCESS"})
     )
     svc = _make_service(cache)
@@ -270,7 +292,7 @@ async def test_request_landscape_processing(cache: ResultCache) -> None:
     respx.post(f"{BASE}/submit_visualization/").mock(
         return_value=httpx.Response(200, json={"transcript_id": TID})
     )
-    respx.get(f"{BASE}/status/{TID}/").mock(
+    respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "PENDING"})
     )
     svc = _make_service(cache)
@@ -292,10 +314,10 @@ async def test_request_landscape_failure_is_non_retryable(cache: ResultCache) ->
     respx.post(f"{BASE}/submit_visualization/").mock(
         return_value=httpx.Response(200, json={"transcript_id": TID})
     )
-    respx.get(f"{BASE}/status/{TID}/").mock(
+    respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "FAILURE"})
     )
-    respx.get(f"{BASE}/error/{TID}/").mock(
+    respx.get(f"{BASE}/error/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"error": "boom", "stacktrace": "some other crash"})
     )
     svc = _make_service(cache)
@@ -316,10 +338,10 @@ async def test_request_landscape_no_protein_data_is_invalid_input(cache: ResultC
     respx.post(f"{BASE}/submit_visualization/").mock(
         return_value=httpx.Response(200, json={"transcript_id": TID})
     )
-    respx.get(f"{BASE}/status/{TID}/").mock(
+    respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "FAILURE"})
     )
-    respx.get(f"{BASE}/error/{TID}/").mock(
+    respx.get(f"{BASE}/error/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(
             200,
             json={
@@ -349,7 +371,7 @@ async def test_get_landscape_processing_path(cache: ResultCache) -> None:
     respx.post(f"{BASE}/submit_visualization/").mock(
         return_value=httpx.Response(200, json={"transcript_id": TID})
     )
-    respx.get(f"{BASE}/status/{TID}/").mock(
+    respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "PENDING"})
     )
     settings = _fast_settings()
@@ -369,10 +391,10 @@ async def test_get_landscape_ready_caches_and_paginates(cache: ResultCache) -> N
     respx.post(f"{BASE}/submit_visualization/").mock(
         return_value=httpx.Response(200, json={"transcript_id": TID})
     )
-    status_route = respx.get(f"{BASE}/status/{TID}/").mock(
+    status_route = respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "SUCCESS"})
     )
-    result_route = respx.get(f"{BASE}/result/{TID}/").mock(
+    result_route = respx.get(f"{BASE}/result/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json=_load("result_TP53.json"))
     )
     svc = _make_service(cache)
@@ -421,10 +443,12 @@ async def test_get_landscape_failed_is_non_retryable(cache: ResultCache) -> None
     respx.post(f"{BASE}/submit_visualization/").mock(
         return_value=httpx.Response(200, json={"transcript_id": TID})
     )
-    respx.get(f"{BASE}/status/{TID}/").mock(
+    respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "FAILURE"})
     )
-    respx.get(f"{BASE}/error/{TID}/").mock(return_value=httpx.Response(200, json={"error": "boom"}))
+    respx.get(f"{BASE}/error/GRCh38.p14/{TID}").mock(
+        return_value=httpx.Response(200, json={"error": "boom"})
+    )
     svc = _make_service(cache)
     with pytest.raises(DataUnavailableError) as ei:
         await svc.get_landscape(TID, limit=200, offset=0, response_mode="compact")
@@ -435,12 +459,12 @@ async def test_get_landscape_failed_is_non_retryable(cache: ResultCache) -> None
 @respx.mock
 async def test_resolve_transcript_not_analyzable_when_no_protein_data(cache: ResultCache) -> None:
     """A gene whose transcripts all lack protein data is flagged not analyzable (BRCA2)."""
-    respx.get(f"{BASE}/get_transcripts/BRCA2").mock(
+    respx.get(f"{BASE}/get_transcripts/GRCh38.p14/BRCA2").mock(
         return_value=httpx.Response(
             200,
             json={
                 "message": "Retrieved transcripts for gene 'BRCA2'",
-                "trancript_ids": [
+                "transcript_ids": [
                     {
                         "aa_length": 3418,
                         "gencode_id": "ENST00000380152.3",

@@ -25,9 +25,9 @@ from metadome_link.api.url_guard import (
 )
 from metadome_link.config import ServerSettings
 
-BASE = "https://stuart.radboudumc.nl/metadome/api"
-HOST = "stuart.radboudumc.nl"
-TID = "ENST00000269305.4"
+BASE = "https://www.metadome.app/metadome/api"
+HOST = "www.metadome.app"
+TID = "ENST00000269305.9"
 ALLOWED = frozenset({(HOST, 443)})
 
 
@@ -48,32 +48,32 @@ def test_build_origin_allowlist_normalizes_host_and_effective_port() -> None:
 
 async def test_guard_allows_allowlisted_https() -> None:
     guard = make_url_guard(ALLOWED)
-    await guard(httpx.Request("GET", f"{BASE}/status/{TID}/"))  # must not raise
+    await guard(httpx.Request("GET", f"{BASE}/status/GRCh38.p14/{TID}"))  # must not raise
 
 
 async def test_guard_rejects_non_https() -> None:
     guard = make_url_guard(ALLOWED)
     with pytest.raises(DisallowedURLError):
-        await guard(httpx.Request("GET", f"http://{HOST}/status/{TID}/"))
+        await guard(httpx.Request("GET", f"http://{HOST}/status/GRCh38.p14/{TID}"))
 
 
 async def test_guard_rejects_userinfo() -> None:
     guard = make_url_guard(ALLOWED)
     with pytest.raises(DisallowedURLError):
-        await guard(httpx.Request("GET", f"https://user:pass@{HOST}/status/{TID}/"))
+        await guard(httpx.Request("GET", f"https://user:pass@{HOST}/status/GRCh38.p14/{TID}"))
 
 
 async def test_guard_rejects_empty_userinfo() -> None:
     # The empty ``:@`` userinfo form must be rejected too (recipe uniformity):
-    # httpx parses ``https://:@stuart.radboudumc.nl/`` to ``url.userinfo == b':'``
+    # httpx parses ``https://:@www.metadome.app/`` to ``url.userinfo == b':'``
     # while ``url.username`` and ``url.password`` are both ``""`` -- a
     # ``username or password`` check would MISS it. The guard tests the raw
     # ``url.userinfo`` bytes, so any non-empty userinfo is rejected.
     guard = make_url_guard(ALLOWED)
     with pytest.raises(DisallowedURLError):
-        await guard(httpx.Request("GET", f"https://:@{HOST}/status/{TID}/"))
+        await guard(httpx.Request("GET", f"https://:@{HOST}/status/GRCh38.p14/{TID}"))
     # A clean allowlisted URL (no userinfo) still passes.
-    await guard(httpx.Request("GET", f"https://{HOST}/status/{TID}/"))
+    await guard(httpx.Request("GET", f"https://{HOST}/status/GRCh38.p14/{TID}"))
 
 
 async def test_guard_rejects_cross_host() -> None:
@@ -114,7 +114,7 @@ def _client(*, max_retries: int = 3, max_response_bytes: int | None = None) -> M
 @respx.mock
 async def test_cross_host_redirect_is_refused_and_not_retried() -> None:
     """A 302 to a non-allowlisted host raises and is NOT retried by the retry loop."""
-    route = respx.get(f"{BASE}/status/{TID}/").mock(
+    route = respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(302, headers={"Location": "https://evil.example.com/x"})
     )
     client = _client(max_retries=3)
@@ -127,8 +127,10 @@ async def test_cross_host_redirect_is_refused_and_not_retried() -> None:
 @respx.mock
 async def test_non_https_redirect_downgrade_is_refused() -> None:
     """A 302 downgrading to http (even same host) raises."""
-    respx.get(f"{BASE}/status/{TID}/").mock(
-        return_value=httpx.Response(302, headers={"Location": f"http://{HOST}/status/{TID}/"})
+    respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
+        return_value=httpx.Response(
+            302, headers={"Location": f"http://{HOST}/status/GRCh38.p14/{TID}"}
+        )
     )
     client = _client(max_retries=3)
     with pytest.raises(DisallowedURLError):
@@ -140,7 +142,9 @@ async def test_non_https_redirect_downgrade_is_refused() -> None:
 async def test_over_cap_response_is_refused_and_not_retried() -> None:
     """A body over the byte cap fails closed (never truncates) and is not retried."""
     big = b'{"status": "' + b"S" * 5000 + b'"}'
-    route = respx.get(f"{BASE}/status/{TID}/").mock(return_value=httpx.Response(200, content=big))
+    route = respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
+        return_value=httpx.Response(200, content=big)
+    )
     client = _client(max_retries=3, max_response_bytes=1024)
     with pytest.raises(ResponseTooLargeError):
         await client.get_status(TID)
@@ -151,7 +155,7 @@ async def test_over_cap_response_is_refused_and_not_retried() -> None:
 @respx.mock
 async def test_happy_path_through_capped_stream_unchanged() -> None:
     """A normal (no-redirect, under-cap) response still parses correctly."""
-    respx.get(f"{BASE}/status/{TID}/").mock(
+    respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "SUCCESS"})
     )
     client = _client()

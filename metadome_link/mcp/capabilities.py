@@ -110,7 +110,7 @@ def build_capabilities() -> dict[str, Any]:
         "server_version": __version__,
         "build": build_info(),
         "data_versions": DATA_VERSIONS,
-        "data_source": "MetaDome (stuart.radboudumc.nl/metadome)",
+        "data_source": "MetaDome (www.metadome.app/metadome)",
         "research_use_only": True,
         "research_use_notice": RESEARCH_USE_NOTICE,
         "data_currency_caveat": DATA_CURRENCY_CAVEAT,

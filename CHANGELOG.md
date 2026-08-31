@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-08-31
+
+### Changed
+
+- Migrated the live client to MetaDome 2.0 at `www.metadome.app`, including the
+  required `GRCh38.p14` namespace on every operation and MANE Select canonical
+  transcript handling.
+- Pinned and surfaced the exact MetaDome 2.0 component identity (GENCODE v45,
+  UniProt 2025_01, Pfam 37.4, gnomAD v4.1, ClinVar 2025-10-06) and Zenodo DOI
+  `10.5281/zenodo.19376150`, with the CC BY 4.0 data license.
+- Updated API fixtures, examples, cache identity, deployment settings, and
+  provenance documentation for the v2 contract.
+
 ## [0.3.5] - 2026-08-31
 
 - Updated fleet dependencies and immutable CI action pins, including the trusted

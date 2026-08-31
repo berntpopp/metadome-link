@@ -29,8 +29,8 @@ TranscriptIdArg = Annotated[
     str,
     Field(
         description="A versioned Ensembl transcript id (the .N version suffix is required), "
-        "e.g. ENST00000269305.4. Resolve a gene symbol with resolve_transcript first.",
-        examples=["ENST00000269305.4"],
+        "e.g. ENST00000269305.9. Resolve a gene symbol with resolve_transcript first.",
+        examples=["ENST00000269305.9"],
     ),
 ]
 
@@ -39,9 +39,9 @@ GeneOrIdArg = Annotated[
     str,
     Field(
         description="A gene symbol (e.g. TP53) or a versioned Ensembl transcript id "
-        "(e.g. ENST00000269305.4). Gene symbols are resolved to candidate transcripts; "
+        "(e.g. ENST00000269305.9). Gene symbols are resolved to candidate transcripts; "
         "a bare ENST id is validated and echoed.",
-        examples=["TP53", "ENST00000269305.4"],
+        examples=["TP53", "ENST00000269305.9"],
     ),
 ]
 

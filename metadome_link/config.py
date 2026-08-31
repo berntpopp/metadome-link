@@ -69,8 +69,13 @@ class MetaDomeSettings(BaseModel):
     """Upstream MetaDome web-API client settings (base URL, timeouts, poll, politeness)."""
 
     base_url: str = Field(
-        default="https://stuart.radboudumc.nl/metadome/api",
+        default="https://www.metadome.app/metadome/api",
         description="Base URL of the MetaDome web API (no auth required).",
+    )
+    genome_build: str = Field(
+        default="GRCh38.p14",
+        pattern=r"^GRCh(?:37|38)\.p\d+$",
+        description="Exact MetaDome genome-build dataset namespace.",
     )
     request_timeout_s: float = Field(
         default=30.0,

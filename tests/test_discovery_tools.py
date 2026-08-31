@@ -17,7 +17,7 @@ async def test_get_server_capabilities_success(facade: Any, call_tool: Any) -> N
     assert len(data["tools"]) == 11
     meta = data["_meta"]
     assert meta["capabilities_version"]
-    assert meta["data_versions"]["assembly"] == "GRCh37"
+    assert meta["data_versions"]["assembly"] == "GRCh38.p14"
 
 
 async def test_get_server_capabilities_full_detail(facade: Any, call_tool: Any) -> None:
@@ -37,5 +37,5 @@ async def test_get_diagnostics_reports_cache_stats(facade: Any, call_tool: Any) 
     assert "data_version" in data["cache_stats"]
     assert "build" in data
     assert "metrics" in data
-    assert data["data_versions"]["assembly"] == "GRCh37"
+    assert data["data_versions"]["assembly"] == "GRCh38.p14"
     assert data["_meta"]["capabilities_version"]

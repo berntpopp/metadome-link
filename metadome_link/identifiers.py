@@ -1,7 +1,7 @@
 """Identifier normalisation and validation for metadome-link.
 
 MetaDome keys everything on a versioned Ensembl transcript id
-(``ENST00000269305.4`` — the ``.N`` version is **required**; ``submit_visualization``
+(``ENST00000269305.9`` — the ``.N`` version is **required**; ``submit_visualization``
 rejects an unversioned id). Gene symbols are normalised to upper-case for the
 case-insensitive ``/get_transcripts/<gene>`` endpoint.
 """
@@ -12,7 +12,7 @@ from metadome_link.constants import ENST_RE
 from metadome_link.exceptions import InvalidInputError
 
 #: Recovery hint reused by ``validate_transcript_id`` and surfaced on the envelope.
-_TRANSCRIPT_HINT = "Ensembl transcript id with version, e.g. ENST00000269305.4"
+_TRANSCRIPT_HINT = "Ensembl transcript id with version, e.g. ENST00000269305.9"
 
 
 def normalize_gene_symbol(s: str) -> str:

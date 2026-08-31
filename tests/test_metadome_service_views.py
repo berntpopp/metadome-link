@@ -35,8 +35,8 @@ from metadome_link.exceptions import (
 from metadome_link.services.metadome_service import MetaDomeService
 
 FX = pathlib.Path(__file__).parent / "fixtures" / "metadome"
-BASE = "https://stuart.radboudumc.nl/metadome/api"
-TID = "ENST00000269305.4"
+BASE = "https://www.metadome.app/metadome/api"
+TID = "ENST00000269305.9"
 
 
 def _load(name: str) -> Any:
@@ -81,7 +81,7 @@ async def test_require_landscape_not_ready_raises_not_found(cache: ResultCache) 
     respx.post(f"{BASE}/submit_visualization/").mock(
         return_value=httpx.Response(200, json={"transcript_id": TID})
     )
-    respx.get(f"{BASE}/status/{TID}/").mock(
+    respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "PENDING"})
     )
     settings = _fast_settings()

@@ -35,7 +35,7 @@ reverse proxy — never published directly to the internet.
 Health check:
 ```bash
 curl http://localhost:8000/health
-# → {"status": "ok", "data_versions": {"assembly": "GRCh37", ...}}
+# → {"status": "ok", "data_versions": {"assembly": "GRCh38.p14", ...}}
 ```
 
 ## Configuration (environment variables)
@@ -71,7 +71,8 @@ by a token bucket (default 3.0 req/s, burst 5) with retries on 429/5xx/timeout. 
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `METADOME_LINK_METADOME__BASE_URL` | `https://stuart.radboudumc.nl/metadome/api` | MetaDome API base URL. |
+| `METADOME_LINK_METADOME__BASE_URL` | `https://www.metadome.app/metadome/api` | MetaDome API base URL. |
+| `METADOME_LINK_METADOME__GENOME_BUILD` | `GRCh38.p14` | Exact MetaDome dataset namespace. |
 | `METADOME_LINK_METADOME__REQUEST_TIMEOUT_S` | `30.0` | Per-request HTTP timeout (s). |
 | `METADOME_LINK_METADOME__POLL_SOFT_DEADLINE_S` | `20.0` | Max poll-loop wall time before returning `status:"processing"`. |
 | `METADOME_LINK_METADOME__POLL_INITIAL_INTERVAL_S` | `2.0` | Initial poll sleep (s). |
@@ -162,10 +163,12 @@ upstream release, bump `METADOME_DATA_VERSION` in `metadome_link/constants.py` a
 
 ## Data version pinning
 
-MetaDome data is frozen at `gencode19-gnomad2.0.2-clinvar20180603-pfam30-app1.0.1` (GRCh37,
-gnomAD r2.0.2, ClinVar 2018-06-03). This constant (`METADOME_DATA_VERSION`) is the cache key
-and also drives `capabilities_version`. Bump it manually in `metadome_link/constants.py`
-if MetaDome upstream updates its data version.
+MetaDome data is pinned at
+`metadome2.0-grch38.p14-gencode45-uniprot2025_01-pfam37.4-gnomad4.1-clinvar2025-10-06`
+([Zenodo DOI 10.5281/zenodo.19376150](https://doi.org/10.5281/zenodo.19376150)). This constant
+(`METADOME_DATA_VERSION`) is the cache key and also drives `capabilities_version`. Review and
+bump it together with `DATA_VERSIONS`, the API contract, and `METADOME_LINK_METADOME__GENOME_BUILD`
+when MetaDome publishes another release.
 
 ## Production checklist
 

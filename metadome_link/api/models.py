@@ -8,7 +8,7 @@ typing; nothing at runtime is coerced into these classes.
 Normalization applied by the client (see ``client.py``):
 
 - ``get_transcripts`` splits the upstream ``refseq_nm_numbers`` comma-string into
-  a ``refseq_ids`` list and renames the misspelled ``trancript_ids`` key away.
+  a ``refseq_ids`` list and exposes MetaDome v2's MANE transcript annotation.
 - ``get_result`` / ``get_metadomain_annotation`` coerce every ``clinvar_ID`` to a
   ``str`` (upstream returns a string in ``/result/`` but a float in
   ``/get_metadomain_annotation/``).
@@ -25,6 +25,7 @@ class TranscriptSummary(TypedDict):
     gencode_id: str
     aa_length: int
     has_protein_data: bool
+    mane_transcript_type: str
     refseq_ids: list[str]
 
 

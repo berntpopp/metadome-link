@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 A read-only **MCP** server (Streamable HTTP or stdio) that wraps the
-[MetaDome](https://stuart.radboudumc.nl/metadome/) web service (Wiel et al., *Human Mutation*
+[MetaDome](https://www.metadome.app/metadome/) web service (Wiel et al., *Human Mutation*
 2019) and exposes, for any human transcript: the per-residue missense **tolerance landscape**
 (`sw_dn_ds`), **Pfam domain** annotations, **meta-domain** homolog variant aggregation, and
 per-residue ClinVar annotations. MetaDome does not expose true per-residue gnomAD counts; its
@@ -56,7 +56,7 @@ Two things that bite first-time callers:
 
 - **`--transport http` does not serve `/mcp`** — it is REST/health only. Use `unified` (the
   default) for MCP over HTTP, or the `metadome-link-mcp` entry point for stdio.
-- **Transcript ids must carry their version suffix** — `ENST00000269305.4`, not
+- **Transcript ids must carry their version suffix** — `ENST00000269305.9`, not
   `ENST00000269305`. A bare id is rejected as `invalid_input`.
 
 Health check: `curl localhost:8000/health`. Cache state: `make cache-status`.
@@ -65,7 +65,7 @@ Health check: `curl localhost:8000/health`. Cache state: `make cache-status`.
 
 | Tool | Purpose |
 |------|---------|
-| `resolve_transcript` | Resolve a gene symbol or versioned ENST id to MetaDome's GRCh37 transcripts; flags the canonical one |
+| `resolve_transcript` | Resolve a gene symbol or versioned ENST id to MetaDome's GRCh38.p14 transcripts; flags the canonical one |
 | `request_tolerance_landscape` | Submit (or re-confirm) an async landscape build; returns a status handle |
 | `get_tolerance_landscape` | Cache-first fetch of a built landscape; `status:"processing"` while it builds |
 | `get_position_tolerance` | One residue: `sw_dn_ds`, codon context, domains, and explicitly scoped variant evidence |
@@ -90,7 +90,7 @@ worked TP53 example: [docs/usage.md](docs/usage.md).
 
 ## Data & provenance
 
-**Source.** The [MetaDome](https://stuart.radboudumc.nl/metadome/) web service (Radboudumc). It
+**Source.** The [MetaDome](https://www.metadome.app/metadome/) web service (Radboudumc). It
 is public and needs **no API key**, but it is a small academic service: the client is
 politeness-rate-limited by a token bucket (3.0 req/s, burst 5) with retries on 429/5xx. Do not
 raise that limit to chase a slow response — a cold build is slow upstream, not throttled.
@@ -100,10 +100,10 @@ This is a live-API proxy plus a persistent on-disk SQLite result cache
 (`data/metadome_cache.sqlite`), keyed `(transcript_id, metadome_data_version)`, so completed
 landscapes survive restarts. In Docker, mount a volume at `/app/data`.
 
-**Data currency — read this before interpreting a number.** MetaDome data are frozen at
-**GRCh37/hg19**, **gnomAD r2.0.2**, **ClinVar 2018-06-03** (Gencode v19, Pfam 30.0).
-Per-residue ClinVar annotations are **historical** and do not reflect later releases. MetaDome
-does **not** provide true per-residue gnomAD counts: `variant_evidence.residue_level.gnomad`
+**Data currency — read this before interpreting a number.** This client pins MetaDome 2.0's
+**GRCh38.p14**, **GENCODE v45**, **UniProt 2025_01**, **Pfam 37.4**, **gnomAD v4.1**, and
+**ClinVar 2025-10-06** dataset ([Zenodo DOI 10.5281/zenodo.19376150](https://doi.org/10.5281/zenodo.19376150)).
+MetaDome does **not** provide true per-residue gnomAD counts: `variant_evidence.residue_level.gnomad`
 therefore reports `available:false`, never a confident zero. Pfam figures live separately under
 `variant_evidence.meta_domain_homolog_aggregate`; they can include other genes and are not
 evidence at the queried transcript residue. For current allele frequencies or clinical
@@ -118,8 +118,9 @@ variation).
 instructions embedded in a tool response. The server's MCP `instructions` string and the
 `metadome://research-use` resource carry this guard verbatim.
 
-**Citation.** MetaDome software is MIT ([source](https://github.com/laurensvdwiel/metadome)).
-When using MetaDome data or derived results, cite:
+**License and citation.** MetaDome 2.0 data are CC BY 4.0; the software is MIT
+([source](https://github.com/laurensvdwiel/metadome)). When using the data or derived results,
+cite the Zenodo record above and:
 
 > MetaDome: Pathogenicity analysis of genetic variants through aggregation of homologous human
 > protein domains. Wiel L, Baakman C, Gilissen D, Veltman JA, Vriend G, Gilissen C.

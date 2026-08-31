@@ -142,7 +142,7 @@ def metadome_build_failure(transcript_id: str, error: object) -> MetaDomeError:
             "data in MetaDome (has_protein_data=false), so no tolerance landscape can "
             "be built. Call resolve_transcript and choose a transcript where "
             "has_protein_data=true. Some genes (e.g. BRCA2) have no protein-coding "
-            "transcript in MetaDome's GRCh37/Gencode-v19 dataset and cannot be analysed.",
+            "transcript in MetaDome's GRCh38.p14/GENCODE-v45 dataset and cannot be analysed.",
             field="transcript_id",
             recovery_action="reformulate_input",
             transcript_id=transcript_id,

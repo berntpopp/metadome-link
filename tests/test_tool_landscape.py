@@ -18,8 +18,8 @@ import httpx
 import respx
 
 FX = pathlib.Path(__file__).parent / "fixtures" / "metadome"
-BASE = "https://stuart.radboudumc.nl/metadome/api"
-TID = "ENST00000269305.4"
+BASE = "https://www.metadome.app/metadome/api"
+TID = "ENST00000269305.9"
 
 
 def _load(name: str) -> Any:
@@ -79,14 +79,14 @@ async def test_request_landscape_ready(facade: Any, call_tool: Any) -> None:
         s["tool"] == "get_tolerance_landscape" and s["arguments"].get("transcript_id") == TID
         for s in steps
     )
-    assert data["_meta"]["data_versions"]["assembly"] == "GRCh37"
+    assert data["_meta"]["data_versions"]["assembly"] == "GRCh38.p14"
 
 
 async def test_request_landscape_processing(
     facade: Any, call_tool: Any, mocked_metadome: respx.MockRouter
 ) -> None:
     """A still-building transcript reports status='processing' (not an error)."""
-    mocked_metadome.get(f"/status/{TID}/").mock(
+    mocked_metadome.get(f"/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "PENDING"})
     )
     data = await call_tool(facade, "request_tolerance_landscape", {"transcript_id": TID})
@@ -100,10 +100,10 @@ async def test_request_landscape_failure_is_non_retryable(
     facade: Any, call_tool: Any, mocked_metadome: respx.MockRouter
 ) -> None:
     """A FAILURE build status maps to a NON-retryable upstream_unavailable (no retry loop)."""
-    mocked_metadome.get(f"/status/{TID}/").mock(
+    mocked_metadome.get(f"/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "FAILURE"})
     )
-    mocked_metadome.get(f"/error/{TID}/").mock(
+    mocked_metadome.get(f"/error/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"error": "boom"})
     )
     data = await call_tool(facade, "request_tolerance_landscape", {"transcript_id": TID})
@@ -141,7 +141,7 @@ async def test_get_landscape_ready_returns_domains_and_positions(
     pg = data["pagination"]
     assert pg["total"] == 20
     assert pg["returned"] == len(positions)
-    assert data["_meta"]["data_versions"]["assembly"] == "GRCh37"
+    assert data["_meta"]["data_versions"]["assembly"] == "GRCh38.p14"
     # Ready -> success chain suggests downstream position/domain tools.
     tools = {s["tool"] for s in data["_meta"]["next_commands"]}
     assert "get_position_tolerance" in tools
@@ -190,10 +190,10 @@ async def test_get_landscape_processing_state(
 ) -> None:
     """A still-building job is a first-class success:true,status='processing'."""
     # No cached result + status never reaches SUCCESS -> processing state.
-    mocked_metadome.get(f"/status/{TID}/").mock(
+    mocked_metadome.get(f"/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "PENDING"})
     )
-    mocked_metadome.get(f"/result/{TID}/").mock(
+    mocked_metadome.get(f"/result/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(404, json={"detail": "not ready"})
     )
     data = await call_tool(facade, "get_tolerance_landscape", {"transcript_id": TID})
@@ -215,13 +215,13 @@ async def test_get_landscape_failure_is_non_retryable(
     mocked_metadome: respx.MockRouter,
 ) -> None:
     """A FAILURE build status surfaces a NON-retryable upstream_unavailable (no retry loop)."""
-    mocked_metadome.get(f"/status/{TID}/").mock(
+    mocked_metadome.get(f"/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "FAILURE"})
     )
-    mocked_metadome.get(f"/result/{TID}/").mock(
+    mocked_metadome.get(f"/result/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(404, json={"detail": "no result"})
     )
-    mocked_metadome.get(f"/error/{TID}/").mock(
+    mocked_metadome.get(f"/error/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"error": "build crashed"})
     )
     data = await call_tool(facade, "get_tolerance_landscape", {"transcript_id": TID})
@@ -257,4 +257,4 @@ async def test_get_landscape_minimal_mode_drops_next_commands(facade: Any, call_
     )
     assert data["success"] is True
     assert "next_commands" not in data["_meta"]
-    assert data["_meta"]["data_versions"]["assembly"] == "GRCh37"
+    assert data["_meta"]["data_versions"]["assembly"] == "GRCh38.p14"

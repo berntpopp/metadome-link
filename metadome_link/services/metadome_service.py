@@ -126,8 +126,8 @@ class MetaDomeService:
 
         A bare ``ENST...`` query is validated (``.N`` version required) and echoed
         without an upstream call. A gene symbol is looked up via endpoint 1; the
-        candidates are sorted by ``aa_length`` descending and the longest
-        protein-coding transcript flagged ``canonical``.
+        candidates are sorted by ``aa_length`` descending and an analyzable
+        MANE Select transcript (or longest protein-coding fallback) is canonical.
 
         Returns (gene path)::
 
@@ -141,7 +141,7 @@ class MetaDomeService:
 
         Raises:
             InvalidInputError: A malformed/unversioned ENST id.
-            NotFoundError: No GRCh37 transcripts exist for the gene.
+            NotFoundError: No GRCh38.p14 transcripts exist for the gene.
         """
         if detect_query_type(query) == "id" and looks_like_transcript_query(query):
             tid = validate_transcript_id(query)
@@ -156,7 +156,7 @@ class MetaDomeService:
         transcripts = await self._client.get_transcripts(gene)
         if not transcripts:
             raise NotFoundError(
-                f"No GRCh37 transcripts for gene '{gene}'.",
+                f"No GRCh38.p14 transcripts for gene '{gene}'.",
                 recovery_action="check_input",
                 field="query",
             )
@@ -178,7 +178,7 @@ class MetaDomeService:
         }
         if not analyzable:
             payload["note"] = (
-                f"No {gene} transcript in MetaDome (GRCh37/Gencode v19) has protein data "
+                f"No {gene} transcript in MetaDome (GRCh38.p14/GENCODE v45) has protein data "
                 "(has_protein_data=false for all); MetaDome cannot build a tolerance "
                 "landscape for this gene. Do not call request_tolerance_landscape."
             )

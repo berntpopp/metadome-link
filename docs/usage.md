@@ -13,8 +13,9 @@ with ready-to-call follow-up tools.
 
 #### `get_server_capabilities(detail="summary"|"full", response_mode="compact")`
 
-Cold-start orientation. Returns the server identity, `data_versions` (always GRCh37 / gnomAD
-r2.0.2 / ClinVar 2018-06-03 / Gencode v19 / Pfam 30.0), the frozen 11-tool list, response
+Cold-start orientation. Returns the server identity, `data_versions` (MetaDome 2.0:
+GRCh38.p14 / GENCODE v45 / UniProt 2025_01 / Pfam 37.4 / gnomAD v4.1 /
+ClinVar 2025-10-06), the frozen 11-tool list, response
 modes, recommended workflows, error codes, limits, and policy notes (research-use + data-currency
 caveats). `detail="full"` adds score semantics and provenance policy prose.
 
@@ -30,12 +31,12 @@ data versions, capabilities hash. Use to confirm cache state or diagnose a misco
 
 #### `resolve_transcript(query, response_mode="compact")`
 
-Resolve a free-text gene symbol or versioned Ensembl transcript id to MetaDome GRCh37
+Resolve a free-text gene symbol or versioned Ensembl transcript id to MetaDome GRCh38.p14
 transcript candidates.
 
 - **Gene symbol** (`TP53`, `BRCA1`): returns all transcripts sorted by `aa_length` descending;
   the longest protein-coding entry is flagged `canonical`. Unknown gene → `not_found`.
-- **ENST id** (`ENST00000269305.4`): the `.N` version suffix is required; validated and echoed
+- **ENST id** (`ENST00000269305.9`): the `.N` version suffix is required; validated and echoed
   directly without an upstream call. An id without a version suffix → `invalid_input`.
 
 `_meta.next_commands` points at `request_tolerance_landscape` for the canonical transcript.
@@ -51,8 +52,8 @@ Submit (or re-confirm) a landscape build and return a job handle. **Idempotent.*
 Returns:
 ```json
 {
-  "job_id": "ENST00000269305.4",
-  "transcript_id": "ENST00000269305.4",
+  "job_id": "ENST00000269305.9",
+  "transcript_id": "ENST00000269305.9",
   "status": "ready",         // or "processing"
   "poll_after_s": 10,
   "eta_hint": "~1 min",
@@ -78,7 +79,7 @@ Cache-first fetch of the built landscape.
 Landscape response (when ready):
 ```json
 {
-  "transcript_id": "ENST00000269305.4",
+  "transcript_id": "ENST00000269305.9",
   "gene_name": "TP53",
   "protein_ac": "P04637",
   "refseq_ids": ["NP_000537.3"],
@@ -91,7 +92,7 @@ Landscape response (when ready):
   ],
   "pagination": { "total": 393, "returned": 200, "limit": 200, "offset": 0,
                   "truncated": true, "next_offset": 200 },
-  "data_versions": { "assembly": "GRCh37", "gnomad": "r2.0.2", ... },
+  "data_versions": { "assembly": "GRCh38.p14", "gnomad": "v4.1", ... },
   "recommended_citation": "MetaDome: Pathogenicity analysis ...",
   "success": true
 }
@@ -190,18 +191,18 @@ The canonical five-step pattern for a variant-interpretation query.
 ```json
 { "tool": "resolve_transcript", "arguments": { "query": "TP53" } }
 ```
-Returns all GRCh37 transcripts sorted by length; the longest protein-coding entry is flagged
-`canonical`. For TP53 this is `ENST00000269305.4` (393 aa).
+Returns all GRCh38.p14 transcripts sorted by length; the longest protein-coding entry is flagged
+`canonical`. For TP53 this is `ENST00000269305.9` (393 aa, MANE Select).
 
 **Step 2 — request the landscape:**
 ```json
-{ "tool": "request_tolerance_landscape", "arguments": { "transcript_id": "ENST00000269305.4" } }
+{ "tool": "request_tolerance_landscape", "arguments": { "transcript_id": "ENST00000269305.9" } }
 ```
 For TP53 the landscape is pre-built; `status:"ready"` is returned immediately.
 
 **Step 3 — fetch the landscape:**
 ```json
-{ "tool": "get_tolerance_landscape", "arguments": { "transcript_id": "ENST00000269305.4" } }
+{ "tool": "get_tolerance_landscape", "arguments": { "transcript_id": "ENST00000269305.9" } }
 ```
 Returns Pfam domains (`PF00870` — P53, `PF07710` — P53_tetramer), paginated
 `positional_annotation` (`sw_dn_ds` per residue), and the data version block. If a cold build
@@ -209,19 +210,19 @@ is running, `status:"processing"` is returned — re-poll after `poll_after_s`.
 
 **Step 4a — inspect a specific residue (p.R175):**
 ```json
-{ "tool": "get_position_tolerance", "arguments": { "transcript_id": "ENST00000269305.4", "position": 175 } }
+{ "tool": "get_position_tolerance", "arguments": { "transcript_id": "ENST00000269305.9", "position": 175 } }
 ```
 
 **Step 4b — meta-domain drill-down at p.175:**
 ```json
-{ "tool": "get_meta_domain", "arguments": { "transcript_id": "ENST00000269305.4", "position": 175 } }
+{ "tool": "get_meta_domain", "arguments": { "transcript_id": "ENST00000269305.9", "position": 175 } }
 ```
 Returns ClinVar pathogenic variants observed at the aligned consensus position across all
 homologous proteins in the same Pfam domain family.
 
 **Step 4c — identify the most constrained regions:**
 ```json
-{ "tool": "summarize_intolerant_regions", "arguments": { "transcript_id": "ENST00000269305.4" } }
+{ "tool": "summarize_intolerant_regions", "arguments": { "transcript_id": "ENST00000269305.9" } }
 ```
 Returns ranked contiguous intolerant runs (mean `sw_dn_ds` below threshold) annotated with
 overlapping Pfam domains and explicitly scoped variant evidence.
@@ -232,21 +233,21 @@ overlapping Pfam domains and explicitly scoped variant evidence.
 
 ```
 resolve_transcript(query="TP53")
-  → canonical_transcript_id = "ENST00000269305.4"
+  → canonical_transcript_id = "ENST00000269305.9"
 ```
 
 ### Landscape → per-position analysis
 
 ```
-request_tolerance_landscape(transcript_id="ENST00000269305.4")
+request_tolerance_landscape(transcript_id="ENST00000269305.9")
   → status:"ready"
-get_tolerance_landscape(transcript_id="ENST00000269305.4")
+get_tolerance_landscape(transcript_id="ENST00000269305.9")
   → landscape + domains + paginated positional_annotation
-get_position_tolerance(transcript_id="ENST00000269305.4", position=175)
+get_position_tolerance(transcript_id="ENST00000269305.9", position=175)
   → sw_dn_ds at p.R175
-get_meta_domain(transcript_id="ENST00000269305.4", position=175)
+get_meta_domain(transcript_id="ENST00000269305.9", position=175)
   → homologous ClinVar pathogenic variants at consensus position
-summarize_intolerant_regions(transcript_id="ENST00000269305.4")
+summarize_intolerant_regions(transcript_id="ENST00000269305.9")
   → top constrained regions
 ```
 
@@ -266,7 +267,7 @@ get_tolerance_landscape(transcript_id="ENST00000000001.1")
 ### Variant comparison
 
 ```
-compare_positions(transcript_id="ENST00000269305.4", positions=[175, 248, 273])
+compare_positions(transcript_id="ENST00000269305.9", positions=[175, 248, 273])
   → side-by-side table: sw_dn_ds, domain_ids, variant_counts for each position
 ```
 

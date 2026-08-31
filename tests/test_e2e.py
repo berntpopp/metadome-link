@@ -53,7 +53,7 @@ async def test_health_endpoint_reports_versions() -> None:
     assert body["status"] == "ok"
     assert isinstance(body["version"], str) and body["version"]
     assert body["transport"] == "streamable-http-stateless"
-    assert body["data_versions"]["assembly"] == "GRCh37"
+    assert body["data_versions"]["assembly"] == "GRCh38.p14"
     assert isinstance(body["capabilities_version"], str)
     assert body["capabilities_version"]
 
@@ -75,18 +75,18 @@ async def test_resolve_request_get_happy_path(facade: Any, call_tool: Any) -> No
     assert resolved["success"] is True
 
     requested = await call_tool(
-        facade, "request_tolerance_landscape", {"transcript_id": "ENST00000269305.4"}
+        facade, "request_tolerance_landscape", {"transcript_id": "ENST00000269305.9"}
     )
     assert requested["success"] is True
     assert requested["status"] in {"ready", "processing"}
 
     landscape = await call_tool(
-        facade, "get_tolerance_landscape", {"transcript_id": "ENST00000269305.4"}
+        facade, "get_tolerance_landscape", {"transcript_id": "ENST00000269305.9"}
     )
     assert landscape["success"] is True
     # A ready landscape carries positional_annotation; a still-building job is a
     # first-class status='processing' success state. Accept either.
     if landscape.get("status") == "processing":
-        assert landscape["transcript_id"] == "ENST00000269305.4"
+        assert landscape["transcript_id"] == "ENST00000269305.9"
     else:
         assert isinstance(landscape["positional_annotation"], list)

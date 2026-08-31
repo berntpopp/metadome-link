@@ -16,7 +16,7 @@ from typing import Any
 
 import httpx
 
-TID = "ENST00000269305.4"
+TID = "ENST00000269305.9"
 
 
 async def test_get_position_tolerance_returns_sw_dn_ds(
@@ -198,7 +198,7 @@ async def test_position_tool_not_ready_not_found(
     """A not-yet-built landscape yields not_found + recovery switch_tool."""
     # Collapse the poll deadline so the still-building path returns fast.
     metadome_service._settings.metadome.poll_soft_deadline_s = 0.05
-    mocked_metadome.get(f"/status/{TID}/").mock(
+    mocked_metadome.get(f"/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "PENDING"})
     )
     data = await call_tool(

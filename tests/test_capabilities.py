@@ -54,12 +54,12 @@ def test_capabilities_version_stable_across_calls() -> None:
     assert v1 == v2
 
 
-def test_data_versions_assembly_grch37() -> None:
-    """data_versions['assembly'] must be 'GRCh37'."""
+def test_data_versions_assembly_grch38_p14() -> None:
+    """data_versions['assembly'] must be the exact MetaDome v2 build."""
     from metadome_link.mcp.capabilities import build_capabilities
 
     caps = build_capabilities()
-    assert caps["data_versions"]["assembly"] == "GRCh37"
+    assert caps["data_versions"]["assembly"] == "GRCh38.p14"
 
 
 def test_server_instructions_research_use_only() -> None:
@@ -82,7 +82,7 @@ def test_server_instructions_data_currency_caveat() -> None:
     from metadome_link.mcp.resources import METADOME_SERVER_INSTRUCTIONS
 
     # Check for a key substring of the caveat rather than verbatim match
-    assert "GRCh37" in METADOME_SERVER_INSTRUCTIONS or "hg19" in METADOME_SERVER_INSTRUCTIONS
+    assert "GRCh38.p14" in METADOME_SERVER_INSTRUCTIONS
     assert "gnomAD" in METADOME_SERVER_INSTRUCTIONS
     # Also verify the full caveat constant is referenced
     assert DATA_CURRENCY_CAVEAT != ""
