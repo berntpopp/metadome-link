@@ -143,9 +143,6 @@ _NORMAL_VARIANT_FIELDS = {"allele_count", "allele_number"}
 _PATHOGENIC_VARIANT_FIELDS = {"clinvar_ID"}
 _VARIANT_TYPES = frozenset({"missense", "synonymous", "nonsense"})
 _STRANDS = frozenset({"+", "-"})
-# Safety bounds for finite integer fields documented by the v2 contract. These
-# exceed every live value while preventing unbounded Python integers from
-# reaching shaping, JSON encoding, or downstream arithmetic.
 MAX_ALIGNMENT_DEPTH = 100_000
 MAX_GENOMIC_POSITION = 1_000_000_000
 _REQUIRED_RESULT_FIELDS = frozenset(_RESULT_FIELDS)
@@ -387,6 +384,7 @@ def validate_positional_annotations(raw: object) -> list[dict[str, Any]]:
     if not isinstance(raw, list):
         raise _schema_error("positional_annotation")
     validated: list[dict[str, Any]] = []
+    seen_positions: set[object] = set()
     for index, entry in enumerate(raw):
         path = f"positional_annotation[{index}]"
         if not isinstance(entry, dict):
@@ -413,6 +411,10 @@ def validate_positional_annotations(raw: object) -> list[dict[str, Any]]:
                 raise _schema_error(f"{path}.{field}")
             if field == "protein_pos" and not _is_integer_at_least(value, 1):
                 raise _schema_error(f"{path}.{field}")
+            if field == "protein_pos":
+                if value in seen_positions:
+                    raise _schema_error(f"{path}.protein_pos")
+                seen_positions.add(value)
             if field == "sw_size" and value != 10:
                 raise _schema_error(f"{path}.{field}")
             if field == "sw_coverage" and isinstance(value, (int, float)) and value > 1:

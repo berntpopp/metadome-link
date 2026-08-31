@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Annotated, Any
 
-from pydantic import Field
+from pydantic import Field, StrictInt
 
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
@@ -194,13 +194,13 @@ def register_position_tools(mcp: FastMCP) -> None:
     async def get_variant_counts(
         transcript_id: TranscriptIdArg,
         position: Annotated[
-            int | None, Field(ge=1, description="A single 1-based residue position.")
+            StrictInt | None, Field(ge=1, description="A single 1-based residue position.")
         ] = None,
         position_start: Annotated[
-            int | None, Field(ge=1, description="Inclusive start of a residue range.")
+            StrictInt | None, Field(ge=1, description="Inclusive start of a residue range.")
         ] = None,
         position_stop: Annotated[
-            int | None, Field(ge=1, description="Inclusive stop of a residue range.")
+            StrictInt | None, Field(ge=1, description="Inclusive stop of a residue range.")
         ] = None,
         source: SourceArg = "both",
         limit: LimitArg = 200,

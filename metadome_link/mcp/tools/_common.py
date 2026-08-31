@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Annotated, Literal
 
-from pydantic import Field
+from pydantic import Field, StrictInt
 
 from metadome_link.constants import (
     DEFAULT_PAGE_LIMIT,
@@ -47,13 +47,13 @@ GeneOrIdArg = Annotated[
 
 #: A single 1-based protein residue position.
 PositionArg = Annotated[
-    int,
+    StrictInt,
     Field(ge=1, description="1-based protein residue position.", examples=[273]),
 ]
 
 #: A batch of 1-based protein residue positions (e.g. for compare_positions).
 PositionsArg = Annotated[
-    list[int],
+    list[StrictInt],
     Field(
         description="A batch of 1-based protein residue positions to compare side by side.",
         examples=[[175, 248, 273]],
@@ -62,7 +62,7 @@ PositionsArg = Annotated[
 
 #: Page size for paginated list results.
 LimitArg = Annotated[
-    int,
+    StrictInt,
     Field(
         ge=1,
         le=MAX_PAGE_LIMIT,
@@ -72,7 +72,7 @@ LimitArg = Annotated[
 
 #: Zero-based row offset into a paginated list result.
 OffsetArg = Annotated[
-    int,
+    StrictInt,
     Field(ge=0, description="Zero-based offset into the result list (for paging)."),
 ]
 

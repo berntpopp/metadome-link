@@ -34,6 +34,7 @@ from metadome_link.services.resolution import (
     pick_canonical,
     sort_transcripts,
 )
+from metadome_link.services.selectors import require_complete_range
 from metadome_link.services.shaping import shape_record
 
 if TYPE_CHECKING:
@@ -240,6 +241,7 @@ class MetaDomeService:
             DataUnavailableError: A non-retryable MetaDome build FAILURE.
         """
         tid = validate_transcript_id(transcript_id)
+        require_complete_range(position_start, position_stop)
         landscape = validate_cached_landscape(self._cache.get_result(tid), tid)
         if landscape is None:
             state, result = await self._client.poll_until_ready(
@@ -334,6 +336,7 @@ class MetaDomeService:
                 f"Invalid source {source!r}; expected one of both|gnomad|clinvar.",
                 field="source",
             )
+        require_complete_range(position_start, position_stop)
         tid = validate_transcript_id(transcript_id)
         landscape = await self._require_landscape(tid)
         return self._stamp_caveat(

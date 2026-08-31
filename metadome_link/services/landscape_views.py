@@ -40,6 +40,7 @@ from metadome_link.services.landscape import (
     variant_evidence_for,
 )
 from metadome_link.services.pagination import paginate
+from metadome_link.services.selectors import validate_meta_domain_selector
 from metadome_link.services.shaping import shape_record
 
 _POSITION_VIEW_FIELDS = frozenset(
@@ -187,7 +188,9 @@ def resolve_meta_domain_request(
     meta-domain mapping). Validates ``position`` is in range either way.
     """
     position_to_entry(landscape, position)
-    return domains if domains else domains_for_position(landscape, position)
+    if domains is not None:
+        return validate_meta_domain_selector(landscape, position, domains)
+    return domains_for_position(landscape, position)
 
 
 def get_meta_domain_view(

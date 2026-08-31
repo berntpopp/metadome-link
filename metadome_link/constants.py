@@ -133,6 +133,18 @@ RESIDUE_GNOMAD_UNAVAILABLE_REASON = (
 #: Hard cap on positions accepted by a single batch tool call.
 MAX_BATCH_POSITIONS = 50
 
+#: Maximum genomic/consensus coordinate accepted by finite schema validators.
+MAX_GENOMIC_POSITION = 1_000_000_000
+
+#: Bounds on caller-supplied endpoint-6 domain selectors.  These keep both the
+#: selector map and its serialised upstream request finite before any network
+#: operation is attempted.
+MAX_META_DOMAIN_SELECTOR_DOMAINS = 32
+MAX_META_DOMAIN_SELECTOR_POSITIONS_PER_DOMAIN = 256
+MAX_META_DOMAIN_SELECTOR_POSITIONS = 512
+MAX_META_DOMAIN_SELECTOR_REQUEST_BYTES = 16_384
+MAX_META_DOMAIN_SELECTOR_KEY_CHARS = 64
+
 #: Default and maximum page sizes for list-returning tools.
 DEFAULT_PAGE_LIMIT = 200
 MAX_PAGE_LIMIT = 1000

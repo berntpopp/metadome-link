@@ -383,8 +383,6 @@ class MetaDomeClient:
 
         ``requested_domains`` maps a Pfam id to a list of 1-based consensus
         positions (read from ``domains[<PF>].consensus_pos`` of the landscape).
-        Every ``pathogenic_variants[].clinvar_ID`` (a ``float`` upstream) is
-        coerced to a ``str``.
         """
         tid = validate_transcript_id(transcript_id)
         body = await self._post_json(
@@ -398,6 +396,12 @@ class MetaDomeClient:
         )
         if not isinstance(body, dict):
             raise UpstreamUnavailableError("MetaDome metadomain had an unexpected shape.")
+        unexpected = set(body) - set(requested_domains)
+        if unexpected:
+            raise UpstreamUnavailableError(
+                "MetaDome metadomain returned an unrequested domain.",
+                field=f"metadomain_annotation.{next(iter(unexpected))}",
+            )
         validate_metadomain_blocks(body)
         for domain in body.values():
             if isinstance(domain, dict):

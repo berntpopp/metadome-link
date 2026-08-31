@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Annotated, Any
 
-from pydantic import Field
+from pydantic import Field, StrictInt
 
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
@@ -42,7 +42,7 @@ _DEFAULT_META_DOMAIN_LIMIT = 100
 #: Optional ``{PfamID: [consensus_pos, ...]}`` meta-domain selector. Omit to let
 #: the service derive it from the cached residue's ``domains`` map.
 DomainsArg = Annotated[
-    dict[str, list[int]] | None,
+    dict[str, list[StrictInt]] | None,
     Field(
         default=None,
         description=(
@@ -89,6 +89,7 @@ def _after_get_meta_domain(
     """
     steps: list[dict[str, Any]] = []
     meta_domains = payload.get("meta_domains")
+    requested_domains = payload.get("requested_domains")
     if isinstance(meta_domains, dict):
         for block in meta_domains.values():
             if not isinstance(block, dict):
@@ -105,6 +106,12 @@ def _after_get_meta_domain(
                                 "get_meta_domain",
                                 transcript_id=transcript_id,
                                 position=position,
+                                **(
+                                    {"domains": requested_domains}
+                                    if isinstance(requested_domains, dict)
+                                    else {}
+                                ),
+                                limit=int(page_block.get("limit", _DEFAULT_META_DOMAIN_LIMIT)),
                                 offset=int(next_offset),
                             )
                         )

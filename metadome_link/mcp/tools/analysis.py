@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Annotated, Any
 
-from pydantic import Field
+from pydantic import Field, StrictInt
 
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
@@ -92,7 +92,7 @@ def register_analysis_tools(mcp: FastMCP) -> None:
             ),
         ] = 0.5,
         min_run: Annotated[
-            int,
+            StrictInt,
             Field(
                 ge=1,
                 le=100,
@@ -103,7 +103,7 @@ def register_analysis_tools(mcp: FastMCP) -> None:
             ),
         ] = 3,
         top_n: Annotated[
-            int,
+            StrictInt,
             Field(
                 ge=1,
                 le=100,

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Annotated, Any
 
-from pydantic import Field
+from pydantic import Field, StrictInt
 
 from metadome_link.mcp.annotations import COMPUTE_IDEMPOTENT_OPEN_WORLD, READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
@@ -35,7 +35,7 @@ if TYPE_CHECKING:
 #: The ``Field`` wraps ``int | None`` so the description lands on the PROPERTY, not
 #: inside the ``anyOf`` int branch (where FastMCP would not surface it to the model).
 _PositionBoundArg = Annotated[
-    int | None,
+    StrictInt | None,
     Field(ge=1, description="1-based protein residue position (inclusive range bound)."),
 ]
 
