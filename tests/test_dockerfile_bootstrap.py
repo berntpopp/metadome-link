@@ -23,3 +23,12 @@ def test_dockerfile_pins_uv_and_has_no_floating_pip_upgrade() -> None:
     assert _UV_PIN in text, "uv must be installed from a digest-pinned COPY --from"
     # The digest-pinned uv is COPYed in, not upgraded in place.
     assert f"COPY --from={_UV_PIN} /uv /usr/local/bin/uv" in text
+
+
+def test_prepared_stage_applies_current_debian_security_upgrades() -> None:
+    prepared_stage = (
+        (ROOT / "docker" / "Dockerfile")
+        .read_text(encoding="utf-8")
+        .split(" AS prepared", maxsplit=1)[1]
+    )
+    assert "apt-get upgrade -y --no-install-recommends" in prepared_stage
