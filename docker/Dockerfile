@@ -2,7 +2,7 @@
 # Multi-stage Dockerfile for metadome-link.
 #
 # metadome-link is a read-only proxy over the MetaDome web API
-# (https://stuart.radboudumc.nl/metadome/api). The image ships NO bulk data —
+# (https://www.metadome.app/metadome/api). The image ships NO bulk data —
 # the SQLite result cache is populated lazily from the live API at request time
 # and persisted in the /app/data volume across container restarts. On first boot
 # the entrypoint simply sets up the data directory and starts the unified server.

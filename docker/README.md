@@ -9,7 +9,7 @@ make docker-down        # stop
 
 metadome-link is a **read-only API proxy** MCP server: it fetches tolerance
 landscapes, protein domain annotations, and variant counts from the live
-[MetaDome web API](https://stuart.radboudumc.nl/metadome/api) at request time.
+[MetaDome web API](https://www.metadome.app/metadome/api) at request time.
 The image ships **no pre-built data** — on first boot the server starts
 immediately and the SQLite result cache populates lazily as requests arrive.
 

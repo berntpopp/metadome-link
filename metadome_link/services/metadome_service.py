@@ -121,7 +121,6 @@ class MetaDomeService:
         without an upstream call. A gene symbol is looked up via endpoint 1; the
         candidates are sorted by ``aa_length`` descending and an analyzable
         MANE Select transcript (or longest analyzable protein-coding fallback) is canonical.
-
         Returns (gene path)::
 
             {transcript_id?, resolved_from: "gene", gene_name,
@@ -319,8 +318,8 @@ class MetaDomeService:
         """Return explicitly-scoped residue and homolog evidence (filtered by ``source``).
 
         Accepts a single ``position`` OR a ``[position_start, position_stop]``
-        range (defaulting to the whole protein when neither is given). The result
-        is paginated. Thin delegator over
+        range (defaulting to the whole protein when neither is given). The result is
+        paginated. Thin delegator over
         :func:`landscape_views.get_variant_counts_view` (see there for the shape).
 
         Raises:
@@ -368,7 +367,9 @@ class MetaDomeService:
             )
         tid = validate_transcript_id(transcript_id)
         landscape = await self._require_landscape(tid)
-        return compare_positions_view(landscape, tid, positions, response_mode=response_mode)
+        return self._stamp_caveat(
+            compare_positions_view(landscape, tid, positions, response_mode=response_mode)
+        )
 
     # -- domains & meta-domains ------------------------------------------------
 

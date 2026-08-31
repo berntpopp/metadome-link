@@ -72,9 +72,11 @@ is a **first-class success state** (not an error), carrying `poll_after_s` /
   registered tool set.
 - Identifiers are normalised/validated in `identifiers.py` (Ensembl transcript ids
   must carry a `.N` version: `^ENST\d{11}\.\d+$`).
-- MetaDome serves two explicit historical profiles: **GRCh37.p13** (GENCODE v19,
-  gnomAD r2.0.2, ClinVar 2018-06-03) and **GRCh38.p14** (GENCODE v45, gnomAD v4.1,
-  ClinVar 2025-10-06). The selected profile is surfaced on every response.
+- MetaDome serves two explicit historical profiles, **GRCh37.p13** and **GRCh38.p14**,
+  using build-specific components from the reviewed v2 snapshot (GRCh37: GENCODE v19,
+  gnomAD r2.0.2; GRCh38: GENCODE v45, gnomAD v4.1; both: UniProt 2025_01, Pfam 37.4,
+  ClinVar 2025-10-06; Zenodo DOI 10.5281/zenodo.19376150). The selected assembly/build
+  profile is surfaced on every response.
   Surface the data-currency caveat; do not present counts as current.
 
 ## Definition of done

@@ -24,7 +24,7 @@ file only highlights the essentials.
   Cold builds can take ~1 h; the poll loop never blocks past a soft deadline.
 - **Invariants:** every `compact`+ (default) response carries `_meta.next_commands`
   (`minimal` opts out → `_meta = {tool, request_id}`); `_meta.data_versions` is
-  ALWAYS present; 7-code error taxonomy; each tool has `output_schema` +
+  ALWAYS present; 6-code error taxonomy; each tool has `output_schema` +
   `READ_ONLY_OPEN_WORLD` and a first sentence ending `Signature: tool(args...)`;
   keep `capabilities.TOOLS` (11 names) in sync; validate transcript ids in
   `identifiers.py` (require the `.N` version); cite Wiel et al. 2019.
@@ -43,8 +43,9 @@ make ci-local       # the full gate
 ```
 
 Research use only; not for clinical decision support. MetaDome data are historical;
-the configured profile is GRCh37.p13 (gnomAD r2.0.2, ClinVar 2018-06-03) or
-GRCh38.p14 (gnomAD v4.1, ClinVar 2025-10-06). Use live gnomAD/ClinVar for current data.
+the configured profile is GRCh37.p13 or GRCh38.p14, using build-specific components from
+the reviewed v2 snapshot (GRCh37: gnomAD r2.0.2; GRCh38: gnomAD v4.1; both: ClinVar
+2025-10-06). Use live gnomAD/ClinVar for current data.
 
 ## Two-plane invariants (non-negotiable)
 

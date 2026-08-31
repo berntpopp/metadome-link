@@ -89,6 +89,18 @@ _UNKNOWN_TOOL_RECOVERY = (
 _UNKNOWN_TOOL_FALLBACK = "get_server_capabilities"
 
 
+def _runtime_data_versions() -> dict[str, str]:
+    """Return provenance from the configured service, with a safe startup fallback."""
+    try:
+        from metadome_link.mcp.service_adapters import get_metadome_service
+
+        return get_metadome_service().data_versions
+    except Exception:
+        # The guard can run before application startup (e.g. protocol probes).
+        # In that narrow case only the default profile is available.
+        return dict(DATA_VERSIONS)
+
+
 def unknown_tool_envelope() -> dict[str, Any]:
     """Return a fixed, name-free ``not_found`` envelope dict for an unknown tool.
 
@@ -107,7 +119,7 @@ def unknown_tool_envelope() -> dict[str, Any]:
         "recovery": _UNKNOWN_TOOL_RECOVERY,
         "_meta": {
             "next_commands": [cmd(_UNKNOWN_TOOL_FALLBACK)],
-            "data_versions": DATA_VERSIONS,
+            "data_versions": _runtime_data_versions(),
             "unsafe_for_clinical_use": True,
         },
     }

@@ -18,6 +18,7 @@ from metadome_link.constants import DATA_VERSIONS, METADOME_DATA_VERSION
 from metadome_link.exceptions import UpstreamUnavailableError
 from metadome_link.mcp.capabilities import build_capabilities
 from metadome_link.mcp.envelope import run_mcp_tool
+from metadome_link.mcp.notfound_guard import unknown_tool_envelope
 from metadome_link.mcp.service_adapters import set_metadome_service
 from metadome_link.services.metadome_service import MetaDomeService
 
@@ -124,6 +125,16 @@ def test_only_two_live_build_namespaces_are_accepted_and_profiles_are_distinct()
     modern_client = MetaDomeClient(modern)
     assert legacy_client.data_version != modern_client.data_version
     assert legacy_client.data_versions["assembly"] == "GRCh37.p13"
+    assert legacy_client.data_versions == {
+        "assembly": "GRCh37.p13",
+        "gencode": "v19",
+        "uniprot": "2025_01",
+        "gnomad": "r2.0.2",
+        "clinvar": "2025-10-06",
+        "pfam": "37.4",
+        "metadome_app": "2.0",
+        "data_doi": "10.5281/zenodo.19376150",
+    }
     assert modern_client.data_versions["assembly"] == "GRCh38.p14"
 
 
@@ -155,6 +166,96 @@ async def test_malformed_v2_payloads_raise_typed_schema_errors(
     await client.aclose()
 
 
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("aa_length", "393"),
+        ("has_protein_data", 1),
+        ("mane_transcript_type", None),
+        ("refseq_nm_numbers", ["NM_000546.6"]),
+        ("gencode_id", "ENST00000269305"),
+    ],
+)
+@respx.mock
+async def test_transcript_nested_type_drift_is_typed_upstream_error(
+    field: str, value: object
+) -> None:
+    """A malformed transcript entry never becomes a partially normalized record."""
+    entry: dict[str, object] = {
+        "aa_length": 393,
+        "gencode_id": TID,
+        "has_protein_data": True,
+        "mane_transcript_type": "MANE_Select",
+        "refseq_nm_numbers": "NM_000546.6",
+    }
+    entry[field] = value
+    respx.get(f"{V2_BASE}/get_transcripts/GRCh38.p14/TP53").mock(
+        return_value=httpx.Response(200, json={"transcript_ids": [entry]})
+    )
+    client = MetaDomeClient()
+    with pytest.raises(UpstreamUnavailableError) as exc_info:
+        await client.get_transcripts("TP53")
+    assert exc_info.value.extra["field"] == f"transcript_ids[0].{field}"
+    assert exc_info.value.retryable is False
+    await client.aclose()
+
+
+@pytest.mark.parametrize(
+    "field_value",
+    [
+        ("protein_pos", "35"),
+        ("ref_aa", None),
+        ("sw_coverage", "0.5"),
+        ("sw_dn_ds", {}),
+        ("sw_size", True),
+        ("domains", []),
+    ],
+)
+@respx.mock
+async def test_positional_annotation_nested_type_drift_is_typed_upstream_error(
+    field_value: tuple[str, object],
+) -> None:
+    """Every result row has a strict, typed positional schema."""
+    field, value = field_value
+    row: dict[str, object] = {
+        "cdna_pos": "c.103-105",
+        "chr": "chr17",
+        "chr_positions": "g.7579582-7579584",
+        "domains": {},
+        "protein_pos": 35,
+        "ref_aa": "L",
+        "ref_aa_triplet": "Leu",
+        "ref_codon": "CTG",
+        "strand": "-",
+        "sw_coverage": 0.7,
+        "sw_dn_ds": 0.4,
+        "sw_size": 10,
+    }
+    row[field] = value
+    respx.get(f"{V2_BASE}/result/GRCh38.p14/{TID}").mock(
+        return_value=httpx.Response(200, json={"positional_annotation": [row]})
+    )
+    client = MetaDomeClient()
+    with pytest.raises(UpstreamUnavailableError) as exc_info:
+        await client.get_result(TID)
+    assert exc_info.value.extra["field"] == f"positional_annotation[0].{field}"
+    assert exc_info.value.retryable is False
+    await client.aclose()
+
+
+@respx.mock
+async def test_empty_object_position_is_not_accepted_as_a_result_row() -> None:
+    """A non-empty result list with an empty object is not a valid landscape."""
+    respx.get(f"{V2_BASE}/result/GRCh38.p14/{TID}").mock(
+        return_value=httpx.Response(200, json={"positional_annotation": [{}]})
+    )
+    client = MetaDomeClient()
+    with pytest.raises(UpstreamUnavailableError) as exc_info:
+        await client.get_result(TID)
+    assert exc_info.value.extra["field"] == "positional_annotation[0].cdna_pos"
+    await client.aclose()
+
+
 async def test_alternate_profile_flows_into_capabilities_and_envelope(tmp_path: object) -> None:
     """A GRCh37 runtime cannot advertise the default GRCh38 provenance."""
     settings = ServerSettings(metadome={"genome_build": "GRCh37.p13"})
@@ -168,6 +269,32 @@ async def test_alternate_profile_flows_into_capabilities_and_envelope(tmp_path: 
         assert caps["data_versions"]["assembly"] == "GRCh37.p13"
         result = await run_mcp_tool("probe", lambda: _plain_payload())
         assert result["_meta"]["data_versions"]["assembly"] == "GRCh37.p13"
+        cache.put_result(
+            TID,
+            {
+                "transcript_id": TID,
+                "positional_annotation": [
+                    {
+                        "cdna_pos": "c.1-3",
+                        "chr": "chr17",
+                        "chr_positions": "g.1-3",
+                        "domains": {},
+                        "protein_pos": 1,
+                        "ref_aa": "M",
+                        "ref_aa_triplet": "Met",
+                        "ref_codon": "ATG",
+                        "strand": "-",
+                        "sw_coverage": 0.5,
+                        "sw_dn_ds": 0.4,
+                        "sw_size": 10,
+                    }
+                ],
+            },
+        )
+        comparison = await service.compare_positions(TID, [1], response_mode="compact")
+        assert "GRCh37.p13" in comparison["data_currency_caveat"]
+        assert "2018-06-03" not in comparison["data_currency_caveat"]
+        assert unknown_tool_envelope()["_meta"]["data_versions"]["assembly"] == "GRCh37.p13"
     finally:
         set_metadome_service(None)
         cache.close()

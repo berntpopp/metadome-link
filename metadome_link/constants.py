@@ -25,11 +25,12 @@ _PROFILE_37_VERSIONS = MappingProxyType(
     {
         "assembly": "GRCh37.p13",
         "gencode": "v19",
-        "uniprot": "2016_09",
+        "uniprot": "2025_01",
         "gnomad": "r2.0.2",
-        "clinvar": "2018-06-03",
-        "pfam": "30.0",
+        "clinvar": "2025-10-06",
+        "pfam": "37.4",
         "metadome_app": "2.0",
+        "data_doi": "10.5281/zenodo.19376150",
     }
 )
 _PROFILE_38_VERSIONS = MappingProxyType(
@@ -49,12 +50,12 @@ DATA_PROFILES: Mapping[str, DataProfile] = MappingProxyType(
     {
         "GRCh37.p13": DataProfile(
             genome_build="GRCh37.p13",
-            data_version="metadome2.0-grch37.p13-gencode19-uniprot2016_09-pfam30-gnomad2.0.2-clinvar2018-06-03",
+            data_version="metadome2.0-grch37.p13-gencode19-uniprot2025_01-pfam37.4-gnomad2.0.2-clinvar2025-10-06",
             data_versions=_PROFILE_37_VERSIONS,
             data_currency_caveat=(
-                "MetaDome data use GRCh37.p13/hg19, GENCODE v19, UniProt 2016_09, "
-                "Pfam 30.0, gnomAD r2.0.2, and ClinVar 2018-06-03; the snapshot is "
-                "historical and MetaDome does not provide true per-residue gnomAD counts."
+                "MetaDome 2.0 data use GRCh37.p13/hg19, GENCODE v19, UniProt 2025_01, "
+                "Pfam 37.4, gnomAD r2.0.2, and ClinVar 2025-10-06; MetaDome does not "
+                "provide true per-residue gnomAD counts."
             ),
         ),
         "GRCh38.p14": DataProfile(

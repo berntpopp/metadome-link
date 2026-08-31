@@ -100,11 +100,12 @@ This is a live-API proxy plus a persistent on-disk SQLite result cache
 (`data/metadome_cache.sqlite`), keyed `(transcript_id, metadome_data_version)`, so completed
 landscapes survive restarts. In Docker, mount a volume at `/app/data`.
 
-**Data currency — read this before interpreting a number.** This client pins MetaDome 2.0's
-The supported profiles are **GRCh37.p13** (GENCODE v19, UniProt 2016_09, Pfam 30.0,
-gnomAD r2.0.2, ClinVar 2018-06-03) and **GRCh38.p14** (GENCODE v45, UniProt 2025_01,
-Pfam 37.4, gnomAD v4.1, ClinVar 2025-10-06; [Zenodo DOI](https://doi.org/10.5281/zenodo.19376150)).
-The configured profile is surfaced in `data_versions`.
+**Data currency — read this before interpreting a number.** This client pins the reviewed
+MetaDome 2.0 Zenodo snapshot ([DOI](https://doi.org/10.5281/zenodo.19376150)). The supported
+profiles are **GRCh37.p13** (GENCODE v19, UniProt 2025_01, Pfam 37.4, gnomAD r2.0.2,
+ClinVar 2025-10-06) and **GRCh38.p14** (GENCODE v45, UniProt 2025_01, Pfam 37.4,
+gnomAD v4.1, ClinVar 2025-10-06). The assembly/build is part of each profile's identity
+and is surfaced in `data_versions`.
 MetaDome does **not** provide true per-residue gnomAD counts: `variant_evidence.residue_level.gnomad`
 therefore reports `available:false`, never a confident zero. Pfam figures live separately under
 `variant_evidence.meta_domain_homolog_aggregate`; they can include other genes and are not

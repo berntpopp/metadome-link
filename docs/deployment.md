@@ -158,15 +158,20 @@ docker exec metadome-link metadome-link-cache status
 ```
 
 The SQLite cache is keyed `(transcript_id, metadome_data_version)`. When MetaDome ships a new
-upstream release, bump `METADOME_DATA_VERSION` in `metadome_link/constants.py` and run
-`metadome-link-cache clear` — the server will refetch landscapes on demand.
+upstream release, update the corresponding build profile in `metadome_link/constants.py` and
+run `metadome-link-cache clear` — the server will refetch landscapes on demand. The
+`METADOME_DATA_VERSION` constant is only the backwards-compatible alias for the default
+GRCh38 profile; it is not a substitute for the selected build-specific profile.
 
 ## Data version pinning
 
-MetaDome supports two reviewed profiles. GRCh38 is
+MetaDome supports two reviewed build-specific profiles from the same v2 Zenodo snapshot
+([DOI](https://doi.org/10.5281/zenodo.19376150)). GRCh37 uses GENCODE v19 and gnomAD
+r2.0.2; GRCh38 uses GENCODE v45 and gnomAD v4.1; both use UniProt 2025_01, Pfam 37.4,
+and ClinVar 2025-10-06. Their assembly/build identity remains distinct. GRCh38 is
 `metadome2.0-grch38.p14-gencode45-uniprot2025_01-pfam37.4-gnomad4.1-clinvar2025-10-06`
-([Zenodo DOI](https://doi.org/10.5281/zenodo.19376150)); GRCh37 is
-`metadome2.0-grch37.p13-gencode19-uniprot2016_09-pfam30-gnomad2.0.2-clinvar2018-06-03`.
+and GRCh37 is
+`metadome2.0-grch37.p13-gencode19-uniprot2025_01-pfam37.4-gnomad2.0.2-clinvar2025-10-06`.
 The selected profile is the cache key and drives `capabilities_version`; arbitrary build
 namespaces are rejected.
 

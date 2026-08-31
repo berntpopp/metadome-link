@@ -36,6 +36,7 @@ from urllib.parse import quote
 
 import httpx
 
+from metadome_link.api.models import validate_positional_annotations, validate_transcript_entries
 from metadome_link.api.url_guard import (
     MAX_REDIRECTS,
     DisallowedURLError,
@@ -293,25 +294,16 @@ class MetaDomeClient:
                 field="transcript_ids",
             )
         raw = body["transcript_ids"]
-        if not isinstance(raw, list):
-            raise UpstreamSchemaError(
-                "MetaDome transcript response has invalid transcript_ids.",
-                field="transcript_ids",
-            )
+        entries = validate_transcript_entries(raw)
         out: list[dict[str, Any]] = []
-        for entry in raw:
-            if not isinstance(entry, dict) or not isinstance(entry.get("gencode_id"), str):
-                raise UpstreamSchemaError(
-                    "MetaDome transcript response contains an invalid transcript entry.",
-                    field="transcript_ids",
-                )
+        for entry in entries:
             out.append(
                 {
-                    "gencode_id": entry.get("gencode_id"),
-                    "aa_length": entry.get("aa_length"),
-                    "has_protein_data": bool(entry.get("has_protein_data", False)),
-                    "mane_transcript_type": entry.get("mane_transcript_type", ""),
-                    "refseq_ids": _split_refseq(entry.get("refseq_nm_numbers", "")),
+                    "gencode_id": entry["gencode_id"],
+                    "aa_length": entry["aa_length"],
+                    "has_protein_data": entry["has_protein_data"],
+                    "mane_transcript_type": entry["mane_transcript_type"],
+                    "refseq_ids": _split_refseq(entry["refseq_nm_numbers"]),
                 }
             )
         return out
@@ -365,14 +357,7 @@ class MetaDomeClient:
                 "MetaDome result response has an invalid object shape.",
                 field="result",
             )
-        positions = body.get("positional_annotation")
-        if not isinstance(positions, list) or any(
-            not isinstance(entry, dict) for entry in positions
-        ):
-            raise UpstreamSchemaError(
-                "MetaDome result response is missing valid positional_annotation.",
-                field="positional_annotation",
-            )
+        positions = validate_positional_annotations(body.get("positional_annotation"))
         for entry in positions:
             _coerce_clinvar_ids(entry.get("ClinVar"))
         return body
