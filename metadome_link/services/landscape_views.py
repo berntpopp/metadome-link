@@ -40,7 +40,11 @@ from metadome_link.services.landscape import (
     variant_evidence_for,
 )
 from metadome_link.services.pagination import paginate
-from metadome_link.services.selectors import validate_meta_domain_selector
+from metadome_link.services.selectors import (
+    require_position_xor,
+    validate_meta_domain_request,
+    validate_meta_domain_selector,
+)
 from metadome_link.services.shaping import shape_record
 
 _POSITION_VIEW_FIELDS = frozenset(
@@ -90,6 +94,7 @@ def get_variant_counts_view(
     response_mode: str,
 ) -> dict[str, Any]:
     """Return explicitly-scoped residue and homolog evidence (filtered by ``source``)."""
+    require_position_xor(position, position_start, position_stop)
     if position is not None:
         entries = [position_to_entry(landscape, position)]
     elif position_start is not None and position_stop is not None:
@@ -190,7 +195,7 @@ def resolve_meta_domain_request(
     position_to_entry(landscape, position)
     if domains is not None:
         return validate_meta_domain_selector(landscape, position, domains)
-    return domains_for_position(landscape, position)
+    return validate_meta_domain_request(position, domains_for_position(landscape, position))
 
 
 def get_meta_domain_view(

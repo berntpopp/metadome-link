@@ -94,15 +94,15 @@ GET /metadome/api/get_transcripts/GRCh38.p14/TP53
   "message": "Retrieved transcripts for gene 'TP53'",
   "genome_build": "GRCh38.p14",
   "transcript_ids": [
-    {"aa_length": 393, "gencode_id": "ENST00000269305.4", "has_protein_data": true,
+    {"aa_length": 393, "gencode_id": "ENST00000269305.9", "has_protein_data": true, "mane_transcript_type": "MANE_Select",
      "refseq_nm_numbers": "NM_000546.5, NM_001126112.2, NM_001126118.1, NM_001276760.1, NM_001276761.1"},
-    {"aa_length": 285, "gencode_id": "ENST00000413465.2", "has_protein_data": false, "refseq_nm_numbers": ""},
-    {"aa_length": 346, "gencode_id": "ENST00000455263.2", "has_protein_data": true,
+    {"aa_length": 285, "gencode_id": "ENST00000413465.2", "has_protein_data": false, "mane_transcript_type": "", "refseq_nm_numbers": ""},
+    {"aa_length": 346, "gencode_id": "ENST00000455263.2", "has_protein_data": true, "mane_transcript_type": "",
      "refseq_nm_numbers": "NM_001126113.2, NM_001276695.1"},
-    {"aa_length": 343, "gencode_id": "ENST00000359597.4", "has_protein_data": false, "refseq_nm_numbers": ""},
-    {"aa_length": 341, "gencode_id": "ENST00000420246.2", "has_protein_data": true,
+    {"aa_length": 343, "gencode_id": "ENST00000359597.9", "has_protein_data": false, "mane_transcript_type": "", "refseq_nm_numbers": ""},
+    {"aa_length": 341, "gencode_id": "ENST00000420246.2", "has_protein_data": true, "mane_transcript_type": "",
      "refseq_nm_numbers": "NM_001126114.2, NM_001276696.1"},
-    {"aa_length": 393, "gencode_id": "ENST00000445888.2", "has_protein_data": true, "refseq_nm_numbers": ""}
+    {"aa_length": 393, "gencode_id": "ENST00000445888.2", "has_protein_data": true, "mane_transcript_type": "", "refseq_nm_numbers": ""}
   ]
 }
 ```
@@ -144,7 +144,7 @@ Content-Type: application/json
 
 **Response (200):**
 ```json
-{"transcript_id": "ENST00000269305.4"}
+{"transcript_id": "ENST00000269305.9"}
 ```
 
 **Missing transcript_id (400):** `{"error": "no transcript id"}`
@@ -270,7 +270,7 @@ Given a residue inside a meta-domain, returns the actual homologous gnomAD ("nor
 POST /metadome/api/get_metadomain_annotation/
 Content-Type: application/json
 
-{"transcript_id": "ENST00000269305.4", "protein_position": 175, "requested_domains": {"PF00870": [81]}}
+{"transcript_id": "ENST00000269305.9", "genome_build": "GRCh38.p14", "protein_position": 175, "requested_domains": {"PF00870": [81]}}
 ```
 
 **Response (200, real, trimmed to one variant of each kind):**

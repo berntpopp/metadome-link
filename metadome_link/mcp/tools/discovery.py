@@ -38,6 +38,8 @@ _SUMMARY_KEYS: tuple[str, ...] = (
     "build",
     "capabilities_version",
     "data_versions",
+    "genome_build",
+    "data_version",
     "data_source",
     "research_use_only",
     "recommended_citation",

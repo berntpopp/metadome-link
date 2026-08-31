@@ -9,7 +9,7 @@ case-insensitive ``/get_transcripts/<gene>`` endpoint.
 from __future__ import annotations
 
 from metadome_link.constants import ENST_RE
-from metadome_link.exceptions import InvalidInputError
+from metadome_link.exceptions import InvalidInputError, UpstreamSchemaError
 
 #: Recovery hint reused by ``validate_transcript_id`` and surfaced on the envelope.
 _TRANSCRIPT_HINT = "Ensembl transcript id with version, e.g. ENST00000269305.9"
@@ -18,6 +18,17 @@ _TRANSCRIPT_HINT = "Ensembl transcript id with version, e.g. ENST00000269305.9"
 def normalize_gene_symbol(s: str) -> str:
     """Normalise a gene symbol: strip surrounding whitespace and upper-case it."""
     return s.strip().upper()
+
+
+def require_matching_gene(response: object, requested: str) -> None:
+    """Reject a present upstream gene name that is not the requested symbol."""
+    if response is not None and (
+        not isinstance(response, str)
+        or normalize_gene_symbol(response) != normalize_gene_symbol(requested)
+    ):
+        raise UpstreamSchemaError(
+            "MetaDome transcript response has an unexpected gene.", field="gene_name"
+        )
 
 
 def is_transcript_id(s: str) -> bool:

@@ -21,6 +21,10 @@ from typing import TYPE_CHECKING, Annotated, Any
 
 from pydantic import Field, StrictInt
 
+from metadome_link.constants import (
+    MAX_GENOMIC_POSITION,
+    MAX_META_DOMAIN_SELECTOR_POSITIONS_PER_DOMAIN,
+)
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
 from metadome_link.mcp.next_commands import cmd
@@ -42,7 +46,14 @@ _DEFAULT_META_DOMAIN_LIMIT = 100
 #: Optional ``{PfamID: [consensus_pos, ...]}`` meta-domain selector. Omit to let
 #: the service derive it from the cached residue's ``domains`` map.
 DomainsArg = Annotated[
-    dict[str, list[StrictInt]] | None,
+    dict[
+        str,
+        Annotated[
+            list[Annotated[StrictInt, Field(ge=1, le=MAX_GENOMIC_POSITION)]],
+            Field(min_length=1, max_length=MAX_META_DOMAIN_SELECTOR_POSITIONS_PER_DOMAIN),
+        ],
+    ]
+    | None,
     Field(
         default=None,
         description=(

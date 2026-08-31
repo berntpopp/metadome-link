@@ -12,7 +12,7 @@ file only highlights the essentials.
   service: per-residue missense tolerance landscapes (`sw_dn_ds`), Pfam domains,
   meta-domain homolog variant aggregation, and per-residue ClinVar annotations.
   MetaDome does not expose true per-residue gnomAD counts; Pfam aggregates may span
-  genes (GRCh37/hg19). One backend in the GeneFoundry `-link` fleet.
+  genes (GRCh37/hg19 or GRCh38.p14; default GRCh38.p14). One backend in the GeneFoundry `-link` fleet.
 - **Two planes:** the data plane (`config`/`constants`/`identifiers`/`api`/`cache`/
   `services`) calls MetaDome over async httpx, normalizes, and returns plain dicts;
   the MCP plane (`mcp/`) is domain-agnostic scaffolding (lifted from `mondo-link`)

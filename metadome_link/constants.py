@@ -141,6 +141,13 @@ MAX_GENOMIC_POSITION = 1_000_000_000
 #: protein-coordinate arithmetic and serialized payloads to a finite domain.
 MAX_PROTEIN_POSITION = 1_000_000
 
+#: Finite ceilings for counts and external numeric identifiers. These are
+#: deliberately above observed human-genome values while bounding arithmetic.
+MAX_VARIANT_COUNT = 1_000_000_000
+MAX_CLINVAR_ID = 1_000_000_000_000
+#: Smith-Waterman scores are normalized near [0, 1]; retain a generous cap.
+MAX_TOLERANCE_SCORE = 1_000_000
+
 #: Bounds on caller-supplied endpoint-6 domain selectors.  These keep both the
 #: selector map and its serialised upstream request finite before any network
 #: operation is attempted.

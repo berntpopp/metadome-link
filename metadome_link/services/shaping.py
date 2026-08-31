@@ -163,7 +163,15 @@ def char_budget_guard(payload: dict[str, Any], *, max_chars: int) -> dict[str, A
     result: dict[str, Any] = copy.deepcopy(payload)
     dropped: dict[str, int] = {}
 
-    while len(json.dumps(result)) > max_chars:
+    while True:
+        if dropped:
+            parts = [f"{k}: {n} item(s) dropped" for k, n in sorted(dropped.items())]
+            result["dropped_summary"] = (
+                "Truncated to fit response budget. " + "; ".join(parts) + "."
+            )
+            _reconcile_pagination(result)
+        if len(json.dumps(result)) <= max_chars:
+            return result
         targets = _guard_list_targets(result)
         if not targets:
             raise ValueError("Response exceeds maximum size after list truncation.")
@@ -172,13 +180,6 @@ def char_budget_guard(payload: dict[str, Any], *, max_chars: int) -> dict[str, A
         step = min(_GUARD_TRUNCATE_STEP, len(lst))
         container[key] = lst[: len(lst) - step]
         dropped[label] = dropped.get(label, 0) + step
-
-    if dropped:
-        parts = [f"{k}: {n} item(s) dropped" for k, n in sorted(dropped.items())]
-        result["dropped_summary"] = "Truncated to fit response budget. " + "; ".join(parts) + "."
-        _reconcile_pagination(result)
-
-    return result
 
 
 def _reconcile_pagination(payload: dict[str, Any]) -> None:

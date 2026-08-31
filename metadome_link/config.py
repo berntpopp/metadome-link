@@ -12,14 +12,46 @@ index / ingest step.
 from __future__ import annotations
 
 import ipaddress
-from typing import Any, Literal
+import math
+from typing import Annotated, Any, Literal, cast
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, BeforeValidator, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class InsecureBindError(RuntimeError):
     """A non-loopback bind was requested without the explicit public-bind opt-in."""
+
+
+def _strict_finite_float(value: object) -> object:
+    """Reject coercion, booleans, non-finite values and huge integers in settings."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError("must be a finite numeric value, not a coercible value")
+    numeric = value
+    try:
+        if not math.isfinite(numeric):
+            raise ValueError("must be finite")
+    except (OverflowError, TypeError, ValueError) as exc:
+        if isinstance(exc, ValueError) and str(exc) == "must be finite":
+            raise
+        raise ValueError("must be finite") from None
+    return numeric
+
+
+def validate_finite_seconds(value: object, *, maximum: float) -> float:
+    """Validate a bounded runtime duration for callers outside Pydantic."""
+    try:
+        valid = not isinstance(value, bool) and isinstance(value, (int, float))
+        numeric = cast(int | float, value)
+        valid = valid and math.isfinite(numeric) and 0 < numeric <= maximum
+    except (OverflowError, TypeError, ValueError):
+        valid = False
+    if not valid:
+        raise ValueError(f"must be a finite value in (0, {maximum}]")
+    return float(numeric)
+
+
+FiniteFloat = Annotated[float, BeforeValidator(_strict_finite_float)]
 
 
 def is_loopback_host(host: str) -> bool:
@@ -76,29 +108,34 @@ class MetaDomeSettings(BaseModel):
         default="GRCh38.p14",
         description="Exact MetaDome genome-build dataset namespace.",
     )
-    request_timeout_s: float = Field(
+    request_timeout_s: FiniteFloat = Field(
         default=30.0,
         gt=0,
+        le=300,
         description="Per-request HTTP timeout (seconds).",
     )
-    poll_soft_deadline_s: float = Field(
+    poll_soft_deadline_s: FiniteFloat = Field(
         default=20.0,
         gt=0,
+        le=3600,
         description="Max wall-clock seconds a poll loop may spend before returning 'processing'.",
     )
-    poll_initial_interval_s: float = Field(
+    poll_initial_interval_s: FiniteFloat = Field(
         default=2.0,
         gt=0,
+        le=300,
         description="Initial inter-poll sleep (seconds); backs off toward poll_max_interval_s.",
     )
-    poll_max_interval_s: float = Field(
+    poll_max_interval_s: FiniteFloat = Field(
         default=8.0,
         gt=0,
+        le=600,
         description="Maximum inter-poll sleep (seconds).",
     )
-    politeness_rate_per_s: float = Field(
+    politeness_rate_per_s: FiniteFloat = Field(
         default=3.0,
         gt=0,
+        le=1000,
         description="Token-bucket refill rate (requests/second) for upstream politeness.",
     )
     politeness_burst: int = Field(
@@ -120,6 +157,12 @@ class MetaDomeSettings(BaseModel):
             "above titin-scale /result/ landscapes."
         ),
     )
+
+    @model_validator(mode="after")
+    def _validate_poll_intervals(self) -> MetaDomeSettings:
+        if self.poll_initial_interval_s > self.poll_max_interval_s:
+            raise ValueError("poll_initial_interval_s cannot exceed poll_max_interval_s")
+        return self
 
 
 class CacheSettings(BaseModel):

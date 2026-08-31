@@ -15,7 +15,7 @@ transcript: the per-residue missense **tolerance landscape** (`sw_dn_ds`, lower 
 more intolerant), **Pfam domain** annotations, **meta-domain** (homolog) variant
 aggregation, and per-residue ClinVar annotations. MetaDome does not expose true
 per-residue gnomAD counts; its explicitly-labelled Pfam aggregates may span genes
-(GRCh37/hg19). It is one
+(GRCh37/hg19 or GRCh38.p14, defaulting to GRCh38.p14). It is one
 backend in the GeneFoundry `-link` fleet, federated behind `genefoundry-router`
 under the namespace **`metadome`**. It mirrors the sibling fleet stack lifted from
 `mondo-link` (MCP plane) and `mavedb-link` (async API client + TTL cache).

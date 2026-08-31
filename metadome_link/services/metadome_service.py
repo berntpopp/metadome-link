@@ -34,7 +34,7 @@ from metadome_link.services.resolution import (
     pick_canonical,
     sort_transcripts,
 )
-from metadome_link.services.selectors import require_complete_range
+from metadome_link.services.selectors import require_complete_range, require_position_xor
 from metadome_link.services.shaping import shape_record
 
 if TYPE_CHECKING:
@@ -264,12 +264,7 @@ class MetaDomeService:
 
         if position_start is not None and position_stop is not None:
             entries = slice_positions(landscape, position_start, position_stop)
-            _, block = paginate(entries, limit=len(entries) or 1, offset=0)
-            block["total"] = len(entries)
-            block["returned"] = len(entries)
-            block["truncated"] = False
-            block["next_offset"] = None
-            page = entries
+            page, block = paginate(entries, limit=limit, offset=offset)
         else:
             all_positions = landscape.get("positional_annotation")
             entries = all_positions if isinstance(all_positions, list) else []
@@ -336,7 +331,7 @@ class MetaDomeService:
                 f"Invalid source {source!r}; expected one of both|gnomad|clinvar.",
                 field="source",
             )
-        require_complete_range(position_start, position_stop)
+        require_position_xor(position, position_start, position_stop)
         tid = validate_transcript_id(transcript_id)
         landscape = await self._require_landscape(tid)
         return self._stamp_caveat(

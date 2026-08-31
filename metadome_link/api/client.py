@@ -49,7 +49,7 @@ from metadome_link.api.url_guard import (
     make_url_guard,
     read_capped_response,
 )
-from metadome_link.config import ServerSettings
+from metadome_link.config import ServerSettings, validate_finite_seconds
 from metadome_link.config import settings as default_settings
 from metadome_link.constants import data_profile
 from metadome_link.exceptions import (
@@ -59,7 +59,8 @@ from metadome_link.exceptions import (
     UpstreamSchemaError,
     UpstreamUnavailableError,
 )
-from metadome_link.identifiers import validate_transcript_id
+from metadome_link.identifiers import require_matching_gene, validate_transcript_id
+from metadome_link.services.selectors import validate_meta_domain_request
 
 if TYPE_CHECKING:
     from metadome_link.config import MetaDomeSettings
@@ -77,12 +78,7 @@ _TERMINAL_STATUSES = frozenset({"SUCCESS", "FAILURE"})
 
 
 class _TokenBucket:
-    """A simple async token-bucket limiter for upstream politeness.
-
-    Refills at ``rate`` tokens/second up to ``burst`` capacity; :meth:`acquire`
-    blocks (cooperatively) until a token is available. A non-positive ``rate``
-    disables limiting entirely.
-    """
+    """Async token-bucket limiter for upstream politeness."""
 
     def __init__(self, *, rate: float, burst: int) -> None:
         """Initialise with a refill rate (tokens/s) and burst capacity."""
@@ -118,14 +114,7 @@ class MetaDomeClient:
         *,
         client: httpx.AsyncClient | None = None,
     ) -> None:
-        """Build the client.
-
-        Args:
-            settings: Optional :class:`ServerSettings` override (defaults to the
-                module-level singleton). Only ``settings.metadome`` is consumed.
-            client: Optional injected ``httpx.AsyncClient`` (for tests). When
-                provided it is reused as-is and **not** closed by :meth:`aclose`.
-        """
+        """Build the client from optional settings and an injected HTTP client."""
         resolved = settings if settings is not None else default_settings
         self._cfg: MetaDomeSettings = resolved.metadome
         self._base_url = self._cfg.base_url.rstrip("/")
@@ -271,14 +260,7 @@ class MetaDomeClient:
     # -- endpoints -------------------------------------------------------------
 
     async def get_transcripts(self, gene: str) -> list[dict[str, Any]]:
-        """GET ``/get_transcripts/<gene>`` (endpoint 1, no trailing slash).
-
-        Returns a normalized transcript list (each entry has ``gencode_id``,
-        ``aa_length``, ``has_protein_data`` and a ``refseq_ids`` *list* split from
-        the upstream ``refseq_nm_numbers`` string). An unknown gene yields an
-        empty list (upstream returns HTTP 200 with an empty list, not 404), so
-        this method never raises :class:`NotFoundError`.
-        """
+        """GET the build-scoped transcript list and normalize its entries."""
         # URL-encode the gene segment so metacharacters in a free-text query
         # cannot rewrite the request path (normalize_gene_symbol still upstream).
         body = await self._get_json(
@@ -294,6 +276,7 @@ class MetaDomeClient:
                 "MetaDome transcript response has an unexpected genome build.",
                 field="genome_build",
             )
+        require_matching_gene(body.get("gene_name"), gene)
         raw = body["transcript_ids"]
         entries = validate_transcript_entries(raw)
         out: list[dict[str, Any]] = []
@@ -379,12 +362,9 @@ class MetaDomeClient:
         protein_position: int,
         requested_domains: dict[str, list[int]],
     ) -> dict[str, Any]:
-        """POST ``/get_metadomain_annotation/`` (endpoint 6); coerce ``clinvar_ID`` to str.
-
-        ``requested_domains`` maps a Pfam id to a list of 1-based consensus
-        positions (read from ``domains[<PF>].consensus_pos`` of the landscape).
-        """
+        """POST endpoint 6 after validating the finite selector request."""
         tid = validate_transcript_id(transcript_id)
+        requested_domains = validate_meta_domain_request(protein_position, requested_domains)
         body = await self._post_json(
             "/get_metadomain_annotation/",
             {
@@ -419,7 +399,14 @@ class MetaDomeClient:
         """Submit and poll until terminal state or the strict soft deadline."""
         tid = validate_transcript_id(transcript_id)
         start = time.monotonic()
-        deadline = start + max(0.0, soft_deadline_s)
+        try:
+            deadline_seconds = validate_finite_seconds(soft_deadline_s, maximum=3600)
+        except ValueError:
+            raise InvalidInputError(
+                "soft_deadline_s must be a finite value in (0, 3600].",
+                field="soft_deadline_s",
+            ) from None
+        deadline = start + deadline_seconds
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             return "processing", None

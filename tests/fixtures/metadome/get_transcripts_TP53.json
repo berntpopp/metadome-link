@@ -1,7 +1,6 @@
 {
   "gene_name": "TP53",
   "genome_build": "GRCh38.p14",
-  "genome_build": "GRCh38.p14",
   "message": "Retrieved transcripts for gene 'TP53'",
   "transcript_ids": [
     {"aa_length": 261, "gencode_id": "ENST00000504937.5", "has_protein_data": true, "mane_transcript_type": "", "refseq_nm_numbers": "NM_001126115.2"},

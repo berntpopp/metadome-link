@@ -82,6 +82,14 @@ def _require_finite_real(value: object) -> object:
     return value
 
 
+def _threshold_schema(schema: dict[str, object]) -> None:
+    """Keep the public JSON Schema on standard draft-2020-12 keywords."""
+    schema.pop("gt", None)
+    schema.pop("le", None)
+    schema["exclusiveMinimum"] = 0.0
+    schema["maximum"] = 2.0
+
+
 # StrictFloat accepts JSON integers as real numbers but rejects strings/bools;
 # the before-validator adds the finite-value requirement.
 ThresholdArg = Annotated[
@@ -90,6 +98,7 @@ ThresholdArg = Annotated[
     Field(
         gt=0.0,
         le=2.0,
+        json_schema_extra=_threshold_schema,
         description=(
             "sw_dn_ds threshold (exclusive upper bound) for intolerant residues "
             "(default 0.5). Lower values identify only the most constrained positions."

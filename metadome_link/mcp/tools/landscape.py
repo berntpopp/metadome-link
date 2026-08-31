@@ -41,7 +41,13 @@ def after_request_landscape(payload: dict[str, Any], transcript_id: str) -> list
     return [cmd("get_tolerance_landscape", transcript_id=transcript_id)]
 
 
-def after_get_landscape(payload: dict[str, Any], transcript_id: str) -> list[dict[str, Any]]:
+def after_get_landscape(
+    payload: dict[str, Any],
+    transcript_id: str,
+    *,
+    position_start: int | None = None,
+    position_stop: int | None = None,
+) -> list[dict[str, Any]]:
     """Success chain for a landscape poll.
 
     While the job is still building (``status == "processing"``) re-suggest the
@@ -50,7 +56,11 @@ def after_get_landscape(payload: dict[str, Any], transcript_id: str) -> list[dic
     """
     if payload.get("status") == "processing":
         return [cmd("get_tolerance_landscape", transcript_id=transcript_id)]
-    base = {"transcript_id": transcript_id}
+    base: dict[str, Any] = {"transcript_id": transcript_id}
+    if position_start is not None:
+        base["position_start"] = position_start
+    if position_stop is not None:
+        base["position_stop"] = position_stop
     pagination = payload.get("pagination")
     steps: list[dict[str, Any]] = []
     if isinstance(pagination, dict):
@@ -141,7 +151,10 @@ def register_landscape_tools(mcp: FastMCP) -> None:
                 response_mode=response_mode,
             )
             payload.setdefault("_meta", {})["next_commands"] = after_get_landscape(
-                payload, transcript_id
+                payload,
+                transcript_id,
+                position_start=position_start,
+                position_stop=position_stop,
             )
             return payload
 

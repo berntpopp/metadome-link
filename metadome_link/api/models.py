@@ -16,10 +16,20 @@ Normalization applied by the client (see ``client.py``):
 
 from __future__ import annotations
 
-import math
 from typing import Any, TypedDict
 
-from metadome_link.constants import MAX_GENOMIC_POSITION, MAX_PROTEIN_POSITION
+from metadome_link.api.validation import (
+    is_finite_number,
+    is_integer_at_least,
+    is_nonnegative_integer_number,
+    is_valid_clinvar_id,
+)
+from metadome_link.constants import (
+    MAX_CLINVAR_ID,
+    MAX_GENOMIC_POSITION,
+    MAX_PROTEIN_POSITION,
+    MAX_TOLERANCE_SCORE,
+)
 from metadome_link.exceptions import UpstreamSchemaError
 from metadome_link.identifiers import is_transcript_id
 from metadome_link.mcp._sanitize import sanitize_message
@@ -156,49 +166,6 @@ def _schema_error(path: str) -> UpstreamSchemaError:
     )
 
 
-def _is_finite_number(value: object) -> bool:
-    """Accept JSON numbers only when they are finite and not booleans."""
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return False
-    try:
-        return math.isfinite(value)
-    except (OverflowError, TypeError, ValueError):
-        return False
-
-
-def _is_valid_clinvar_id(value: object) -> bool:
-    """Accept the numeric forms emitted by the two upstream v2 endpoints."""
-    if isinstance(value, str):
-        return (
-            bool(value)
-            and all("0" <= character <= "9" for character in value)
-            and bool(value.lstrip("0"))
-        )
-    return _is_integer_at_least(value, 1)
-
-
-def _is_finite_integer(value: object) -> bool:
-    """Accept an integer or integer-valued finite float, excluding booleans."""
-    return _is_finite_number(value) and (
-        isinstance(value, int) or (isinstance(value, float) and value.is_integer())
-    )
-
-
-def _is_nonnegative_integer_number(value: object) -> bool:
-    """Validate count values represented as JSON integers or integral floats."""
-    return _is_integer_at_least(value, 0)
-
-
-def _is_integer_at_least(value: object, minimum: int, maximum: int | None = None) -> bool:
-    """Check an integral finite numeric value against an inclusive lower bound."""
-    return (
-        _is_finite_integer(value)
-        and isinstance(value, (int, float))
-        and value >= minimum
-        and (maximum is None or value <= maximum)
-    )
-
-
 def _validate_variant_records(
     raw: object,
     path: str,
@@ -235,17 +202,17 @@ def _validate_variant_records(
                 variant[field], _METADOMAIN_OPTIONAL_FIELDS[field]
             ):
                 raise _schema_error(f"{item_path}.{field}")
-        if not _is_integer_at_least(variant["pos"], 1, MAX_GENOMIC_POSITION):
+        if not is_integer_at_least(variant["pos"], 1, MAX_GENOMIC_POSITION):
             raise _schema_error(f"{item_path}.pos")
-        if not _is_integer_at_least(variant["protein_pos"], 1, MAX_PROTEIN_POSITION):
+        if not is_integer_at_least(variant["protein_pos"], 1, MAX_PROTEIN_POSITION):
             raise _schema_error(f"{item_path}.protein_pos")
         if pathogenic:
             clinvar_id = variant["clinvar_ID"]
-            if not _is_integer_at_least(clinvar_id, 1):
+            if not is_integer_at_least(clinvar_id, 1, MAX_CLINVAR_ID):
                 raise _schema_error(f"{item_path}.clinvar_ID")
         else:
             for field in _NORMAL_VARIANT_FIELDS:
-                if not _is_nonnegative_integer_number(variant[field]):
+                if not is_nonnegative_integer_number(variant[field]):
                     raise _schema_error(f"{item_path}.{field}")
         validated.append(variant)
     return validated
@@ -273,12 +240,12 @@ def _validate_position_domains(raw: object, path: str) -> None:
         if (
             not isinstance(consensus, list)
             or not consensus
-            or any(not _is_integer_at_least(pos, 1, MAX_GENOMIC_POSITION) for pos in consensus)
+            or any(not is_integer_at_least(pos, 1, MAX_GENOMIC_POSITION) for pos in consensus)
         ):
             raise _schema_error(f"{domain_path}.consensus_pos")
         for field in _DOMAIN_FIELDS:
             value = mapping[field]
-            if not _is_nonnegative_integer_number(value):
+            if not is_nonnegative_integer_number(value):
                 raise _schema_error(f"{domain_path}.{field}")
         for field in _DOMAIN_OPTIONAL_FIELDS:
             if field not in mapping:
@@ -289,7 +256,7 @@ def _validate_position_domains(raw: object, path: str) -> None:
             for significance, count in value.items():
                 if not isinstance(significance, str) or not significance:
                     raise _schema_error(f"{domain_path}.{field}")
-                if not _is_nonnegative_integer_number(count):
+                if not is_nonnegative_integer_number(count):
                     raise _schema_error(f"{domain_path}.{field}.{significance}")
 
 
@@ -314,12 +281,12 @@ def _validate_result_domains(raw: object, path: str) -> list[dict[str, Any]]:
             value = domain[field]
             if not isinstance(value, types) or (field != "metadomain" and isinstance(value, bool)):
                 raise _schema_error(f"{domain_path}.{field}")
-        if not _is_integer_at_least(domain["meta_domain_alignment_depth"], 0, MAX_ALIGNMENT_DEPTH):
+        if not is_integer_at_least(domain["meta_domain_alignment_depth"], 0, MAX_ALIGNMENT_DEPTH):
             raise _schema_error(f"{domain_path}.meta_domain_alignment_depth")
-        if not _is_integer_at_least(
-            domain["start"], 1, MAX_PROTEIN_POSITION
-        ) or not _is_integer_at_least(domain["stop"], 1, MAX_PROTEIN_POSITION):
+        if not is_integer_at_least(domain["start"], 1, MAX_PROTEIN_POSITION):
             raise _schema_error(f"{domain_path}.start")
+        if not is_integer_at_least(domain["stop"], 1, MAX_PROTEIN_POSITION):
+            raise _schema_error(f"{domain_path}.stop")
         if domain["stop"] < domain["start"]:
             raise _schema_error(f"{domain_path}.stop")
         validated.append(domain)
@@ -339,7 +306,7 @@ def validate_metadomain_blocks(raw: object) -> dict[str, dict[str, Any]]:
         if set(block) != required:
             raise _schema_error(path)
         depth = block["alignment_depth"]
-        if not _is_integer_at_least(depth, 0, MAX_ALIGNMENT_DEPTH):
+        if not is_integer_at_least(depth, 0, MAX_ALIGNMENT_DEPTH):
             raise _schema_error(f"{path}.alignment_depth")
         _validate_variant_records(
             block["normal_variants"], f"{path}.normal_variants", pathogenic=False
@@ -367,7 +334,7 @@ def validate_transcript_entries(raw: object) -> list[dict[str, Any]]:
         if not isinstance(gencode_id, str) or not is_transcript_id(gencode_id):
             raise _schema_error(f"{path}.gencode_id")
         aa_length = entry["aa_length"]
-        if not _is_integer_at_least(aa_length, 0):
+        if not is_integer_at_least(aa_length, 0, MAX_PROTEIN_POSITION):
             raise _schema_error(f"{path}.aa_length")
         if not isinstance(entry["has_protein_data"], bool):
             raise _schema_error(f"{path}.has_protein_data")
@@ -403,13 +370,17 @@ def validate_positional_annotations(raw: object) -> list[dict[str, Any]]:
                 field in {"sw_coverage", "sw_dn_ds"}
                 and value is not None
                 and (
-                    not _is_finite_number(value)
+                    not is_finite_number(value)
                     or (field == "sw_coverage" and isinstance(value, (int, float)) and value <= 0)
-                    or (field == "sw_dn_ds" and isinstance(value, (int, float)) and value < 0)
+                    or (
+                        field == "sw_dn_ds"
+                        and isinstance(value, (int, float))
+                        and (value < 0 or value > MAX_TOLERANCE_SCORE)
+                    )
                 )
             ):
                 raise _schema_error(f"{path}.{field}")
-            if field == "protein_pos" and not _is_integer_at_least(value, 1, MAX_PROTEIN_POSITION):
+            if field == "protein_pos" and not is_integer_at_least(value, 1, MAX_PROTEIN_POSITION):
                 raise _schema_error(f"{path}.{field}")
             if field == "protein_pos":
                 if value in seen_positions:
@@ -443,11 +414,11 @@ def validate_positional_annotations(raw: object) -> list[dict[str, Any]]:
                 if variant["type"] not in _VARIANT_TYPES:
                     raise _schema_error(f"{variant_path}.type")
                 clinvar_id = variant["clinvar_ID"]
-                if not _is_valid_clinvar_id(clinvar_id):
+                if not is_valid_clinvar_id(clinvar_id):
                     raise _schema_error(f"{variant_path}.clinvar_ID")
                 if isinstance(variant["pos"], bool):
                     raise _schema_error(f"{variant_path}.pos")
-                if not _is_integer_at_least(variant["pos"], 1, MAX_GENOMIC_POSITION):
+                if not is_integer_at_least(variant["pos"], 1, MAX_GENOMIC_POSITION):
                     raise _schema_error(f"{variant_path}.pos")
         validated.append(entry)
     return validated
