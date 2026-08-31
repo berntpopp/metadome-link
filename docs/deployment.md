@@ -84,17 +84,26 @@ by a token bucket (default 3.0 req/s, burst 5) with retries on 429/5xx/timeout. 
 | `METADOME_LINK_METADOME__POLL_INITIAL_INTERVAL_S` | `2.0` | Initial poll sleep (s). |
 | `METADOME_LINK_METADOME__POLL_MAX_INTERVAL_S` | `8.0` | Maximum inter-poll sleep (s). |
 | `METADOME_LINK_METADOME__POLITENESS_RATE_PER_S` | `3.0` | Token-bucket refill rate (req/s). |
-| `METADOME_LINK_METADOME__POLITENESS_BURST` | `5` | Token-bucket burst capacity. |
-| `METADOME_LINK_METADOME__MAX_RETRIES` | `3` | Retries on 429/5xx/timeout. |
+| `METADOME_LINK_METADOME__POLITENESS_BURST` | `5` | Strict integer 1..1000; token-bucket burst capacity. |
+| `METADOME_LINK_METADOME__MAX_RETRIES` | `3` | Strict integer 0..10; retries on 429/5xx/timeout. |
+| `METADOME_LINK_METADOME__MAX_RESPONSE_BYTES` | `67108864` | Strict integer 1..134217728; hard upstream response cap. |
 
 ### Cache (`METADOME_LINK_CACHE__*`)
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `METADOME_LINK_CACHE__DB_PATH` | `data/metadome_cache.sqlite` | On-disk SQLite result cache path. Inside Docker, set to `/app/data/metadome_cache.sqlite`. |
-| `METADOME_LINK_CACHE__TTL_TRANSCRIPTS_S` | `21600` | TTL for transcript list cache (default 6 h). |
-| `METADOME_LINK_CACHE__LRU_RESULTS` | `64` | In-memory LRU size for completed landscapes. |
-| `METADOME_LINK_CACHE__LRU_TRANSCRIPTS` | `256` | In-memory LRU size for transcript lists. |
+| `METADOME_LINK_CACHE__TTL_TRANSCRIPTS_S` | `21600` | Strict integer 0..604800; TTL for transcript list cache (0 disables). |
+| `METADOME_LINK_CACHE__LRU_RESULTS` | `64` | Strict integer 0..4096; in-memory LRU size for completed landscapes (0 disables). |
+| `METADOME_LINK_CACHE__LRU_TRANSCRIPTS` | `256` | Strict integer 0..4096; in-memory LRU size for transcript lists (0 disables). |
+
+### Live integration evidence
+
+The default CI-equivalent suite does not call the public service. To run the six
+build-scoped v2 endpoint checks against a real authorized target, set
+`METADOME_LINK_LIVE_INTEGRATION=1` and run `make test-integration`; optionally set
+`METADOME_LINK_LIVE_BASE_URL`, `METADOME_LINK_LIVE_GENE`, and
+`METADOME_LINK_LIVE_TRANSCRIPT_ID`. No captured fixture is treated as live evidence.
 
 ## Transports
 

@@ -13,10 +13,11 @@ from __future__ import annotations
 
 import ipaddress
 import math
+import re
 from contextlib import suppress
 from typing import Annotated, Any, Literal, cast
 
-from pydantic import BaseModel, BeforeValidator, Field, field_validator, model_validator
+from pydantic import BaseModel, BeforeValidator, Field, StrictInt, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -139,19 +140,22 @@ class MetaDomeSettings(BaseModel):
         le=1000,
         description="Token-bucket refill rate (requests/second) for upstream politeness.",
     )
-    politeness_burst: int = Field(
+    politeness_burst: StrictInt = Field(
         default=5,
         ge=1,
+        le=1000,
         description="Token-bucket burst capacity (max queued requests).",
     )
-    max_retries: int = Field(
+    max_retries: StrictInt = Field(
         default=3,
         ge=0,
+        le=10,
         description="Max retries on retryable upstream failures (429/5xx/timeout).",
     )
-    max_response_bytes: int = Field(
+    max_response_bytes: StrictInt = Field(
         default=64 * 1024 * 1024,
         ge=1,
+        le=128 * 1024 * 1024,
         description=(
             "Hard cap (bytes) on an upstream response body. Exceeding it raises a "
             "non-retryable error (fail-closed, never truncate). Default 64 MiB is "
@@ -173,19 +177,22 @@ class CacheSettings(BaseModel):
         default="data/metadome_cache.sqlite",
         description="Path to the SQLite result-cache database (parent dir is created).",
     )
-    ttl_transcripts_s: int = Field(
+    ttl_transcripts_s: StrictInt = Field(
         default=21600,
         ge=0,
+        le=7 * 24 * 60 * 60,
         description="TTL (seconds) for cached /get_transcripts lists (default 6 h).",
     )
-    lru_results: int = Field(
+    lru_results: StrictInt = Field(
         default=64,
         ge=0,
+        le=4096,
         description="In-memory LRU size for completed landscapes (in front of the disk cache).",
     )
-    lru_transcripts: int = Field(
+    lru_transcripts: StrictInt = Field(
         default=256,
         ge=0,
+        le=4096,
         description="In-memory LRU size for transcript lists.",
     )
 
@@ -247,10 +254,10 @@ class ServerSettings(BaseSettings):
         description="Result-cache configuration.",
     )
 
-    @field_validator("metadome", mode="before")
+    @field_validator("metadome", "cache", mode="before")
     @classmethod
     def parse_numeric_environment_values(cls, value: Any) -> Any:
-        """Decode finite numeric strings emitted by nested environment sources."""
+        """Decode documented decimal integer/float strings from nested environments."""
         if not isinstance(value, dict):
             return value
         parsed = dict(value)
@@ -265,6 +272,17 @@ class ServerSettings(BaseSettings):
             if isinstance(raw, str):
                 with suppress(ValueError):
                     parsed[name] = float(raw)
+        for name in (
+            "politeness_burst",
+            "max_retries",
+            "max_response_bytes",
+            "ttl_transcripts_s",
+            "lru_results",
+            "lru_transcripts",
+        ):
+            raw = parsed.get(name)
+            if isinstance(raw, str) and re.fullmatch(r"[+-]?\d+", raw.strip()):
+                parsed[name] = int(raw)
         return parsed
 
     @field_validator("mcp_path")

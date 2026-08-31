@@ -220,7 +220,6 @@ def build_capabilities(
             "capabilities_version; standard/full add elapsed_ms. "
             "data_versions is always present."
         ),
-        "notes": METADOME_REFERENCE_NOTES,
     }
     payload["data_version"] = version
     payload["genome_build"] = resolved_build

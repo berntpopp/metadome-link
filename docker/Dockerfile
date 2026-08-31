@@ -110,7 +110,9 @@ LABEL org.opencontainers.image.title="metadome-link" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.vendor="GeneFoundry"
 ENV APP_VERSION="${APP_VERSION}" \
-    VCS_REF="${VCS_REF}"
+    VCS_REF="${VCS_REF}" \
+    METADOME_LINK_GIT_SHA="${VCS_REF}" \
+    METADOME_LINK_BUILT_AT="${BUILD_DATE}"
 
 # METADOME_LINK_ALLOW_PUBLIC_BIND=true is the explicit, audited opt-in that the
 # F-04 bind guard requires: inside the container the server intentionally binds

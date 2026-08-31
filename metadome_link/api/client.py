@@ -1,30 +1,4 @@
-"""Async HTTP client for the MetaDome web API.
-
-MetaDome (https://www.metadome.app/metadome/api) is a fully-open, no-auth
-service. It builds per-transcript tolerance landscapes **asynchronously** (a
-Celery job, cold builds up to ~1 h), so the workflow is a submit -> poll-status
--> fetch-result split. This client wraps the six endpoints behind typed methods
-and normalizes their quirks:
-
-- Endpoint 1 (``/get_transcripts/<genome_build>/<gene>``) returns a
-  comma-joined ``refseq_nm_numbers`` string -> normalized to a
-  ``refseq_ids`` list. An unknown gene is **HTTP 200 with an empty list**, not an
-  error, so :meth:`get_transcripts` returns ``[]`` rather than raising.
-- POST endpoints require a trailing slash; build-scoped GET endpoints do not.
-- Transcript ids must carry the ``.N`` version suffix or ``submit`` returns 400.
-- ``clinvar_ID`` is a ``str`` in ``/result/`` but a ``float`` in
-  ``/get_metadomain_annotation/`` -> coerced to ``str`` in both.
-
-Reliability layer (lifted/adapted from ``mavedb-link``): one shared
-``httpx.AsyncClient``, a token-bucket politeness limiter, and jittered
-exponential backoff on 429/5xx/timeouts. Status codes map to the typed
-exceptions the MCP envelope classifies:
-
-- 404 -> :class:`NotFoundError`
-- 400 -> :class:`InvalidInputError`
-- 429 (after retries) -> :class:`RateLimitedError`
-- 5xx / timeout / network (after retries) -> :class:`UpstreamUnavailableError`
-"""
+"""Async, retrying HTTP client for MetaDome v2's six build-scoped endpoints."""
 
 from __future__ import annotations
 
@@ -49,6 +23,7 @@ from metadome_link.api.url_guard import (
     make_url_guard,
     read_capped_response,
 )
+from metadome_link.cache.transcripts import TranscriptCache
 from metadome_link.config import ServerSettings, validate_finite_seconds
 from metadome_link.config import settings as default_settings
 from metadome_link.constants import data_profile
@@ -123,6 +98,10 @@ class MetaDomeClient:
         self._data_version = profile.data_version
         self._data_versions = dict(profile.data_versions)
         self._data_currency_caveat = profile.data_currency_caveat
+        self._transcript_cache = TranscriptCache(
+            ttl_seconds=resolved.cache.ttl_transcripts_s,
+            maxsize=resolved.cache.lru_transcripts,
+        )
         # F-10: derive the redirect/destination allowlist from the CONFIGURED base
         # URL host (never hardcoded, so an operator base-URL override still works).
         self._url_guard = make_url_guard(build_origin_allowlist(self._cfg.base_url))
@@ -261,6 +240,12 @@ class MetaDomeClient:
 
     async def get_transcripts(self, gene: str) -> list[dict[str, Any]]:
         """GET the build-scoped transcript list and normalize its entries."""
+        return await self._transcript_cache.get(
+            (self._genome_build, gene), lambda: self._fetch_transcripts(gene)
+        )
+
+    async def _fetch_transcripts(self, gene: str) -> list[dict[str, Any]]:
+        """Fetch and validate one transcript response without consulting the cache."""
         # URL-encode the gene segment so metacharacters in a free-text query
         # cannot rewrite the request path (normalize_gene_symbol still upstream).
         body = await self._get_json(

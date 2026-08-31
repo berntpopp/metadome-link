@@ -8,7 +8,7 @@ file only highlights the essentials.
 
 ## Essentials
 
-- `metadome-link` is a read-only MCP + REST server that wraps the **MetaDome** web
+- `metadome-link` is a data-reading MCP + REST server with an idempotent build trigger that wraps the **MetaDome** web
   service: per-residue missense tolerance landscapes (`sw_dn_ds`), Pfam domains,
   meta-domain homolog variant aggregation, and per-residue ClinVar annotations.
   MetaDome does not expose true per-residue gnomAD counts; Pfam aggregates may span
@@ -23,9 +23,10 @@ file only highlights the essentials.
   `get_tolerance_landscape`); `status:"processing"` is a first-class success state.
   Cold builds can take ~1 h; the poll loop never blocks past a soft deadline.
 - **Invariants:** every `compact`+ (default) response carries `_meta.next_commands`
-  (`minimal` opts out → `_meta = {tool, request_id}`); `_meta.data_versions` is
-  ALWAYS present; 6-code error taxonomy; each tool has `output_schema` +
-  `READ_ONLY_OPEN_WORLD` and a first sentence ending `Signature: tool(args...)`;
+  (`minimal` retains `_meta = {tool, request_id, data_versions, unsafe_for_clinical_use}`);
+  `_meta.data_versions` is ALWAYS present; 6-code error taxonomy; each tool has an
+  `output_schema` plus the appropriate read-only or compute annotation and a first
+  sentence ending `Signature: tool(args...)`;
   keep `capabilities.TOOLS` (11 names) in sync; validate transcript ids in
   `identifiers.py` (require the `.N` version); cite Wiel et al. 2019.
 - **Definition of done:** `make ci-local` green (format-check, lint-ci, lint-loc

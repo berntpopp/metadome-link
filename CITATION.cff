@@ -6,7 +6,8 @@ cff-version: 1.2.0
 message: If you use this software, please cite it as below.
 title: metadome-link
 abstract: 'MCP server for MetaDome: per-position missense tolerance (dN/dS) landscapes for human transcripts,
-  Pfam domains, meta-domain homolog aggregation, and gnomAD/ClinVar per-position counts.'
+  Pfam domains, meta-domain homolog aggregation, and ClinVar annotations. MetaDome does not provide true
+  residue-level gnomAD counts.'
 type: software
 authors:
 - family-names: Popp

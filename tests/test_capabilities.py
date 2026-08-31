@@ -160,4 +160,4 @@ def test_schema_constants_exist() -> None:
         val = getattr(schemas, name)
         assert isinstance(val, dict), f"{name} should be a dict"
         assert val.get("type") == "object"
-        assert val.get("additionalProperties") is True
+        assert val.get("additionalProperties") is False

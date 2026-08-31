@@ -9,7 +9,7 @@ Guidance for agents and contributors working in this repository.
 
 ## What this is
 
-`metadome-link` is a read-only MCP + REST server that wraps the **MetaDome** web
+`metadome-link` is a data-reading MCP + REST server with an idempotent build trigger that wraps the **MetaDome** web
 service (Wiel et al., *Human Mutation* 2019). It exposes, per human protein
 transcript: the per-residue missense **tolerance landscape** (`sw_dn_ds`, lower =
 more intolerant), **Pfam domain** annotations, **meta-domain** (homolog) variant
@@ -58,7 +58,7 @@ is a **first-class success state** (not an error), carrying `poll_after_s` /
   `standard`/`full` add `elapsed_ms`.
 - **`_meta.data_versions` is ALWAYS present** and identifies the selected live build
   (`GRCh37.p13` or `GRCh38.p14`) plus its component snapshot.
-- Every tool declares `output_schema` + `READ_ONLY_OPEN_WORLD` annotations, and its
+- Every tool declares an output schema plus the appropriate read-only or compute annotation, and its
   first description sentence is a discovery summary ending with
   `Signature: tool(args...)`.
 - **Every tool's real output (success + error, all response modes) must validate
@@ -106,7 +106,7 @@ make install          # uv sync --group dev
 make ci-local         # the definition-of-done gate (see above)
 make test             # pytest, unit only
 make test-fast        # pytest -n auto
-make test-integration # live MetaDome endpoint tests (opt-in)
+METADOME_LINK_LIVE_INTEGRATION=1 make test-integration # live v2 endpoint contract (opt-in)
 make test-cov         # pytest --cov (coverage ≥ 80%)
 make dev              # unified REST + MCP server on 127.0.0.1:8000
 make mcp-serve        # stdio MCP server

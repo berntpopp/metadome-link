@@ -266,6 +266,26 @@ def _validate_position_domains(raw: object, path: str) -> None:
                     raise _schema_error(f"{domain_path}.{field}")
                 if not is_nonnegative_integer_number(count):
                     raise _schema_error(f"{domain_path}.{field}.{significance}")
+        variant_breakdown = mapping.get("pathogenic_variant_count_per_clinsig")
+        missense_breakdown = mapping.get("pathogenic_missense_variant_count_per_clinsig")
+        if (
+            isinstance(variant_breakdown, dict)
+            and sum(variant_breakdown.values()) > mapping["pathogenic_variant_count"]
+        ):
+            raise _schema_error(f"{domain_path}.pathogenic_variant_count_per_clinsig")
+        if (
+            isinstance(missense_breakdown, dict)
+            and sum(missense_breakdown.values()) > mapping["pathogenic_missense_variant_count"]
+        ):
+            raise _schema_error(f"{domain_path}.pathogenic_missense_variant_count_per_clinsig")
+        if isinstance(variant_breakdown, dict) and isinstance(missense_breakdown, dict):
+            if set(missense_breakdown) - set(variant_breakdown):
+                raise _schema_error(f"{domain_path}.pathogenic_missense_variant_count_per_clinsig")
+            for significance, count in missense_breakdown.items():
+                if count > variant_breakdown[significance]:
+                    raise _schema_error(
+                        f"{domain_path}.pathogenic_missense_variant_count_per_clinsig.{significance}"
+                    )
 
 
 def _validate_result_domains(raw: object, path: str) -> list[dict[str, Any]]:

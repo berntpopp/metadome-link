@@ -1,9 +1,7 @@
 """JSON output schemas for the typed MetaDome MCP tools (MCP structured output).
 
-The schemas are deliberately **permissive** (``additionalProperties: true``,
-only ``success`` required) because ``response_mode`` projects fields out and the
-error envelope is returned by the same tool body and must also validate.
-Mirror the mondo-link schema style.
+The schemas allow optional projection fields for response modes, while closing
+the envelope and nested records against misspelled or stale contract fields.
 """
 
 from __future__ import annotations
@@ -22,17 +20,21 @@ def _envelope(**properties: Any) -> dict[str, Any]:
         "message": {"type": "string"},
         "retryable": {"type": "boolean"},
         "recovery_action": {"type": "string"},
+        "recovery": {"type": "string"},
         "field": {"type": "string"},
         "hint": {"type": "string"},
+        "allowed_values": {"type": "array"},
         "candidates": {"type": "array"},
         "recommended_citation": {"type": "string"},
         "data_versions": {"type": "object", "additionalProperties": True},
+        "data_currency_caveat": {"type": "string"},
+        "dropped_summary": {"type": "string"},
         **properties,
     }
     return {
         "type": "object",
         "required": ["success"],
-        "additionalProperties": True,
+        "additionalProperties": False,
         "properties": props,
     }
 
@@ -54,7 +56,7 @@ _OBJ = {"type": "object", "additionalProperties": True}
 
 _PAGINATION_BLOCK = {
     "type": "object",
-    "additionalProperties": True,
+    "additionalProperties": False,
     "properties": {
         "total": _INT,
         "returned": _INT,
@@ -67,10 +69,10 @@ _PAGINATION_BLOCK = {
 
 _DOMAIN_ENTRY = {
     "type": "object",
-    "additionalProperties": True,
+    "additionalProperties": False,
     "properties": {
-        "id": _STR,
-        "name": _STR,
+        "ID": _STR,
+        "Name": _STR,
         "start": _INT,
         "stop": _INT,
         "metadomain": _BOOL,
@@ -80,21 +82,28 @@ _DOMAIN_ENTRY = {
 
 _POSITION_ENTRY = {
     "type": "object",
-    "additionalProperties": True,
+    "additionalProperties": False,
     "properties": {
+        "cdna_pos": _STR,
+        "chr": _STR,
+        "chr_positions": _STR,
+        "exon_numbers": _STR,
         "protein_pos": _INT,
         "ref_aa": _STR_NULL,
+        "ref_aa_triplet": _STR,
+        "ref_codon": _STR,
+        "strand": _STR,
         "sw_dn_ds": _NUM_NULL,
         "sw_coverage": _NUM_NULL,
         "sw_size": _INT,
-        "domain_ids": _ARR,
-        "variant_evidence": _OBJ,
+        "domains": _OBJ,
+        "ClinVar": _ARR,
     },
 }
 
 _VARIANT_ENTRY = {
     "type": "object",
-    "additionalProperties": True,
+    "additionalProperties": False,
     "properties": {
         "protein_pos": _INT,
         "clinvar_id": _STR_NULL,
@@ -107,7 +116,7 @@ _VARIANT_ENTRY = {
 
 _INTOLERANT_REGION = {
     "type": "object",
-    "additionalProperties": True,
+    "additionalProperties": False,
     "properties": {
         "start": _INT,
         "stop": _INT,
@@ -126,6 +135,7 @@ _INTOLERANT_REGION = {
 GET_SERVER_CAPABILITIES_SCHEMA = _envelope(
     server=_STR,
     server_version=_STR,
+    build=_OBJ,
     capabilities_version=_STR,
     data_versions=_OBJ,
     tools=_ARR,
@@ -135,6 +145,22 @@ GET_SERVER_CAPABILITIES_SCHEMA = _envelope(
     recommended_workflows=_ARR,
     read_only=_BOOL,
     research_use_only=_BOOL,
+    data_source=_STR,
+    data_version=_STR,
+    genome_build=_STR,
+    data_currency_caveat=_STR,
+    research_use_notice=_STR,
+    recommended_citation=_STR,
+    license=_STR,
+    limits=_OBJ,
+    default_response_mode=_STR,
+    detail=_STR,
+    more=_STR,
+    async_model=_STR,
+    score_semantics=_STR,
+    provenance_policy=_STR,
+    per_call_meta=_ARR,
+    per_call_meta_semantics=_STR,
 )
 
 GET_DIAGNOSTICS_SCHEMA = _envelope(
@@ -143,13 +169,19 @@ GET_DIAGNOSTICS_SCHEMA = _envelope(
     cache_stats=_OBJ,
     build=_OBJ,
     metrics=_OBJ,
+    data_versions=_OBJ,
+    capabilities_version=_STR,
 )
 
 RESOLVE_TRANSCRIPT_SCHEMA = _envelope(
     query=_STR,
     transcripts=_ARR,
-    total=_INT,
     canonical_transcript_id=_STR_NULL,
+    transcript_id=_STR,
+    resolved_from=_STR,
+    gene_name=_STR,
+    analyzable=_BOOL,
+    note=_STR,
 )
 
 REQUEST_TOLERANCE_LANDSCAPE_SCHEMA = _envelope(
@@ -171,24 +203,30 @@ GET_TOLERANCE_LANDSCAPE_SCHEMA = _envelope(
     pagination=_PAGINATION_BLOCK,
     status=_STR_NULL,
     poll_after_s=_NUM_NULL,
+    cold_build_warning=_STR,
 )
 
 GET_POSITION_TOLERANCE_SCHEMA = _envelope(
     transcript_id=_STR,
+    cdna_pos=_STR,
+    chr=_STR,
+    chr_positions=_STR,
+    exon_numbers=_STR,
     protein_pos=_INT,
     ref_aa=_STR_NULL,
+    ref_aa_triplet=_STR,
+    ref_codon=_STR,
+    strand=_STR,
     sw_dn_ds=_NUM_NULL,
     sw_coverage=_NUM_NULL,
     sw_size=_INT,
-    domain_ids=_ARR,
+    domains=_OBJ,
     variant_evidence=_OBJ,
 )
 
 GET_VARIANT_COUNTS_SCHEMA = _envelope(
     transcript_id=_STR,
     source=_STR,
-    total=_INT,
-    returned=_INT,
     positions={"type": "array", "items": _OBJ},
     pagination=_PAGINATION_BLOCK,
 )
@@ -217,6 +255,5 @@ SUMMARIZE_INTOLERANT_REGIONS_SCHEMA = _envelope(
     threshold=_NUM,
     min_run=_INT,
     top_n=_INT,
-    region_count=_INT,
     regions={"type": "array", "items": _INTOLERANT_REGION},
 )

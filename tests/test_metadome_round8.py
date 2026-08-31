@@ -101,6 +101,8 @@ def test_live_domain_count_breakdowns_are_validated() -> None:
     for row in body["positional_annotation"]:
         for domain in row.get("domains", {}).values():
             if isinstance(domain, dict):
+                domain["pathogenic_variant_count"] = 1
+                domain["pathogenic_missense_variant_count"] = 1
                 domain["pathogenic_variant_count_per_clinsig"] = {"Pathogenic": 1}
                 domain["pathogenic_missense_variant_count_per_clinsig"] = {"Pathogenic": 1}
     validate_positional_annotations(body["positional_annotation"])
