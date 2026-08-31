@@ -141,6 +141,14 @@ _RESULT_FIELDS = {
 }
 _NORMAL_VARIANT_FIELDS = {"allele_count", "allele_number"}
 _PATHOGENIC_VARIANT_FIELDS = {"clinvar_ID"}
+_VARIANT_TYPES = frozenset({"missense", "synonymous", "nonsense"})
+_STRANDS = frozenset({"+", "-"})
+# Safety bounds for finite integer fields documented by the v2 contract. These
+# exceed every live value while preventing unbounded Python integers from
+# reaching shaping, JSON encoding, or downstream arithmetic.
+MAX_ALIGNMENT_DEPTH = 100_000
+MAX_GENOMIC_POSITION = 1_000_000_000
+_REQUIRED_RESULT_FIELDS = frozenset(_RESULT_FIELDS)
 
 
 def _schema_error(path: str) -> UpstreamSchemaError:
@@ -184,9 +192,14 @@ def _is_nonnegative_integer_number(value: object) -> bool:
     return _is_integer_at_least(value, 0)
 
 
-def _is_integer_at_least(value: object, minimum: int) -> bool:
+def _is_integer_at_least(value: object, minimum: int, maximum: int | None = None) -> bool:
     """Check an integral finite numeric value against an inclusive lower bound."""
-    return _is_finite_integer(value) and isinstance(value, (int, float)) and value >= minimum
+    return (
+        _is_finite_integer(value)
+        and isinstance(value, (int, float))
+        and value >= minimum
+        and (maximum is None or value <= maximum)
+    )
 
 
 def _validate_variant_records(
@@ -216,12 +229,16 @@ def _validate_variant_records(
                 field in {"pos", "protein_pos"} and isinstance(value, bool)
             ):
                 raise _schema_error(f"{item_path}.{field}")
+        if variant["type"] not in _VARIANT_TYPES:
+            raise _schema_error(f"{item_path}.type")
+        if variant["strand"] not in _STRANDS:
+            raise _schema_error(f"{item_path}.strand")
         for field in optional:
             if field in variant and not isinstance(
                 variant[field], _METADOMAIN_OPTIONAL_FIELDS[field]
             ):
                 raise _schema_error(f"{item_path}.{field}")
-        if not _is_integer_at_least(variant["pos"], 1):
+        if not _is_integer_at_least(variant["pos"], 1, MAX_GENOMIC_POSITION):
             raise _schema_error(f"{item_path}.pos")
         if not _is_integer_at_least(variant["protein_pos"], 1):
             raise _schema_error(f"{item_path}.protein_pos")
@@ -300,7 +317,7 @@ def _validate_result_domains(raw: object, path: str) -> list[dict[str, Any]]:
             value = domain[field]
             if not isinstance(value, types) or (field != "metadomain" and isinstance(value, bool)):
                 raise _schema_error(f"{domain_path}.{field}")
-        if not _is_integer_at_least(domain["meta_domain_alignment_depth"], 0):
+        if not _is_integer_at_least(domain["meta_domain_alignment_depth"], 0, MAX_ALIGNMENT_DEPTH):
             raise _schema_error(f"{domain_path}.meta_domain_alignment_depth")
         if not _is_integer_at_least(domain["start"], 1) or not _is_integer_at_least(
             domain["stop"], 1
@@ -322,10 +339,10 @@ def validate_metadomain_blocks(raw: object) -> dict[str, dict[str, Any]]:
         if not isinstance(pfam_id, str) or not pfam_id or not isinstance(block, dict):
             raise _schema_error(path)
         required = {"alignment_depth", "normal_variants", "pathogenic_variants"}
-        if any(field not in block for field in required):
+        if set(block) != required:
             raise _schema_error(path)
         depth = block["alignment_depth"]
-        if not isinstance(depth, int) or isinstance(depth, bool) or depth < 0:
+        if not _is_integer_at_least(depth, 0, MAX_ALIGNMENT_DEPTH):
             raise _schema_error(f"{path}.alignment_depth")
         _validate_variant_records(
             block["normal_variants"], f"{path}.normal_variants", pathogenic=False
@@ -396,6 +413,8 @@ def validate_positional_annotations(raw: object) -> list[dict[str, Any]]:
                 raise _schema_error(f"{path}.{field}")
             if field == "sw_coverage" and isinstance(value, (int, float)) and value > 1:
                 raise _schema_error(f"{path}.{field}")
+            if field == "strand" and value not in _STRANDS:
+                raise _schema_error(f"{path}.{field}")
         if "exon_numbers" in entry and not isinstance(entry["exon_numbers"], str):
             raise _schema_error(f"{path}.exon_numbers")
         _validate_position_domains(entry["domains"], f"{path}.domains")
@@ -415,12 +434,14 @@ def validate_positional_annotations(raw: object) -> list[dict[str, Any]]:
                 for field, types in _CLINVAR_OPTIONAL_FIELDS.items():
                     if field in variant and not isinstance(variant[field], types):
                         raise _schema_error(f"{variant_path}.{field}")
+                if variant["type"] not in _VARIANT_TYPES:
+                    raise _schema_error(f"{variant_path}.type")
                 clinvar_id = variant["clinvar_ID"]
                 if not _is_valid_clinvar_id(clinvar_id):
                     raise _schema_error(f"{variant_path}.clinvar_ID")
                 if isinstance(variant["pos"], bool):
                     raise _schema_error(f"{variant_path}.pos")
-                if not isinstance(variant["pos"], int) or variant["pos"] < 1:
+                if not _is_integer_at_least(variant["pos"], 1, MAX_GENOMIC_POSITION):
                     raise _schema_error(f"{variant_path}.pos")
         validated.append(entry)
     return validated
@@ -435,6 +456,9 @@ def validate_result_document(raw: object) -> dict[str, Any]:
         unknown = next(iter(set(raw) - allowed))
         raise _schema_error(unknown)
     positions = validate_positional_annotations(raw.get("positional_annotation"))
+    missing = _REQUIRED_RESULT_FIELDS - set(raw)
+    if missing:
+        raise _schema_error(next(field for field in _RESULT_FIELDS if field in missing))
     for field, types in _RESULT_FIELDS.items():
         if field not in raw:
             continue

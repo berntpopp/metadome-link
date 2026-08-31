@@ -76,7 +76,14 @@ async def test_every_v2_operation_is_bound_to_the_exact_genome_build() -> None:
     result_route = respx.get(f"{V2_BASE}/result/GRCh38.p14/{transcript}").mock(
         return_value=httpx.Response(
             200,
-            json={"transcript_id": transcript, "domains": [], "positional_annotation": []},
+            json={
+                "transcript_id": transcript,
+                "gene_name": "TP53",
+                "protein_ac": "P04637",
+                "refseq_ids": [],
+                "domains": [],
+                "positional_annotation": [],
+            },
         )
     )
     error_route = respx.get(f"{V2_BASE}/error/GRCh38.p14/{transcript}").mock(
@@ -218,7 +225,6 @@ async def test_transcript_nested_type_drift_is_typed_upstream_error(
 async def test_positional_annotation_nested_type_drift_is_typed_upstream_error(
     field_value: tuple[str, object],
 ) -> None:
-    """Every result row has a strict, typed positional schema."""
     field, value = field_value
     row: dict[str, object] = {
         "cdna_pos": "c.103-105",
@@ -250,7 +256,6 @@ async def test_positional_annotation_nested_type_drift_is_typed_upstream_error(
 
 @respx.mock
 async def test_empty_object_position_is_not_accepted_as_a_result_row() -> None:
-    """A non-empty result list with an empty object is not a valid landscape."""
     respx.get(f"{V2_BASE}/result/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"transcript_id": TID, "positional_annotation": [{}]})
     )
@@ -262,7 +267,6 @@ async def test_empty_object_position_is_not_accepted_as_a_result_row() -> None:
 
 
 def _valid_position() -> dict[str, object]:
-    """Return one valid result row for schema-adversarial payload tests."""
     return {
         "cdna_pos": "c.1-3",
         "chr": "chr17",
@@ -280,7 +284,6 @@ def _valid_position() -> dict[str, object]:
 
 
 def _valid_metadomain() -> dict[str, object]:
-    """Return one valid endpoint-6 block with both variant list shapes."""
     common = {
         "alt": "A",
         "alt_aa": "H",
@@ -337,7 +340,6 @@ def _valid_metadomain() -> dict[str, object]:
 )
 @respx.mock
 async def test_metadomain_nested_schema_drift_is_typed_upstream_error(mutate: object) -> None:
-    """Endpoint 6 blocks and variants are validated before shaping or coercion."""
     payload = _valid_metadomain()
     assert callable(mutate)
     mutate(payload)
@@ -402,7 +404,6 @@ def test_metadomain_numeric_truth_table_accepts_documented_boundaries(
 async def test_nested_position_domain_schema_drift_is_typed_upstream_error(
     consensus: object,
 ) -> None:
-    """Domain memberships reject invalid, empty, null-containing position lists."""
     row = _valid_position()
     row["domains"] = {
         "PF00870": {
@@ -444,7 +445,6 @@ async def test_transcript_response_requires_exact_echoed_build(payload: dict[str
 @pytest.mark.parametrize("echo", [None, "ENST00000504937.5"])
 @respx.mock
 async def test_result_response_requires_requested_transcript_echo(echo: str | None) -> None:
-    """A result for another or unspecified transcript must never enter the cache."""
     body: dict[str, object] = {"positional_annotation": [_valid_position()]}
     if echo is not None:
         body["transcript_id"] = echo
@@ -468,7 +468,8 @@ async def test_nonfinite_result_numbers_are_rejected(field: str) -> None:
         return_value=httpx.Response(
             200,
             content=json.dumps(
-                {"transcript_id": TID, "positional_annotation": [row]}, allow_nan=True
+                {"transcript_id": TID, "positional_annotation": [row]},
+                allow_nan=True,
             ).encode(),
             headers={"content-type": "application/json"},
         )
