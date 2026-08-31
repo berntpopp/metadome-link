@@ -87,7 +87,7 @@ def test_position_view_projects_only_known_upstream_fields() -> None:
 
 
 @pytest.mark.parametrize("operation", ["landscape", "position"])
-@pytest.mark.parametrize("mutation", ["missing", "nested_control"])
+@pytest.mark.parametrize("mutation", ["missing", "nested_control", "wrong_identity"])
 async def test_invalid_cached_landscape_fails_closed(
     cache: ResultCache, operation: str, mutation: str
 ) -> None:
@@ -95,8 +95,10 @@ async def test_invalid_cached_landscape_fails_closed(
     landscape = _load("result_TP53.json")
     if mutation == "missing":
         del landscape["gene_name"]
-    else:
+    elif mutation == "nested_control":
         landscape["positional_annotation"][0]["success"] = True
+    else:
+        landscape["transcript_id"] = "ENST00000504937.5"
     cache.put_result(TID, landscape)
     svc = _make_service(cache)
     with pytest.raises(UpstreamSchemaError) as exc_info:

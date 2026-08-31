@@ -475,8 +475,13 @@ def validate_result_document(raw: object) -> dict[str, Any]:
     return result
 
 
-def validate_cached_landscape(raw: object | None) -> dict[str, Any] | None:
+def validate_cached_landscape(
+    raw: object | None, expected_transcript_id: str
+) -> dict[str, Any] | None:
     """Apply the complete result contract to a cache value before serving it."""
     if raw is None:
         return None
-    return validate_result_document(raw)
+    result = validate_result_document(raw)
+    if result["transcript_id"] != expected_transcript_id:
+        raise _schema_error("transcript_id")
+    return result

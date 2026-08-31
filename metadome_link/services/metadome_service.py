@@ -238,7 +238,7 @@ class MetaDomeService:
             DataUnavailableError: A non-retryable MetaDome build FAILURE.
         """
         tid = validate_transcript_id(transcript_id)
-        landscape = validate_cached_landscape(self._cache.get_result(tid))
+        landscape = validate_cached_landscape(self._cache.get_result(tid), tid)
         if landscape is None:
             state, result = await self._client.poll_until_ready(
                 tid, soft_deadline_s=self._soft_deadline_s
@@ -470,7 +470,7 @@ class MetaDomeService:
         raises :class:`NotFoundError` (``recovery_action="switch_tool"``) carrying
         ``next_commands`` hints to request + poll the landscape; a ``FAILURE``
         """
-        cached = validate_cached_landscape(self._cache.get_result(transcript_id))
+        cached = validate_cached_landscape(self._cache.get_result(transcript_id), transcript_id)
         if cached is not None:
             return cached
         state, result = await self._client.poll_until_ready(

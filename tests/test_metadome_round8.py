@@ -15,6 +15,7 @@ from metadome_link.api.models import (
     validate_positional_annotations,
     validate_result_document,
 )
+from metadome_link.api.response import parse_json
 from metadome_link.exceptions import UpstreamUnavailableError
 
 BASE = "https://www.metadome.app/metadome/api"
@@ -154,6 +155,19 @@ def test_positional_unknown_fields_and_hostile_paths_fail_closed() -> None:
     assert len(field) <= 280
 
 
+def test_json_parser_accepts_valid_surrogate_pair_scalar(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A valid UTF-16 pair is one Unicode scalar, unlike a lone surrogate."""
+    response = httpx.Response(200, content=b"{}")
+
+    def return_pair(_response: httpx.Response, **_kwargs: object) -> object:
+        return {"status": "\ud83d\ude00"}
+
+    monkeypatch.setattr(httpx.Response, "json", return_pair)
+    assert parse_json(response)["status"] == "\ud83d\ude00"
+
+
 @pytest.mark.parametrize(
     "value",
     [-1, 1.5, True, float("inf"), 10**1000],
@@ -172,11 +186,22 @@ def test_domain_count_breakdowns_reject_invalid_numbers(value: object) -> None:
 
 
 @pytest.mark.parametrize("endpoint", ["status", "result", "error"])
+@pytest.mark.parametrize(
+    "payload",
+    [
+        b"{",
+        b'{"status":"\\ud800"}',
+        b'{"\\ud800":"ok"}',
+        b'{"status":NaN}',
+        b'{"status":Infinity}',
+        b'{"status":-Infinity}',
+    ],
+)
 @respx.mock
-async def test_malformed_json_is_typed_and_not_retried(endpoint: str) -> None:
-    """All GET endpoints classify malformed JSON centrally without retrying."""
+async def test_invalid_json_is_typed_and_not_retried(endpoint: str, payload: bytes) -> None:
+    """All GET endpoints reject malformed Unicode and nonstandard JSON constants."""
     route = respx.get(f"{BASE}/{endpoint}/GRCh38.p14/{TID}").mock(
-        return_value=httpx.Response(200, content=b"{")
+        return_value=httpx.Response(200, content=payload)
     )
     client = MetaDomeClient()
     with pytest.raises(UpstreamUnavailableError) as exc_info:
@@ -201,7 +226,7 @@ async def test_deep_json_recursion_is_typed_and_not_retried(
         return_value=httpx.Response(200, json={"status": "SUCCESS"})
     )
 
-    def raise_recursion(_response: httpx.Response) -> object:
+    def raise_recursion(_response: httpx.Response, **_kwargs: object) -> object:
         raise RecursionError("JSON nesting exceeded")
 
     monkeypatch.setattr(httpx.Response, "json", raise_recursion)
