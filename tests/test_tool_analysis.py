@@ -245,12 +245,15 @@ async def test_summarize_intolerant_regions_envelope_fields(facade: Any, call_to
 async def test_summarize_intolerant_regions_not_found(
     call_tool: Any,
     facade: Any,
+    mocked_metadome: Any,
 ) -> None:
     """A transcript whose landscape is not built returns error_code=not_found."""
     # Use a transcript id not in the fixture cache; mock the upstream to return PENDING
     unknown_tid = "ENST00000000001.1"
-    respx.post(f"{BASE}/submit_visualization/").mock(
-        return_value=httpx.Response(200, json={"transcript_id": unknown_tid})
+    mocked_metadome.post("/submit_visualization/").mock(
+        return_value=httpx.Response(
+            200, json={"transcript_id": unknown_tid, "genome_build": "GRCh38.p14"}
+        )
     )
     respx.get(f"{BASE}/status/GRCh38.p14/{unknown_tid}").mock(
         return_value=httpx.Response(200, json={"status": "PENDING"})

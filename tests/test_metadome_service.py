@@ -275,7 +275,7 @@ async def test_resolve_transcript_unknown_gene_raises_not_found(cache: ResultCac
 async def test_request_landscape_ready(cache: ResultCache) -> None:
     """SUCCESS status -> status 'ready'."""
     respx.post(f"{BASE}/submit_visualization/").mock(
-        return_value=httpx.Response(200, json={"transcript_id": TID})
+        return_value=httpx.Response(200, json={"transcript_id": TID, "genome_build": "GRCh38.p14"})
     )
     respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "SUCCESS"})
@@ -292,7 +292,7 @@ async def test_request_landscape_ready(cache: ResultCache) -> None:
 async def test_request_landscape_processing(cache: ResultCache) -> None:
     """A still-building status -> status 'processing' with poll hints."""
     respx.post(f"{BASE}/submit_visualization/").mock(
-        return_value=httpx.Response(200, json={"transcript_id": TID})
+        return_value=httpx.Response(200, json={"transcript_id": TID, "genome_build": "GRCh38.p14"})
     )
     respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "PENDING"})
@@ -314,7 +314,7 @@ async def test_request_landscape_failure_is_non_retryable(cache: ResultCache) ->
     retryable transient error (the bug that caused endless BRCA2 retries).
     """
     respx.post(f"{BASE}/submit_visualization/").mock(
-        return_value=httpx.Response(200, json={"transcript_id": TID})
+        return_value=httpx.Response(200, json={"transcript_id": TID, "genome_build": "GRCh38.p14"})
     )
     respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "FAILURE"})
@@ -338,7 +338,7 @@ async def test_request_landscape_no_protein_data_is_invalid_input(cache: ResultC
     telling the caller to pick a protein-coding transcript.
     """
     respx.post(f"{BASE}/submit_visualization/").mock(
-        return_value=httpx.Response(200, json={"transcript_id": TID})
+        return_value=httpx.Response(200, json={"transcript_id": TID, "genome_build": "GRCh38.p14"})
     )
     respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "FAILURE"})
@@ -371,7 +371,7 @@ async def test_request_landscape_no_protein_data_is_invalid_input(cache: ResultC
 async def test_get_landscape_processing_path(cache: ResultCache) -> None:
     """On a cache miss with a still-building job, returns status 'processing'."""
     respx.post(f"{BASE}/submit_visualization/").mock(
-        return_value=httpx.Response(200, json={"transcript_id": TID})
+        return_value=httpx.Response(200, json={"transcript_id": TID, "genome_build": "GRCh38.p14"})
     )
     respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "PENDING"})
@@ -391,7 +391,7 @@ async def test_get_landscape_processing_path(cache: ResultCache) -> None:
 async def test_get_landscape_ready_caches_and_paginates(cache: ResultCache) -> None:
     """A ready job is fetched, cached, and the positions paginated."""
     respx.post(f"{BASE}/submit_visualization/").mock(
-        return_value=httpx.Response(200, json={"transcript_id": TID})
+        return_value=httpx.Response(200, json={"transcript_id": TID, "genome_build": "GRCh38.p14"})
     )
     status_route = respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "SUCCESS"})
@@ -443,7 +443,7 @@ async def test_get_landscape_slices_by_position_range(cache: ResultCache) -> Non
 async def test_get_landscape_failed_is_non_retryable(cache: ResultCache) -> None:
     """A FAILURE during the poll raises a NON-retryable error (no endless retry)."""
     respx.post(f"{BASE}/submit_visualization/").mock(
-        return_value=httpx.Response(200, json={"transcript_id": TID})
+        return_value=httpx.Response(200, json={"transcript_id": TID, "genome_build": "GRCh38.p14"})
     )
     respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "FAILURE"})

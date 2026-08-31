@@ -18,6 +18,7 @@ import pytest
 import respx
 
 from metadome_link.api.client import MetaDomeClient
+from metadome_link.api.models import validate_metadomain_blocks, validate_positional_annotations
 from metadome_link.config import ServerSettings
 from metadome_link.exceptions import (
     InvalidInputError,
@@ -114,7 +115,7 @@ async def test_get_transcripts_url_encodes_gene_metacharacters() -> None:
 async def test_submit_visualization_echoes_id() -> None:
     """A 200 submit echoes the transcript id back."""
     route = respx.post(f"{BASE}/submit_visualization/").mock(
-        return_value=httpx.Response(200, json={"transcript_id": TID})
+        return_value=httpx.Response(200, json={"transcript_id": TID, "genome_build": "GRCh38.p14"})
     )
     client = MetaDomeClient()
     assert await client.submit_visualization(TID) == TID
@@ -127,6 +128,28 @@ async def test_submit_visualization_echoes_id() -> None:
         "transcript_id": TID,
         "genome_build": "GRCh38.p14",
     }
+    await client.aclose()
+
+
+@pytest.mark.parametrize(
+    "response",
+    [
+        {},
+        {"transcript_id": "ENST00000504937.5", "genome_build": "GRCh38.p14"},
+        {"transcript_id": TID, "genome_build": "GRCh37.p13"},
+        {"transcript_id": TID},
+    ],
+)
+@respx.mock
+async def test_submit_visualization_requires_authoritative_echo(response: dict[str, str]) -> None:
+    """A submit response must echo both the requested id and configured build."""
+    respx.post(f"{BASE}/submit_visualization/").mock(
+        return_value=httpx.Response(200, json=response)
+    )
+    client = MetaDomeClient()
+    with pytest.raises(UpstreamUnavailableError) as exc_info:
+        await client.submit_visualization(TID)
+    assert exc_info.value.extra["field"] in {"transcript_id", "genome_build"}
     await client.aclose()
 
 
@@ -250,6 +273,48 @@ async def test_get_metadomain_annotation_coerces_clinvar_id() -> None:
     await client.aclose()
 
 
+@respx.mock
+async def test_live_v2_nested_variant_fields_are_supported() -> None:
+    """Live endpoint-6 and result records retain their discriminating fields."""
+    metadomain = _load("metadomain_p175.json")
+    for variant in metadomain["PF00870"]["normal_variants"]:
+        variant["exon_numbers"] = "5, 5, 5"
+    for variant in metadomain["PF00870"]["pathogenic_variants"]:
+        variant["exon_numbers"] = "1, 1, 1"
+        variant["clinvar_clinsig"] = "Pathogenic"
+    respx.post(f"{BASE}/get_metadomain_annotation/").mock(
+        return_value=httpx.Response(200, json=metadomain)
+    )
+    result = _load("result_TP53.json")
+    for row in result["positional_annotation"]:
+        for variant in row.get("ClinVar", []):
+            variant["clinvar_clinsig"] = "Pathogenic"
+    respx.get(f"{BASE}/result/GRCh38.p14/{TID}").mock(return_value=httpx.Response(200, json=result))
+    client = MetaDomeClient()
+    out = await client.get_metadomain_annotation(TID, 175, {"PF00870": [81]})
+    assert out["PF00870"]["normal_variants"][0]["exon_numbers"] == "5, 5, 5"
+    landscape = await client.get_result(TID)
+    assert any(
+        variant["clinvar_clinsig"] == "Pathogenic"
+        for row in landscape["positional_annotation"]
+        for variant in row.get("ClinVar", [])
+    )
+    await client.aclose()
+
+
+def test_huge_numeric_values_fail_as_typed_schema_errors() -> None:
+    """Arbitrarily large JSON integers cannot escape validators as OverflowError."""
+    metadomain = _load("metadomain_p175.json")
+    metadomain["PF00870"]["normal_variants"][0]["allele_count"] = 10**1000
+    with pytest.raises(UpstreamUnavailableError):
+        validate_metadomain_blocks(metadomain)
+
+    result = _load("result_TP53.json")
+    result["positional_annotation"][0]["sw_coverage"] = 10**1000
+    with pytest.raises(UpstreamUnavailableError):
+        validate_positional_annotations(result["positional_annotation"])
+
+
 # -- poll_until_ready: three outcomes -------------------------------------------
 
 
@@ -257,7 +322,7 @@ async def test_get_metadomain_annotation_coerces_clinvar_id() -> None:
 async def test_poll_ready_immediate_success() -> None:
     """SUCCESS on the first status check -> ('ready', result_dict)."""
     respx.post(f"{BASE}/submit_visualization/").mock(
-        return_value=httpx.Response(200, json={"transcript_id": TID})
+        return_value=httpx.Response(200, json={"transcript_id": TID, "genome_build": "GRCh38.p14"})
     )
     respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "SUCCESS"})
@@ -277,7 +342,7 @@ async def test_poll_ready_immediate_success() -> None:
 async def test_poll_pending_then_success() -> None:
     """PENDING then SUCCESS within the deadline -> ('ready', result_dict)."""
     respx.post(f"{BASE}/submit_visualization/").mock(
-        return_value=httpx.Response(200, json={"transcript_id": TID})
+        return_value=httpx.Response(200, json={"transcript_id": TID, "genome_build": "GRCh38.p14"})
     )
     statuses = iter(["PENDING", "STARTED", "SUCCESS"])
     respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
@@ -297,7 +362,7 @@ async def test_poll_pending_then_success() -> None:
 async def test_poll_failure_returns_error_dict() -> None:
     """FAILURE -> ('failed', error_dict)."""
     respx.post(f"{BASE}/submit_visualization/").mock(
-        return_value=httpx.Response(200, json={"transcript_id": TID})
+        return_value=httpx.Response(200, json={"transcript_id": TID, "genome_build": "GRCh38.p14"})
     )
     respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "FAILURE"})
@@ -319,7 +384,7 @@ async def test_poll_failure_returns_error_dict() -> None:
 async def test_poll_processing_at_deadline() -> None:
     """Still PENDING when the soft deadline elapses -> ('processing', None)."""
     respx.post(f"{BASE}/submit_visualization/").mock(
-        return_value=httpx.Response(200, json={"transcript_id": TID})
+        return_value=httpx.Response(200, json={"transcript_id": TID, "genome_build": "GRCh38.p14"})
     )
     respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "PENDING"})

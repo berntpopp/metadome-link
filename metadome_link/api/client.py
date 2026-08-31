@@ -328,10 +328,16 @@ class MetaDomeClient:
             "/submit_visualization/",
             {"transcript_id": tid, "genome_build": self._genome_build},
         )
-        if isinstance(body, dict):
-            echoed = body.get("transcript_id")
-            if isinstance(echoed, str):
-                return echoed
+        if not isinstance(body, dict) or body.get("transcript_id") != tid:
+            raise UpstreamSchemaError(
+                "MetaDome submit response has an unexpected transcript id.",
+                field="transcript_id",
+            )
+        if body.get("genome_build") != self._genome_build:
+            raise UpstreamSchemaError(
+                "MetaDome submit response has an unexpected genome build.",
+                field="genome_build",
+            )
         return tid
 
     async def get_status(self, transcript_id: str) -> str:

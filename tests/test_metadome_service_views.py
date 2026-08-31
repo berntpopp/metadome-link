@@ -79,7 +79,7 @@ def _make_service(cache: ResultCache, settings: ServerSettings | None = None) ->
 async def test_require_landscape_not_ready_raises_not_found(cache: ResultCache) -> None:
     """A position tool on a not-yet-built landscape raises not_found/switch_tool."""
     respx.post(f"{BASE}/submit_visualization/").mock(
-        return_value=httpx.Response(200, json={"transcript_id": TID})
+        return_value=httpx.Response(200, json={"transcript_id": TID, "genome_build": "GRCh38.p14"})
     )
     respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "PENDING"})

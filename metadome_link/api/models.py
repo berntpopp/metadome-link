@@ -116,10 +116,15 @@ _METADOMAIN_VARIANT_FIELDS: dict[str, tuple[type[object], ...]] = {
     "ref_codon": (str,),
     "strand": (str,),
 }
+_METADOMAIN_OPTIONAL_FIELDS: dict[str, tuple[type[object], ...]] = {
+    "exon_numbers": (str,),
+    "clinvar_clinsig": (str,),
+}
 _CLINVAR_FIELDS = {
     **_VARIANT_FIELDS,
     "clinvar_ID": (str, int, float),
 }
+_CLINVAR_OPTIONAL_FIELDS = {"clinvar_clinsig": (str,)}
 _NORMAL_VARIANT_FIELDS = {"allele_count", "allele_number"}
 _PATHOGENIC_VARIANT_FIELDS = {"clinvar_ID"}
 
@@ -134,7 +139,12 @@ def _schema_error(path: str) -> UpstreamSchemaError:
 
 def _is_finite_number(value: object) -> bool:
     """Accept JSON numbers only when they are finite and not booleans."""
-    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        return math.isfinite(value)
+    except (OverflowError, TypeError, ValueError):
+        return False
 
 
 def _is_valid_clinvar_id(value: object) -> bool:
@@ -181,12 +191,20 @@ def _validate_variant_records(
         item_path = f"{path}[{index}]"
         if not isinstance(variant, dict) or any(field not in variant for field in required):
             raise _schema_error(item_path)
-        if set(variant) != required:
+        optional = {"exon_numbers"}
+        if pathogenic:
+            optional.add("clinvar_clinsig")
+        if set(variant) - required - optional:
             raise _schema_error(item_path)
         for field, types in _METADOMAIN_VARIANT_FIELDS.items():
             value = variant[field]
             if not isinstance(value, types) or (
                 field in {"pos", "protein_pos"} and isinstance(value, bool)
+            ):
+                raise _schema_error(f"{item_path}.{field}")
+        for field in optional:
+            if field in variant and not isinstance(
+                variant[field], _METADOMAIN_OPTIONAL_FIELDS[field]
             ):
                 raise _schema_error(f"{item_path}.{field}")
         if not isinstance(variant["pos"], int) or variant["pos"] < 1:
@@ -325,10 +343,13 @@ def validate_positional_annotations(raw: object) -> list[dict[str, Any]]:
                 variant_path = f"{path}.ClinVar[{variant_index}]"
                 if not isinstance(variant, dict):
                     raise _schema_error(variant_path)
-                if set(variant) != set(_CLINVAR_FIELDS):
+                if set(variant) - set(_CLINVAR_FIELDS) - set(_CLINVAR_OPTIONAL_FIELDS):
                     raise _schema_error(variant_path)
                 for field, types in _CLINVAR_FIELDS.items():
                     if field not in variant or not isinstance(variant[field], types):
+                        raise _schema_error(f"{variant_path}.{field}")
+                for field, types in _CLINVAR_OPTIONAL_FIELDS.items():
+                    if field in variant and not isinstance(variant[field], types):
                         raise _schema_error(f"{variant_path}.{field}")
                 clinvar_id = variant["clinvar_ID"]
                 if not _is_valid_clinvar_id(clinvar_id):
