@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from metadome_link.api.models import validate_cached_landscape, validate_result_document
 from metadome_link.constants import (
     DATA_CURRENCY_CAVEAT,
     DEFAULT_PAGE_LIMIT,
@@ -237,7 +238,7 @@ class MetaDomeService:
             DataUnavailableError: A non-retryable MetaDome build FAILURE.
         """
         tid = validate_transcript_id(transcript_id)
-        landscape = self._cache.get_result(tid)
+        landscape = validate_cached_landscape(self._cache.get_result(tid))
         if landscape is None:
             state, result = await self._client.poll_until_ready(
                 tid, soft_deadline_s=self._soft_deadline_s
@@ -254,7 +255,7 @@ class MetaDomeService:
             if state == "failed":
                 raise metadome_build_failure(tid, result)
             # state == "ready"
-            landscape = result or {}
+            landscape = validate_result_document(result or {})
             self._cache.put_result(tid, landscape)
 
         if position_start is not None and position_stop is not None:
@@ -468,16 +469,15 @@ class MetaDomeService:
         Used by every per-position/domain/summary method. A still-building job
         raises :class:`NotFoundError` (``recovery_action="switch_tool"``) carrying
         ``next_commands`` hints to request + poll the landscape; a ``FAILURE``
-        raises a non-retryable error via :func:`metadome_build_failure`.
         """
-        cached = self._cache.get_result(transcript_id)
+        cached = validate_cached_landscape(self._cache.get_result(transcript_id))
         if cached is not None:
             return cached
         state, result = await self._client.poll_until_ready(
             transcript_id, soft_deadline_s=self._soft_deadline_s
         )
         if state == "ready":
-            landscape = result or {}
+            landscape = validate_result_document(result or {})
             self._cache.put_result(transcript_id, landscape)
             return landscape
         if state == "failed":

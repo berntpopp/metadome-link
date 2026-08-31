@@ -473,3 +473,10 @@ def validate_result_document(raw: object) -> dict[str, Any]:
     result = dict(raw)
     result["positional_annotation"] = positions
     return result
+
+
+def validate_cached_landscape(raw: object | None) -> dict[str, Any] | None:
+    """Apply the complete result contract to a cache value before serving it."""
+    if raw is None:
+        return None
+    return validate_result_document(raw)

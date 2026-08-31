@@ -35,6 +35,10 @@ async def test_alternate_profile_flows_into_capabilities_and_envelope(tmp_path: 
             TID,
             {
                 "transcript_id": TID,
+                "gene_name": "TP53",
+                "protein_ac": "P04637",
+                "refseq_ids": [],
+                "domains": [],
                 "positional_annotation": [
                     {
                         "cdna_pos": "c.1-3",

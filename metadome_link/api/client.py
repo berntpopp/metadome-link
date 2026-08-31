@@ -41,6 +41,7 @@ from metadome_link.api.models import (
     validate_result_document,
     validate_transcript_entries,
 )
+from metadome_link.api.response import parse_json
 from metadome_link.api.url_guard import (
     MAX_REDIRECTS,
     DisallowedURLError,
@@ -259,13 +260,13 @@ class MetaDomeClient:
         """GET ``base_url + path`` and return parsed JSON (status mapped first)."""
         response = await self._send("GET", f"{self._base_url}{path}")
         self._raise_for_status(response)
-        return response.json()
+        return parse_json(response)
 
     async def _post_json(self, path: str, body: dict[str, Any]) -> Any:
         """POST a JSON body to ``base_url + path`` and return parsed JSON."""
         response = await self._send("POST", f"{self._base_url}{path}", json=body)
         self._raise_for_status(response)
-        return response.json()
+        return parse_json(response)
 
     # -- endpoints -------------------------------------------------------------
 

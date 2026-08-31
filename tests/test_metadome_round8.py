@@ -169,3 +169,46 @@ def test_domain_count_breakdowns_reject_invalid_numbers(value: object) -> None:
     domain["pathogenic_variant_count_per_clinsig"] = {"Pathogenic": value}
     with pytest.raises(UpstreamUnavailableError):
         validate_positional_annotations(body["positional_annotation"])
+
+
+@pytest.mark.parametrize("endpoint", ["status", "result", "error"])
+@respx.mock
+async def test_malformed_json_is_typed_and_not_retried(endpoint: str) -> None:
+    """All GET endpoints classify malformed JSON centrally without retrying."""
+    route = respx.get(f"{BASE}/{endpoint}/GRCh38.p14/{TID}").mock(
+        return_value=httpx.Response(200, content=b"{")
+    )
+    client = MetaDomeClient()
+    with pytest.raises(UpstreamUnavailableError) as exc_info:
+        if endpoint == "status":
+            await client.get_status(TID)
+        elif endpoint == "result":
+            await client.get_result(TID)
+        else:
+            await client.get_error(TID)
+    assert exc_info.value.retryable is False
+    assert exc_info.value.extra["field"] == "response_body"
+    assert route.call_count == 1
+    await client.aclose()
+
+
+@respx.mock
+async def test_deep_json_recursion_is_typed_and_not_retried(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A decoder recursion failure cannot escape as a raw exception or retry."""
+    route = respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
+        return_value=httpx.Response(200, json={"status": "SUCCESS"})
+    )
+
+    def raise_recursion(_response: httpx.Response) -> object:
+        raise RecursionError("JSON nesting exceeded")
+
+    monkeypatch.setattr(httpx.Response, "json", raise_recursion)
+    client = MetaDomeClient()
+    with pytest.raises(UpstreamUnavailableError) as exc_info:
+        await client.get_status(TID)
+    assert exc_info.value.retryable is False
+    assert exc_info.value.extra["field"] == "response_body"
+    assert route.call_count == 1
+    await client.aclose()

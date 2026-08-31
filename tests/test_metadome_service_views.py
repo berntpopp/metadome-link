@@ -31,6 +31,7 @@ from metadome_link.config import ServerSettings
 from metadome_link.exceptions import (
     InvalidInputError,
     NotFoundError,
+    UpstreamSchemaError,
 )
 from metadome_link.services.metadome_service import MetaDomeService
 
@@ -83,6 +84,28 @@ def test_position_view_projects_only_known_upstream_fields() -> None:
     assert "_meta" not in result
     assert "success" not in result
     assert "oversized_scalar" not in result
+
+
+@pytest.mark.parametrize("operation", ["landscape", "position"])
+@pytest.mark.parametrize("mutation", ["missing", "nested_control"])
+async def test_invalid_cached_landscape_fails_closed(
+    cache: ResultCache, operation: str, mutation: str
+) -> None:
+    """Every service cache path revalidates the complete upstream result contract."""
+    landscape = _load("result_TP53.json")
+    if mutation == "missing":
+        del landscape["gene_name"]
+    else:
+        landscape["positional_annotation"][0]["success"] = True
+    cache.put_result(TID, landscape)
+    svc = _make_service(cache)
+    with pytest.raises(UpstreamSchemaError) as exc_info:
+        if operation == "landscape":
+            await svc.get_landscape(TID, limit=5, offset=0, response_mode="compact")
+        else:
+            await svc.get_position(TID, 1, response_mode="compact")
+    assert exc_info.value.retryable is False
+    await svc.aclose()
 
 
 # ---------------------------------------------------------------------------
