@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 # ---------------------------------------------------------------------------
 # pagination tests
 # ---------------------------------------------------------------------------
@@ -319,6 +321,13 @@ def test_char_budget_guard_truncates_nested_meta_domain_lists() -> None:
     assert result["transcript_id"] == "ENST00000269305.9"
     # The caller's input dict is not mutated.
     assert payload == original_input
+
+
+def test_char_budget_guard_rejects_untruncatable_oversized_scalars() -> None:
+    from metadome_link.services.shaping import char_budget_guard
+
+    with pytest.raises(ValueError):
+        char_budget_guard({"huge": "x" * 1_000}, max_chars=100)
 
 
 def test_response_modes_and_default_exported() -> None:

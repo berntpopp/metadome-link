@@ -8,9 +8,11 @@ result and metadomain payloads, and the three ``poll_until_ready`` outcomes.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import pathlib
 import re
+import time
 from typing import Any
 
 import httpx
@@ -137,7 +139,6 @@ async def test_submit_visualization_echoes_id() -> None:
         {},
         {"transcript_id": "ENST00000504937.5", "genome_build": "GRCh38.p14"},
         {"transcript_id": TID, "genome_build": "GRCh37.p13"},
-        {"transcript_id": TID},
     ],
 )
 @respx.mock
@@ -150,6 +151,26 @@ async def test_submit_visualization_requires_authoritative_echo(response: dict[s
     with pytest.raises(UpstreamUnavailableError) as exc_info:
         await client.submit_visualization(TID)
     assert exc_info.value.extra["field"] in {"transcript_id", "genome_build"}
+    await client.aclose()
+
+
+@respx.mock
+async def test_submit_visualization_allows_documented_absent_build_echo() -> None:
+    """The confirmed-live response echoes only transcript_id; build is optional."""
+    respx.post(f"{BASE}/submit_visualization/").mock(
+        return_value=httpx.Response(200, json={"transcript_id": TID})
+    )
+    client = MetaDomeClient()
+    assert await client.submit_visualization(TID) == TID
+    await client.aclose()
+
+
+@pytest.mark.parametrize("method", ["get_status", "get_result", "get_error"])
+async def test_direct_transcript_endpoints_reject_path_rewriting(method: str) -> None:
+    """Direct client calls validate transcript IDs before interpolating URL paths."""
+    client = MetaDomeClient()
+    with pytest.raises(InvalidInputError):
+        await getattr(client, method)("../status/GRCh38.p14/ENST00000269305.9")
     await client.aclose()
 
 
@@ -391,6 +412,27 @@ async def test_poll_processing_at_deadline() -> None:
     )
     client = MetaDomeClient()
     state, result = await client.poll_until_ready(TID, soft_deadline_s=0.05)
+    assert state == "processing"
+    assert result is None
+    await client.aclose()
+
+
+@respx.mock
+async def test_poll_status_call_is_bounded_by_soft_deadline() -> None:
+    """A hanging status request cannot outlive the polling soft deadline."""
+    respx.post(f"{BASE}/submit_visualization/").mock(
+        return_value=httpx.Response(200, json={"transcript_id": TID, "genome_build": "GRCh38.p14"})
+    )
+    client = MetaDomeClient()
+
+    async def hanging_status(_: str) -> str:
+        await asyncio.sleep(0.1)
+        return "PENDING"
+
+    client.get_status = hanging_status  # type: ignore[method-assign]
+    started = time.monotonic()
+    state, result = await client.poll_until_ready(TID, soft_deadline_s=0.01)
+    assert time.monotonic() - started < 0.05
     assert state == "processing"
     assert result is None
     await client.aclose()

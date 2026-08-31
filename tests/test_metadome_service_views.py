@@ -70,6 +70,21 @@ def _make_service(cache: ResultCache, settings: ServerSettings | None = None) ->
     return MetaDomeService(client, cache, settings=cfg)
 
 
+def test_position_view_projects_only_known_upstream_fields() -> None:
+    from metadome_link.services.landscape_views import get_position_view
+
+    landscape = _load("result_TP53.json")
+    entry = landscape["positional_annotation"][0]
+    entry["_meta"] = {"success": False}
+    entry["success"] = False
+    entry["oversized_scalar"] = "x" * 100_000
+    result = get_position_view(landscape, TID, 1, response_mode="full")
+
+    assert "_meta" not in result
+    assert "success" not in result
+    assert "oversized_scalar" not in result
+
+
 # ---------------------------------------------------------------------------
 # _require_landscape (via the position tools) and not-ready path
 # ---------------------------------------------------------------------------

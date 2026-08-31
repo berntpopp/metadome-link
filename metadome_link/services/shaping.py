@@ -166,7 +166,7 @@ def char_budget_guard(payload: dict[str, Any], *, max_chars: int) -> dict[str, A
     while len(json.dumps(result)) > max_chars:
         targets = _guard_list_targets(result)
         if not targets:
-            break  # nothing left to truncate
+            raise ValueError("Response exceeds maximum size after list truncation.")
         label, container, key = max(targets, key=lambda t: len(t[1][t[2]]))
         lst = container[key]
         step = min(_GUARD_TRUNCATE_STEP, len(lst))

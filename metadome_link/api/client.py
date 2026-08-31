@@ -38,7 +38,7 @@ import httpx
 
 from metadome_link.api.models import (
     validate_metadomain_blocks,
-    validate_positional_annotations,
+    validate_result_document,
     validate_transcript_entries,
 )
 from metadome_link.api.url_guard import (
@@ -243,16 +243,7 @@ class MetaDomeClient:
 
     @staticmethod
     def _raise_for_status(response: httpx.Response) -> None:
-        """Map a non-2xx response to a typed exception (2xx returns ``None``).
-
-        The upstream response BODY is deliberately NOT interpolated into the
-        exception message: a caller-influenced query can make MetaDome reflect
-        hostile prose (incl. control/zero-width/bidi/NUL) into a 4xx body, and
-        echoing it verbatim would smuggle attacker-controlled text into a
-        caller-visible message. Fixed, status-keyed, body-free messages are raised
-        instead (the HTTP status is a safe, non-attacker-controlled scalar); the
-        body is not logged either, preserving the no-PII-in-logs invariant.
-        """
+        """Map non-2xx statuses to fixed, body-free typed exceptions."""
         status = response.status_code
         if status < 400:
             return
@@ -333,7 +324,7 @@ class MetaDomeClient:
                 "MetaDome submit response has an unexpected transcript id.",
                 field="transcript_id",
             )
-        if body.get("genome_build") != self._genome_build:
+        if "genome_build" in body and body["genome_build"] != self._genome_build:
             raise UpstreamSchemaError(
                 "MetaDome submit response has an unexpected genome build.",
                 field="genome_build",
@@ -341,12 +332,9 @@ class MetaDomeClient:
         return tid
 
     async def get_status(self, transcript_id: str) -> str:
-        """GET ``/status/<genome_build>/<transcript_id>``; return the raw status string.
-
-        One of ``PENDING|SENT|STARTED|RECEIVED|RETRY|SUCCESS|FAILURE`` (empty
-        string if the upstream body lacks a ``status`` key).
-        """
-        body = await self._get_json(f"/status/{self._genome_build}/{transcript_id}")
+        """GET the build-scoped status and return its validated state."""
+        tid = validate_transcript_id(transcript_id)
+        body = await self._get_json(f"/status/{self._genome_build}/{tid}")
         status_raw = body.get("status") if isinstance(body, dict) else None
         if not isinstance(status_raw, str):
             raise UpstreamSchemaError(
@@ -360,31 +348,26 @@ class MetaDomeClient:
         return status
 
     async def get_result(self, transcript_id: str) -> dict[str, Any]:
-        """GET ``/result/<genome_build>/<transcript_id>``; return the normalized landscape.
-
-        Every ``positional_annotation[i].ClinVar[].clinvar_ID`` is coerced to a
-        ``str``. The ``positional_annotation`` length is left as-is (== protein
-        length upstream). A 404 (not built yet) raises :class:`NotFoundError`.
-        """
-        body = await self._get_json(f"/result/{self._genome_build}/{transcript_id}")
-        if not isinstance(body, dict):
-            raise UpstreamSchemaError(
-                "MetaDome result response has an invalid object shape.",
-                field="result",
-            )
-        if body.get("transcript_id") != transcript_id:
+        """GET and validate a complete build-scoped landscape document."""
+        tid = validate_transcript_id(transcript_id)
+        body = await self._get_json(f"/result/{self._genome_build}/{tid}")
+        if not isinstance(body, dict) or body.get("transcript_id") != tid:
             raise UpstreamSchemaError(
                 "MetaDome result response has an unexpected transcript id.",
                 field="transcript_id",
             )
-        positions = validate_positional_annotations(body.get("positional_annotation"))
+        result = validate_result_document(body)
+        positions = result["positional_annotation"]
         for entry in positions:
             _coerce_clinvar_ids(entry.get("ClinVar"))
-        return body
+        if isinstance(result.get("refseq_ids"), str):
+            result["refseq_ids"] = _split_refseq(result["refseq_ids"])
+        return result
 
     async def get_error(self, transcript_id: str) -> dict[str, Any]:
-        """GET ``/error/<genome_build>/<transcript_id>``; return the stored error dict."""
-        body = await self._get_json(f"/error/{self._genome_build}/{transcript_id}")
+        """GET the stored build-scoped error dictionary."""
+        tid = validate_transcript_id(transcript_id)
+        body = await self._get_json(f"/error/{self._genome_build}/{tid}")
         if isinstance(body, dict):
             return body
         return {"error": str(body)}
@@ -428,40 +411,56 @@ class MetaDomeClient:
         *,
         soft_deadline_s: float,
     ) -> tuple[str, dict[str, Any] | None]:
-        """Submit (idempotent) then poll status until terminal or the soft deadline.
-
-        Returns one of three states, never blocking past ``soft_deadline_s``:
-
-        - ``("ready", result_dict)`` -- status reached SUCCESS within the deadline.
-        - ``("processing", None)`` -- still building when the deadline elapsed.
-        - ``("failed", error_dict)`` -- status reached FAILURE.
-
-        Honours the politeness limiter (via the underlying requests) and an
-        interval backoff from ``poll_initial_interval_s`` toward
-        ``poll_max_interval_s`` with small jitter.
-        """
+        """Submit and poll until terminal state or the strict soft deadline."""
         tid = validate_transcript_id(transcript_id)
         start = time.monotonic()
-        await self.submit_visualization(tid)
+        deadline = start + max(0.0, soft_deadline_s)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return "processing", None
+        try:
+            await asyncio.wait_for(self.submit_visualization(tid), timeout=remaining)
+        except TimeoutError:
+            return "processing", None
 
         interval = self._cfg.poll_initial_interval_s
         max_interval = self._cfg.poll_max_interval_s
         while True:
-            status = await self.get_status(tid)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return "processing", None
+            try:
+                status = await asyncio.wait_for(self.get_status(tid), timeout=remaining)
+            except TimeoutError:
+                return "processing", None
             if status == "SUCCESS":
-                return "ready", await self.get_result(tid)
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return "processing", None
+                try:
+                    result = await asyncio.wait_for(self.get_result(tid), timeout=remaining)
+                except TimeoutError:
+                    return "processing", None
+                return "ready", result
             if status == "FAILURE":
-                return "failed", await self.get_error(tid)
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return "processing", None
+                try:
+                    error = await asyncio.wait_for(self.get_error(tid), timeout=remaining)
+                except TimeoutError:
+                    return "processing", None
+                return "failed", error
             # status is PENDING/SENT/STARTED/RECEIVED/RETRY (or unknown) -> keep waiting.
-            elapsed = time.monotonic() - start
-            if elapsed >= soft_deadline_s:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
                 return "processing", None
             # Sleep, but never overrun the soft deadline.
             jitter = interval * random.uniform(0.0, 0.1)  # noqa: S311
-            sleep_for = min(interval + jitter, soft_deadline_s - elapsed)
+            sleep_for = min(interval + jitter, remaining)
             if sleep_for > 0:
                 await asyncio.sleep(sleep_for)
-            if time.monotonic() - start >= soft_deadline_s:
+            if time.monotonic() >= deadline:
                 return "processing", None
             interval = min(interval * 1.5, max_interval)
 

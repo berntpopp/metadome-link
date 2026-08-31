@@ -21,6 +21,7 @@ from typing import Any, TypedDict
 
 from metadome_link.exceptions import UpstreamSchemaError
 from metadome_link.identifiers import is_transcript_id
+from metadome_link.mcp._sanitize import sanitize_message
 
 
 class TranscriptSummary(TypedDict):
@@ -95,6 +96,10 @@ _DOMAIN_FIELDS: dict[str, tuple[type[object], ...]] = {
     "pathogenic_variant_count": (int, float),
     "pathogenic_missense_variant_count": (int, float),
 }
+_DOMAIN_OPTIONAL_FIELDS: dict[str, tuple[type[object], ...]] = {
+    "pathogenic_variant_count_per_clinsig": (dict,),
+    "pathogenic_missense_variant_count_per_clinsig": (dict,),
+}
 _VARIANT_FIELDS: dict[str, tuple[type[object], ...]] = {
     "alt": (str,),
     "alt_aa": (str,),
@@ -125,6 +130,15 @@ _CLINVAR_FIELDS = {
     "clinvar_ID": (str, int, float),
 }
 _CLINVAR_OPTIONAL_FIELDS = {"clinvar_clinsig": (str,)}
+_POSITION_OPTIONAL_FIELDS = {"exon_numbers": (str,), "ClinVar": (list,)}
+_RESULT_FIELDS = {
+    "transcript_id": (str,),
+    "gene_name": (str,),
+    "protein_ac": (str,),
+    "refseq_ids": (str, list),
+    "domains": (list,),
+    "positional_annotation": (list,),
+}
 _NORMAL_VARIANT_FIELDS = {"allele_count", "allele_number"}
 _PATHOGENIC_VARIANT_FIELDS = {"clinvar_ID"}
 
@@ -133,7 +147,7 @@ def _schema_error(path: str) -> UpstreamSchemaError:
     """Build the non-retryable typed error shared by upstream validators."""
     return UpstreamSchemaError(
         "MetaDome upstream returned an invalid response schema.",
-        field=path,
+        field=sanitize_message(path),
     )
 
 
@@ -207,9 +221,9 @@ def _validate_variant_records(
                 variant[field], _METADOMAIN_OPTIONAL_FIELDS[field]
             ):
                 raise _schema_error(f"{item_path}.{field}")
-        if not isinstance(variant["pos"], int) or variant["pos"] < 1:
+        if not _is_integer_at_least(variant["pos"], 1):
             raise _schema_error(f"{item_path}.pos")
-        if not isinstance(variant["protein_pos"], int) or variant["protein_pos"] < 1:
+        if not _is_integer_at_least(variant["protein_pos"], 1):
             raise _schema_error(f"{item_path}.protein_pos")
         if pathogenic:
             clinvar_id = variant["clinvar_ID"]
@@ -235,23 +249,67 @@ def _validate_position_domains(raw: object, path: str) -> None:
             continue
         if not isinstance(mapping, dict):
             raise _schema_error(domain_path)
-        if any(field not in mapping for field in _DOMAIN_FIELDS) or "consensus_pos" not in mapping:
+        required = {*_DOMAIN_FIELDS, "consensus_pos"}
+        allowed = required | set(_DOMAIN_OPTIONAL_FIELDS)
+        if any(field not in mapping for field in required):
             raise _schema_error(domain_path)
-        if set(mapping) != {*_DOMAIN_FIELDS, "consensus_pos"}:
+        if set(mapping) - allowed:
             raise _schema_error(domain_path)
         consensus = mapping["consensus_pos"]
         if (
             not isinstance(consensus, list)
             or not consensus
-            or any(
-                not isinstance(pos, int) or isinstance(pos, bool) or pos < 1 for pos in consensus
-            )
+            or any(not _is_integer_at_least(pos, 1) for pos in consensus)
         ):
             raise _schema_error(f"{domain_path}.consensus_pos")
         for field in _DOMAIN_FIELDS:
             value = mapping[field]
-            if not _is_finite_number(value) or (isinstance(value, (int, float)) and value < 0):
+            if not _is_nonnegative_integer_number(value):
                 raise _schema_error(f"{domain_path}.{field}")
+        for field in _DOMAIN_OPTIONAL_FIELDS:
+            if field not in mapping:
+                continue
+            value = mapping[field]
+            if not isinstance(value, dict):
+                raise _schema_error(f"{domain_path}.{field}")
+            for significance, count in value.items():
+                if not isinstance(significance, str) or not significance:
+                    raise _schema_error(f"{domain_path}.{field}")
+                if not _is_nonnegative_integer_number(count):
+                    raise _schema_error(f"{domain_path}.{field}.{significance}")
+
+
+def _validate_result_domains(raw: object, path: str) -> list[dict[str, Any]]:
+    """Validate the top-level Pfam domain list from a result document."""
+    if not isinstance(raw, list):
+        raise _schema_error(path)
+    fields = {
+        "ID": (str,),
+        "Name": (str,),
+        "meta_domain_alignment_depth": (int,),
+        "metadomain": (bool,),
+        "start": (int,),
+        "stop": (int,),
+    }
+    validated: list[dict[str, Any]] = []
+    for index, domain in enumerate(raw):
+        domain_path = f"{path}[{index}]"
+        if not isinstance(domain, dict) or set(domain) != set(fields):
+            raise _schema_error(domain_path)
+        for field, types in fields.items():
+            value = domain[field]
+            if not isinstance(value, types) or (field != "metadomain" and isinstance(value, bool)):
+                raise _schema_error(f"{domain_path}.{field}")
+        if not _is_integer_at_least(domain["meta_domain_alignment_depth"], 0):
+            raise _schema_error(f"{domain_path}.meta_domain_alignment_depth")
+        if not _is_integer_at_least(domain["start"], 1) or not _is_integer_at_least(
+            domain["stop"], 1
+        ):
+            raise _schema_error(f"{domain_path}.start")
+        if domain["stop"] < domain["start"]:
+            raise _schema_error(f"{domain_path}.stop")
+        validated.append(domain)
+    return validated
 
 
 def validate_metadomain_blocks(raw: object) -> dict[str, dict[str, Any]]:
@@ -295,7 +353,7 @@ def validate_transcript_entries(raw: object) -> list[dict[str, Any]]:
         if not isinstance(gencode_id, str) or not is_transcript_id(gencode_id):
             raise _schema_error(f"{path}.gencode_id")
         aa_length = entry["aa_length"]
-        if not isinstance(aa_length, int) or isinstance(aa_length, bool) or aa_length < 0:
+        if not _is_integer_at_least(aa_length, 0):
             raise _schema_error(f"{path}.aa_length")
         if not isinstance(entry["has_protein_data"], bool):
             raise _schema_error(f"{path}.has_protein_data")
@@ -316,6 +374,10 @@ def validate_positional_annotations(raw: object) -> list[dict[str, Any]]:
         path = f"positional_annotation[{index}]"
         if not isinstance(entry, dict):
             raise _schema_error(path)
+        allowed = set(_POSITION_FIELDS) | set(_POSITION_OPTIONAL_FIELDS)
+        if set(entry) - allowed:
+            unknown = next(iter(set(entry) - allowed))
+            raise _schema_error(f"{path}.{unknown}")
         for field, types in _POSITION_FIELDS.items():
             if field not in entry:
                 raise _schema_error(f"{path}.{field}")
@@ -330,10 +392,12 @@ def validate_positional_annotations(raw: object) -> list[dict[str, Any]]:
                 )
             ):
                 raise _schema_error(f"{path}.{field}")
-            if field in {"protein_pos", "sw_size"} and isinstance(value, int) and value < 1:
+            if field in {"protein_pos", "sw_size"} and not _is_integer_at_least(value, 1):
                 raise _schema_error(f"{path}.{field}")
             if field == "sw_coverage" and isinstance(value, (int, float)) and value > 1:
                 raise _schema_error(f"{path}.{field}")
+        if "exon_numbers" in entry and not isinstance(entry["exon_numbers"], str):
+            raise _schema_error(f"{path}.exon_numbers")
         _validate_position_domains(entry["domains"], f"{path}.domains")
         variants = entry.get("ClinVar")
         if variants is not None:
@@ -360,3 +424,28 @@ def validate_positional_annotations(raw: object) -> list[dict[str, Any]]:
                     raise _schema_error(f"{variant_path}.pos")
         validated.append(entry)
     return validated
+
+
+def validate_result_document(raw: object) -> dict[str, Any]:
+    """Validate live result top-level shapes and nested positional records."""
+    if not isinstance(raw, dict):
+        raise _schema_error("result")
+    allowed = set(_RESULT_FIELDS)
+    if set(raw) - allowed:
+        unknown = next(iter(set(raw) - allowed))
+        raise _schema_error(unknown)
+    positions = validate_positional_annotations(raw.get("positional_annotation"))
+    for field, types in _RESULT_FIELDS.items():
+        if field not in raw:
+            continue
+        value = raw[field]
+        if not isinstance(value, types):
+            raise _schema_error(field)
+    if "domains" in raw:
+        _validate_result_domains(raw["domains"], "domains")
+    refseq = raw.get("refseq_ids")
+    if isinstance(refseq, list) and any(not isinstance(item, str) for item in refseq):
+        raise _schema_error("refseq_ids")
+    result = dict(raw)
+    result["positional_annotation"] = positions
+    return result

@@ -42,13 +42,30 @@ from metadome_link.services.landscape import (
 from metadome_link.services.pagination import paginate
 from metadome_link.services.shaping import shape_record
 
+_POSITION_VIEW_FIELDS = frozenset(
+    {
+        "cdna_pos",
+        "chr",
+        "chr_positions",
+        "exon_numbers",
+        "protein_pos",
+        "ref_aa",
+        "ref_aa_triplet",
+        "ref_codon",
+        "strand",
+        "sw_coverage",
+        "sw_dn_ds",
+        "sw_size",
+    }
+)
+
 
 def get_position_view(
     landscape: dict[str, Any], transcript_id: str, position: int, *, response_mode: str
 ) -> dict[str, Any]:
     """Return one residue's tolerance + explicitly-scoped variant evidence."""
     entry = position_to_entry(landscape, position)
-    payload = dict(entry)
+    payload = {key: entry[key] for key in _POSITION_VIEW_FIELDS if key in entry}
     payload["domains"] = _position_domain_memberships(entry)
     payload.pop("ClinVar", None)
     payload["transcript_id"] = transcript_id
