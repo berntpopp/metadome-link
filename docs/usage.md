@@ -293,9 +293,8 @@ when the payload exceeds budget.
 | `invalid_input` | Bad argument (unversioned ENST, out-of-range position, validation failure) | false |
 | `not_found` | Unknown gene, landscape not yet built, empty result | false |
 | `ambiguous_query` | Query matches multiple candidates (returns `candidates` list) | false |
-| `upstream_unavailable` | Data source temporarily unreachable, empty, or returned an invalid schema | false |
+| `upstream_unavailable` | Invalid schema/empty upstream data is terminal (`retryable:false`); transport, HTTP 5xx, timeout, or Celery FAILURE is transient (`retryable:true`) | conditional |
 | `rate_limited` | MetaDome returned HTTP 429 | true |
-| `upstream_unavailable` | 5xx / timeout / Celery FAILURE | true |
 | `internal` | Unexpected server error | false |
 
 On a `not_found` for a missing landscape, `recovery_action` is `"switch_tool"` and

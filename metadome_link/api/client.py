@@ -276,9 +276,13 @@ class MetaDomeClient:
                 "MetaDome transcript response has an unexpected genome build.",
                 field="genome_build",
             )
-        require_matching_gene(body.get("gene_name"), gene)
         raw = body["transcript_ids"]
         entries = validate_transcript_entries(raw)
+        require_matching_gene(body.get("gene_name"), gene)
+        if isinstance(raw, list) and raw and body.get("gene_name") is None:
+            raise UpstreamSchemaError(
+                "MetaDome transcript response is missing gene_name.", field="gene_name"
+            )
         out: list[dict[str, Any]] = []
         for entry in entries:
             out.append(

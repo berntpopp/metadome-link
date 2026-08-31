@@ -23,6 +23,8 @@ from pydantic import Field, StrictInt
 
 from metadome_link.constants import (
     MAX_GENOMIC_POSITION,
+    MAX_META_DOMAIN_SELECTOR_DOMAINS,
+    MAX_META_DOMAIN_SELECTOR_KEY_CHARS,
     MAX_META_DOMAIN_SELECTOR_POSITIONS_PER_DOMAIN,
 )
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
@@ -45,20 +47,35 @@ _DEFAULT_META_DOMAIN_LIMIT = 100
 
 #: Optional ``{PfamID: [consensus_pos, ...]}`` meta-domain selector. Omit to let
 #: the service derive it from the cached residue's ``domains`` map.
-DomainsArg = Annotated[
+_DomainSelectorMap = Annotated[
     dict[
         str,
         Annotated[
             list[Annotated[StrictInt, Field(ge=1, le=MAX_GENOMIC_POSITION)]],
             Field(min_length=1, max_length=MAX_META_DOMAIN_SELECTOR_POSITIONS_PER_DOMAIN),
         ],
-    ]
-    | None,
+    ],
+    Field(
+        max_length=MAX_META_DOMAIN_SELECTOR_DOMAINS,
+        json_schema_extra={
+            "propertyNames": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": MAX_META_DOMAIN_SELECTOR_KEY_CHARS,
+            }
+        },
+    ),
+]
+DomainsArg = Annotated[
+    _DomainSelectorMap | None,
     Field(
         default=None,
         description=(
             "Optional meta-domain selector {PfamID: [consensus_pos, ...]}. Omit to "
-            "derive it from the residue's cached domain mapping."
+            "derive it from the residue's cached domain mapping. Maximum 32 domains, "
+            f"{MAX_META_DOMAIN_SELECTOR_POSITIONS_PER_DOMAIN} positions per domain, "
+            "512 positions and 16 KiB encoded request; Pfam ids are 1.."
+            f"{MAX_META_DOMAIN_SELECTOR_KEY_CHARS} characters."
         ),
         examples=[{"PF00870": [81]}],
     ),

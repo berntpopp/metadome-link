@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import ipaddress
 import math
+from contextlib import suppress
 from typing import Annotated, Any, Literal, cast
 
 from pydantic import BaseModel, BeforeValidator, Field, field_validator, model_validator
@@ -245,6 +246,26 @@ class ServerSettings(BaseSettings):
         default_factory=CacheSettings,
         description="Result-cache configuration.",
     )
+
+    @field_validator("metadome", mode="before")
+    @classmethod
+    def parse_numeric_environment_values(cls, value: Any) -> Any:
+        """Decode finite numeric strings emitted by nested environment sources."""
+        if not isinstance(value, dict):
+            return value
+        parsed = dict(value)
+        for name in (
+            "request_timeout_s",
+            "poll_soft_deadline_s",
+            "poll_initial_interval_s",
+            "poll_max_interval_s",
+            "politeness_rate_per_s",
+        ):
+            raw = parsed.get(name)
+            if isinstance(raw, str):
+                with suppress(ValueError):
+                    parsed[name] = float(raw)
+        return parsed
 
     @field_validator("mcp_path")
     @classmethod

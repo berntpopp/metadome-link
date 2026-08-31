@@ -466,6 +466,7 @@ async def test_resolve_transcript_not_analyzable_when_no_protein_data(cache: Res
             200,
             json={
                 "message": "Retrieved transcripts for gene 'BRCA2'",
+                "gene_name": "BRCA2",
                 "genome_build": "GRCh38.p14",
                 "transcript_ids": [
                     {

@@ -20,6 +20,7 @@ from metadome_link.constants import (
     RECOMMENDED_CITATION,
     RESEARCH_USE_NOTICE,
     RESPONSE_MODES,
+    data_profile,
 )
 from metadome_link.mcp.resources import METADOME_REFERENCE_NOTES, METADOME_USAGE_NOTES
 
@@ -128,12 +129,24 @@ def capabilities_version(
 
 
 def build_capabilities(
-    *, data_versions: dict[str, str] | None = None, data_version: str | None = None
+    *,
+    data_versions: dict[str, str] | None = None,
+    data_version: str | None = None,
+    genome_build: str | None = None,
 ) -> dict[str, Any]:
     """Return the discovery surface describing this server."""
-    active_versions, active_version, active_build = _active_profile()
+    active_versions, _, active_build = _active_profile()
+    if genome_build is not None and data_versions is None:
+        profile = data_profile(genome_build)
+        active_versions = dict(profile.data_versions)
     versions = dict(data_versions if data_versions is not None else active_versions)
-    version = data_version if data_version is not None else active_version
+    resolved_build = genome_build or versions.get("assembly", active_build)
+    if versions.get("assembly") != resolved_build:
+        raise ValueError("data_versions assembly and genome_build must match")
+    profile = data_profile(resolved_build)
+    if data_version is not None and data_version != profile.data_version:
+        raise ValueError("data_version and genome_build must identify the same profile")
+    version = data_version if data_version is not None else profile.data_version
     payload: dict[str, Any] = {
         "server": "metadome-link",
         "server_version": __version__,
@@ -208,7 +221,7 @@ def build_capabilities(
         "notes": METADOME_REFERENCE_NOTES,
     }
     payload["data_version"] = version
-    payload["genome_build"] = active_build
+    payload["genome_build"] = resolved_build
     payload["capabilities_version"] = _hash_contract(payload)
     return payload
 
