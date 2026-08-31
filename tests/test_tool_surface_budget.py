@@ -3,9 +3,7 @@
 The wire tool definitions sit in the model's prompt prefix and are re-sent on every
 request. This asserts metadome-link's own advertised surface stays under budget:
 
-* no tool advertises an ``outputSchema`` (the optional field the model never reads
-  and the single biggest contributor to the fleet's surface -- suppressed via
-  ``@mcp.tool(output_schema=None)``), and
+* every tool advertises its permissive, envelope-compatible ``outputSchema``, and
 * each tool definition stays under the per-tool ceiling and the whole surface under
   the per-server ceiling.
 
@@ -27,12 +25,12 @@ _B1_TOOL_CHARS = 1_200 * _CHARS_PER_TOKEN
 _B2_SERVER_CHARS = 10_000 * _CHARS_PER_TOKEN
 
 
-async def test_no_tool_advertises_output_schema(facade: Any) -> None:
+async def test_every_tool_advertises_output_schema(facade: Any) -> None:
     async with Client(facade) as client:
         tools = await client.list_tools()
     assert tools, "expected the facade to advertise tools"
-    offenders = [t.name for t in tools if t.outputSchema is not None]
-    assert not offenders, f"tools still advertise outputSchema: {offenders}"
+    missing = [t.name for t in tools if t.outputSchema is None]
+    assert not missing, f"tools missing outputSchema: {missing}"
 
 
 async def test_tool_surface_within_budget(facade: Any) -> None:

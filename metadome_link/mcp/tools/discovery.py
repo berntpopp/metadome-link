@@ -16,6 +16,7 @@ from pydantic import Field
 
 from metadome_link.buildinfo import build_info
 from metadome_link.mcp import metrics
+from metadome_link.mcp import schemas as output_schemas
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.capabilities import (
     build_capabilities,
@@ -76,7 +77,7 @@ def register_discovery_tools(mcp: FastMCP) -> None:
         name="get_server_capabilities",
         title="Get Server Capabilities",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=None,
+        output_schema=output_schemas.GET_SERVER_CAPABILITIES_SCHEMA,
         tags={"discovery"},
         description=(
             "Return the metadome-link discovery surface: identity/build/MetaDome data "
@@ -112,7 +113,7 @@ def register_discovery_tools(mcp: FastMCP) -> None:
         name="get_diagnostics",
         title="Get MetaDome Diagnostics",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=None,
+        output_schema=output_schemas.GET_DIAGNOSTICS_SCHEMA,
         tags={"discovery"},
         description=(
             "Report local runtime health WITHOUT calling MetaDome: build info, "

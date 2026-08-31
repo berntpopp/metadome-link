@@ -27,6 +27,7 @@ from metadome_link.constants import (
     MAX_META_DOMAIN_SELECTOR_KEY_CHARS,
     MAX_META_DOMAIN_SELECTOR_POSITIONS_PER_DOMAIN,
 )
+from metadome_link.mcp import schemas as output_schemas
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
 from metadome_link.mcp.next_commands import cmd
@@ -158,7 +159,7 @@ def register_domain_tools(mcp: FastMCP) -> None:
         name="get_protein_domains",
         title="Get Protein Domains",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=None,
+        output_schema=output_schemas.GET_PROTEIN_DOMAINS_SCHEMA,
         tags={"domains"},
         description=(
             "List the Pfam protein domains annotated on a transcript's tolerance "
@@ -194,7 +195,7 @@ def register_domain_tools(mcp: FastMCP) -> None:
         name="get_meta_domain",
         title="Get Meta-Domain Variants",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=None,
+        output_schema=output_schemas.GET_META_DOMAIN_SCHEMA,
         tags={"domains"},
         description=(
             "Return homologous (meta-domain) variant evidence for one residue: "

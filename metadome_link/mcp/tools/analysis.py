@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING, Annotated, Any
 
 from pydantic import Field, StrictInt
 
+from metadome_link.mcp import schemas as output_schemas
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
 from metadome_link.mcp.next_commands import cmd
@@ -66,7 +67,7 @@ def register_analysis_tools(mcp: FastMCP) -> None:
         name="summarize_intolerant_regions",
         title="Summarize Intolerant Regions",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=None,
+        output_schema=output_schemas.SUMMARIZE_INTOLERANT_REGIONS_SCHEMA,
         tags={"analysis"},
         description=(
             "Return the top ranked contiguous intolerant regions of a MetaDome tolerance "

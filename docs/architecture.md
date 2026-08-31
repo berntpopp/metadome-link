@@ -128,7 +128,7 @@ All errors are **returned** (not raised) as a structured envelope:
 | `invalid_input` | Bad/unversioned transcript id, out-of-range position, field validation failure |
 | `not_found` | Unknown gene symbol, landscape not yet built (recovery: request → get landscape) |
 | `ambiguous_query` | Query matches multiple candidates (returns `candidates` list) |
-| `upstream_unavailable` | Invalid schema/empty upstream data is terminal (`retryable:false`); transport, HTTP 5xx, timeout, or Celery FAILURE is transient (`retryable:true`) |
+| `upstream_unavailable` | Invalid schema/empty upstream data and cached Celery `FAILURE` are terminal (`retryable:false`, use `switch_tool`); transport, HTTP 5xx, or timeout is transient (`retryable:true`) |
 | `rate_limited` | Upstream 429 (retryable) |
 | `internal` | Unexpected server-side error |
 

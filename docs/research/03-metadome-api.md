@@ -92,6 +92,7 @@ GET /metadome/api/get_transcripts/GRCh38.p14/TP53
 ```json
 {
   "message": "Retrieved transcripts for gene 'TP53'",
+  "gene_name": "TP53",
   "genome_build": "GRCh38.p14",
   "transcript_ids": [
     {"aa_length": 393, "gencode_id": "ENST00000269305.9", "has_protein_data": true, "mane_transcript_type": "MANE_Select",
@@ -106,6 +107,9 @@ GET /metadome/api/get_transcripts/GRCh38.p14/TP53
   ]
 }
 ```
+
+For a nonempty response, `gene_name` is present and matches the normalized requested
+gene symbol; only a genuinely empty unknown-gene response may omit that echo.
 
 > **v2 key:** `transcript_ids`. The misspelled `trancript_ids` key belongs only to the
 > historical v1 capture and is not accepted by the current client.
@@ -392,7 +396,7 @@ Confirmed live for `TP53` (already cached ⇒ poll returned `SUCCESS` on first c
 |---|---|---|
 | `protein_pos` | int (1-based) | residue position |
 | `chr` | string | e.g. `chr17` |
-| `chr_positions` | string | pretty hg19 genomic span of the codon, `g.<a>-<b>` |
+| `chr_positions` | string | pretty genomic span in the requested build (GRCh37.p13 or GRCh38.p14), `g.<a>-<b>` |
 | `cdna_pos` | string | `c.<a>-<b>` cDNA span of the codon |
 | `strand` | `"+"`/`"-"` | gene strand |
 | `ref_aa`, `ref_aa_triplet` | string | reference residue (1-letter / 3-letter) |

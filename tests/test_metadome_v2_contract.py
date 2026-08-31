@@ -1,9 +1,4 @@
-"""MetaDome v2 live-API and provenance contract.
-
-Captured against the public MetaDome 2.0 service and its Zenodo record on
-2026-08-31.  The build token is part of every upstream operation: omitting the
-``.p14`` suffix returns a plausible HTTP-200 empty transcript list.
-"""
+"""MetaDome v2 live-API and provenance contract tests."""
 
 from __future__ import annotations
 
@@ -17,7 +12,7 @@ from metadome_link.api.client import MetaDomeClient
 from metadome_link.api.models import validate_metadomain_blocks
 from metadome_link.config import ServerSettings
 from metadome_link.constants import DATA_VERSIONS, METADOME_DATA_VERSION
-from metadome_link.exceptions import UpstreamUnavailableError
+from metadome_link.exceptions import UpstreamSchemaError, UpstreamUnavailableError
 
 V2_BASE = "https://www.metadome.app/metadome/api"
 TID = "ENST00000269305.9"
@@ -101,9 +96,9 @@ async def test_every_v2_operation_is_bound_to_the_exact_genome_build() -> None:
     assert await client.get_status(transcript) == "SUCCESS"
     assert (await client.get_result(transcript))["transcript_id"] == transcript
     assert (await client.get_error(transcript))["error"] == "build failed"
-    assert await client.get_metadomain_annotation(transcript, 1, {"PF00870": [35]}) == {}
+    with pytest.raises(UpstreamSchemaError):
+        await client.get_metadomain_annotation(transcript, 1, {"PF00870": [35]})
     await client.aclose()
-
     assert transcript_route.called
     assert status_route.called
     assert result_route.called
@@ -396,6 +391,8 @@ def test_metadomain_numeric_truth_table_accepts_documented_boundaries(
 ) -> None:
     payload = _valid_metadomain()
     payload["PF00870"][variant_kind][0][field] = value
+    if field == "allele_number":
+        payload["PF00870"][variant_kind][0]["allele_count"] = value
     validate_metadomain_blocks(payload)
 
 

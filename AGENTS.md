@@ -51,8 +51,9 @@ is a **first-class success state** (not an error), carrying `poll_after_s` /
   structured errors. **6-code wire error taxonomy**: `invalid_input`, `not_found`,
   `ambiguous_query`, `rate_limited`, `upstream_unavailable`, `internal`.
 - Every `compact` (default) or richer response carries `_meta.next_commands`
-  (ready-to-call follow-ups); `minimal` is the explicit opt-out and returns only
-  `_meta = {tool, request_id}`. `_meta` verbosity is tiered by `response_mode`:
+  (ready-to-call follow-ups); `minimal` is the explicit opt-out and retains the
+  essential answer/identity fields plus `_meta = {tool, request_id, data_versions,
+  unsafe_for_clinical_use}`. `_meta` verbosity is tiered by `response_mode`:
   `compact` keeps `next_commands` + `capabilities_version` but drops `elapsed_ms`;
   `standard`/`full` add `elapsed_ms`.
 - **`_meta.data_versions` is ALWAYS present** and identifies the selected live build

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from metadome_link.mcp import schemas as output_schemas
 from metadome_link.mcp.annotations import COMPUTE_IDEMPOTENT_OPEN_WORLD, READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
 from metadome_link.mcp.next_commands import _more_steps, cmd
@@ -84,7 +85,7 @@ def register_landscape_tools(mcp: FastMCP) -> None:
         # F-11: this POSTs /submit_visualization/ (starts a Celery build) -> NOT
         # read-only. Non-destructive + idempotent (MetaDome dedupes by transcript_id).
         annotations=COMPUTE_IDEMPOTENT_OPEN_WORLD,
-        output_schema=None,
+        output_schema=output_schemas.REQUEST_TOLERANCE_LANDSCAPE_SCHEMA,
         tags={"landscape"},
         description=(
             "Submit (or re-confirm) a MetaDome tolerance-landscape build for a versioned "
@@ -120,7 +121,7 @@ def register_landscape_tools(mcp: FastMCP) -> None:
         name="get_tolerance_landscape",
         title="Get Tolerance Landscape",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=None,
+        output_schema=output_schemas.GET_TOLERANCE_LANDSCAPE_SCHEMA,
         tags={"landscape"},
         description=(
             "Return the (cache-first) MetaDome tolerance landscape for a built transcript: "

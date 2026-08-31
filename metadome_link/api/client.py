@@ -382,9 +382,15 @@ class MetaDomeClient:
             raise UpstreamUnavailableError("MetaDome metadomain had an unexpected shape.")
         unexpected = set(body) - set(requested_domains)
         if unexpected:
-            raise UpstreamUnavailableError(
+            raise UpstreamSchemaError(
                 "MetaDome metadomain returned an unrequested domain.",
                 field=f"metadomain_annotation.{next(iter(unexpected))}",
+            )
+        missing = set(requested_domains) - set(body)
+        if missing:
+            raise UpstreamSchemaError(
+                "MetaDome metadomain omitted a requested domain.",
+                field=f"metadomain_annotation.{next(iter(missing))}",
             )
         validate_metadomain_blocks(body)
         for domain in body.values():

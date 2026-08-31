@@ -278,7 +278,7 @@ compare_positions(transcript_id="ENST00000269305.9", positions=[175, 248, 273])
 
 | Mode | `_meta` | Payload shaping | Use when |
 |------|---------|----------------|----------|
-| `minimal` | `{tool, request_id}` only | Identity anchors only | Token-cheapest; machine parsing |
+| `minimal` | `{tool, request_id, data_versions, unsafe_for_clinical_use}` | Essential answer and identity fields | Token-cheapest; machine parsing |
 | `compact` (default) | + `next_commands`, `capabilities_version`, `data_versions` | Null/empty fields dropped; lists projected to key fields | Normal agent use |
 | `standard` | + `elapsed_ms` | Complete records, structured fields expanded | Debugging |
 | `full` | + `elapsed_ms` | Full records, full domain maps, full variant detail | Detailed review |
@@ -293,7 +293,7 @@ when the payload exceeds budget.
 | `invalid_input` | Bad argument (unversioned ENST, out-of-range position, validation failure) | false |
 | `not_found` | Unknown gene, landscape not yet built, empty result | false |
 | `ambiguous_query` | Query matches multiple candidates (returns `candidates` list) | false |
-| `upstream_unavailable` | Invalid schema/empty upstream data is terminal (`retryable:false`); transport, HTTP 5xx, timeout, or Celery FAILURE is transient (`retryable:true`) | conditional |
+| `upstream_unavailable` | Invalid schema/empty upstream data and cached Celery `FAILURE` are terminal (`retryable:false`, use `switch_tool`); transport, HTTP 5xx, or timeout is transient (`retryable:true`) | conditional |
 | `rate_limited` | MetaDome returned HTTP 429 | true |
 | `internal` | Unexpected server error | false |
 

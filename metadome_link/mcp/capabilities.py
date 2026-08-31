@@ -79,7 +79,7 @@ _SUMMARY_KEYS: tuple[str, ...] = (
 )
 
 #: ``capabilities_version`` is a content hash of the discovery CONTRACT, cached per
-#: MetaDome data version so the per-call envelope echo never re-derives it.
+#: complete immutable MetaDome profile identity so component manifests cannot alias.
 #: ``build`` (per-deploy git sha / timestamp) and the self-hash are excluded so
 #: unrelated redeploys do not churn the value — a warm client diffs it to skip
 #: re-fetching.
@@ -118,7 +118,7 @@ def capabilities_version(
         versions = data_versions
     if data_version is not None:
         resolved_version = data_version
-    key = resolved_version
+    key = json.dumps({"data_version": resolved_version, "data_versions": versions}, sort_keys=True)
     cached = _VERSION_CACHE.get(key)
     if cached is None:
         cached = build_capabilities(data_versions=versions, data_version=resolved_version)[
@@ -144,6 +144,8 @@ def build_capabilities(
     if versions.get("assembly") != resolved_build:
         raise ValueError("data_versions assembly and genome_build must match")
     profile = data_profile(resolved_build)
+    if versions != profile.data_versions:
+        raise ValueError("data_versions do not match the selected immutable profile")
     if data_version is not None and data_version != profile.data_version:
         raise ValueError("data_version and genome_build must identify the same profile")
     version = data_version if data_version is not None else profile.data_version

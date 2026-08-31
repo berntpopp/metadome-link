@@ -214,6 +214,8 @@ def _validate_variant_records(
             for field in _NORMAL_VARIANT_FIELDS:
                 if not is_nonnegative_integer_number(variant[field]):
                     raise _schema_error(f"{item_path}.{field}")
+            if variant["allele_count"] > variant["allele_number"]:
+                raise _schema_error(f"{item_path}.allele_count")
         validated.append(variant)
     return validated
 
@@ -247,6 +249,12 @@ def _validate_position_domains(raw: object, path: str) -> None:
             value = mapping[field]
             if not is_nonnegative_integer_number(value):
                 raise _schema_error(f"{domain_path}.{field}")
+        for subset, total in (
+            ("normal_missense_variant_count", "normal_variant_count"),
+            ("pathogenic_missense_variant_count", "pathogenic_variant_count"),
+        ):
+            if mapping[subset] > mapping[total]:
+                raise _schema_error(f"{domain_path}.{subset}")
         for field in _DOMAIN_OPTIONAL_FIELDS:
             if field not in mapping:
                 continue

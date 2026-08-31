@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from metadome_link.mcp import schemas as output_schemas
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
 from metadome_link.mcp.next_commands import _more_steps, cmd
@@ -139,7 +140,7 @@ def register_position_tools(mcp: FastMCP) -> None:
         name="get_position_tolerance",
         title="Get Position Tolerance",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=None,
+        output_schema=output_schemas.GET_POSITION_TOLERANCE_SCHEMA,
         tags={"positions"},
         description=(
             "Return one residue's missense tolerance (sw_dn_ds + sliding-window coverage), "
@@ -178,7 +179,7 @@ def register_position_tools(mcp: FastMCP) -> None:
         name="get_variant_counts",
         title="Get Variant Counts",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=None,
+        output_schema=output_schemas.GET_VARIANT_COUNTS_SCHEMA,
         tags={"positions"},
         description=(
             "Return residue-level ClinVar annotations and explicitly-labelled Pfam homolog "
@@ -245,7 +246,7 @@ def register_position_tools(mcp: FastMCP) -> None:
         name="compare_positions",
         title="Compare Positions",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=None,
+        output_schema=output_schemas.COMPARE_POSITIONS_SCHEMA,
         tags={"positions"},
         description=(
             "Return a side-by-side tolerance table (sw_dn_ds, ref_aa, domain ids, explicitly "

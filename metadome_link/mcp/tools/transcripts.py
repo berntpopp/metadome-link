@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from metadome_link.mcp import schemas as output_schemas
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
 from metadome_link.mcp.next_commands import cmd
@@ -63,7 +64,7 @@ def register_transcript_tools(mcp: FastMCP) -> None:
         name="resolve_transcript",
         title="Resolve Gene or Transcript ID",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=None,
+        output_schema=output_schemas.RESOLVE_TRANSCRIPT_SCHEMA,
         tags={"transcripts"},
         description=(
             "Resolve a gene symbol or versioned Ensembl transcript id to MetaDome "
