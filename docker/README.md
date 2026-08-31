@@ -17,19 +17,19 @@ immediately and the SQLite result cache populates lazily as requests arrive.
 
 MetaDome computes tolerance landscapes asynchronously (Celery workers, cold
 builds can take up to ~1 hour for large transcripts). metadome-link caches
-completed landscapes on disk in `/app/data/metadome_cache.sqlite` so repeat
+completed landscapes on disk in `/data/metadome_cache.sqlite` so repeat
 requests are instant. The cache is keyed by `(transcript_id, data_version)`;
 the data version is selected by `METADOME_LINK_METADOME__GENOME_BUILD` and is fixed to
 one of the reviewed profiles (`GRCh37.p13` or `GRCh38.p14`).
 
 ## Volume
 
-Mount a named volume at `/app/data` so the SQLite result cache persists across
+Mount a named volume at `/data` so the SQLite result cache persists across
 container restarts:
 
 ```yaml
 volumes:
-  - metadome-data:/app/data
+  - metadome-data:/data
 ```
 
 The entrypoint creates the directory automatically on first boot.

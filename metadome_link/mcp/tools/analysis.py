@@ -69,15 +69,7 @@ def register_analysis_tools(mcp: FastMCP) -> None:
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.SUMMARIZE_INTOLERANT_REGIONS_SCHEMA,
         tags={"analysis"},
-        description=(
-            "Return the top ranked contiguous intolerant regions of a MetaDome tolerance "
-            "landscape, each annotated with overlapping Pfam domain ids and explicitly scoped "
-            "variant evidence. Regions are stretches of consecutive residues "
-            "with sw_dn_ds below `threshold` (length >= `min_run`), ranked by mean "
-            "sw_dn_ds ascending (most constrained first). "
-            "Signature: summarize_intolerant_regions(transcript_id, threshold=0.5, "
-            "min_run=3, top_n=15, response_mode='compact')."
-        ),
+        description="Rank contiguous intolerant regions below threshold and annotate domains and evidence.",
     )
     async def summarize_intolerant_regions(
         transcript_id: TranscriptIdArg,

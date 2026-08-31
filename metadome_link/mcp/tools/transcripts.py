@@ -67,14 +67,8 @@ def register_transcript_tools(mcp: FastMCP) -> None:
         output_schema=output_schemas.RESOLVE_TRANSCRIPT_SCHEMA,
         tags={"transcripts"},
         description=(
-            "Resolve a gene symbol or versioned Ensembl transcript id to MetaDome "
-            "MetaDome transcript candidate(s). A gene symbol returns all transcripts "
-            "sorted by protein length (aa_length descending), preferring an analyzable "
-            "MANE Select entry as canonical and otherwise the longest analyzable "
-            "protein-coding entry. A bare ENST id (version suffix "
-            "required) is validated and echoed directly. Use the canonical_transcript_id "
-            "with request_tolerance_landscape to start a tolerance-landscape build. "
-            "Signature: resolve_transcript(query=, response_mode=)."
+            "Resolve a gene symbol or versioned Ensembl transcript id to candidates; "
+            "use canonical_transcript_id to request a landscape build."
         ),
     )
     async def resolve_transcript(

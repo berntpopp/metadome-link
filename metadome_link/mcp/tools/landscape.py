@@ -87,13 +87,7 @@ def register_landscape_tools(mcp: FastMCP) -> None:
         annotations=COMPUTE_IDEMPOTENT_OPEN_WORLD,
         output_schema=output_schemas.REQUEST_TOLERANCE_LANDSCAPE_SCHEMA,
         tags={"landscape"},
-        description=(
-            "Submit (or re-confirm) a MetaDome tolerance-landscape build for a versioned "
-            "transcript and return a poll handle. status='ready' means the landscape is "
-            "pre-built; status='processing' means a cold build is running (up to ~1 hour) -- "
-            "poll get_tolerance_landscape with poll_after_s until it is ready. Idempotent. "
-            "Signature: request_tolerance_landscape(transcript_id=, response_mode=)."
-        ),
+        description="Submit or re-confirm an idempotent landscape build and return its poll status.",
     )
     async def request_tolerance_landscape(
         transcript_id: TranscriptIdArg,
@@ -123,15 +117,7 @@ def register_landscape_tools(mcp: FastMCP) -> None:
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_TOLERANCE_LANDSCAPE_SCHEMA,
         tags={"landscape"},
-        description=(
-            "Return the (cache-first) MetaDome tolerance landscape for a built transcript: "
-            "Pfam domains plus the paginated per-residue positional_annotation (sw_dn_ds "
-            "tolerance and upstream annotations). Optional position_start/position_stop slice an "
-            "inclusive residue range. If the build is still running this returns a "
-            "first-class status='processing' success -- poll again after poll_after_s. "
-            "Signature: get_tolerance_landscape(transcript_id=, position_start=, "
-            "position_stop=, limit=, offset=, response_mode=)."
-        ),
+        description="Return a built landscape with Pfam domains and paginated residue annotations.",
     )
     async def get_tolerance_landscape(
         transcript_id: TranscriptIdArg,

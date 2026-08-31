@@ -76,6 +76,7 @@ _SUMMARY_KEYS: tuple[str, ...] = (
     "error_codes",
     "limits",
     "read_only",
+    "tool_modes",
 )
 
 #: ``capabilities_version`` is a content hash of the discovery CONTRACT, cached per
@@ -186,7 +187,13 @@ def build_capabilities(
             "default_page_limit": DEFAULT_PAGE_LIMIT,
             "max_page_limit": MAX_PAGE_LIMIT,
         },
-        "read_only": True,
+        # The aggregate is mixed: request_tolerance_landscape can submit a
+        # build, while all other tools only read cached/upstream data.
+        "read_only": False,
+        "tool_modes": {
+            "read_only": [tool for tool in TOOLS if tool != "request_tolerance_landscape"],
+            "compute_orchestration": ["request_tolerance_landscape"],
+        },
         "async_model": (
             "MetaDome computes tolerance landscapes asynchronously (Celery). Popular "
             "transcripts (e.g. TP53) are pre-built and return status='ready' immediately; "

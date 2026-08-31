@@ -22,6 +22,9 @@ Call this first in a cold session, or read `metadome://capabilities`.
 
 #### `get_diagnostics(response_mode="compact")`
 
+Returns local build, cache, metrics, and pinned data-version diagnostics only; it
+does not probe or claim MetaDome upstream reachability.
+
 Runtime health without calling MetaDome: build info (git sha), cache stats (on-disk + LRU
 sizes, pinned data version), metrics snapshot (request/error counts + p50/p95/p99 latency),
 data versions, capabilities hash. Use to confirm cache state or diagnose a misconfigured server.

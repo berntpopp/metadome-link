@@ -7,6 +7,9 @@
 
 DOCKER_COMPOSE := $(shell if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then echo "docker compose"; elif command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
 COMPOSE := $(DOCKER_COMPOSE) -f docker/docker-compose.yml $(shell [ -f docker/.env ] && echo "--env-file docker/.env")
+APP_VERSION ?= $(shell sed -n 's/^version = "\([^"]*\)"/\1/p' pyproject.toml | head -1)
+VCS_REF ?= $(shell git rev-parse HEAD)
+BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 
 .DEFAULT_GOAL := help
 
@@ -92,7 +95,7 @@ mcp-serve: ## Start local stdio MCP server
 	uv run python mcp_server.py
 
 docker-build: ## Build Docker image
-	$(COMPOSE) build
+	$(COMPOSE) build --build-arg APP_VERSION=$(APP_VERSION) --build-arg VCS_REF=$(VCS_REF) --build-arg BUILD_DATE=$(BUILD_DATE)
 
 docker-up: ## Start Docker stack (random free host port; see docker/.env)
 	$(COMPOSE) up -d

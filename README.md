@@ -5,7 +5,7 @@
 [![Conformance](https://github.com/berntpopp/metadome-link/actions/workflows/conformance.yml/badge.svg)](https://github.com/berntpopp/metadome-link/actions/workflows/conformance.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-A read-only **MCP** server (Streamable HTTP or stdio) that wraps the
+A **MCP** server (Streamable HTTP or stdio) that wraps the
 [MetaDome](https://www.metadome.app/metadome/) web service (Wiel et al., *Human Mutation*
 2019) and exposes, for any human transcript: the per-residue missense **tolerance landscape**
 (`sw_dn_ds`), **Pfam domain** annotations, **meta-domain** homolog variant aggregation, and
@@ -75,7 +75,7 @@ Health check: `curl localhost:8000/health`. Cache state: `make cache-status`.
 | `get_meta_domain` | Homolog drill-down: gnomAD and ClinVar variants at the aligned consensus position across the Pfam family |
 | `summarize_intolerant_regions` | Rank constrained runs, with Pfam overlap and scoped variant evidence |
 | `get_server_capabilities` | Discovery surface: tool list, data versions, workflows, error codes, limits |
-| `get_diagnostics` | Runtime health: build info, cache stats, metrics, upstream reachability |
+| `get_diagnostics` | Local diagnostics: build info, cache stats, metrics, and pinned data versions (no upstream probe) |
 
 Leaf names are **unprefixed** per Tool-Naming Standard v1 — namespacing is the gateway's job.
 This server's `serverInfo.name` is `metadome-link`; behind `genefoundry-router` it mounts under
@@ -99,7 +99,7 @@ raise that limit to chase a slow response — a cold build is slow upstream, not
 **Refresh model.** Unlike most fleet siblings there is **no bulk dump and no ingest step**.
 This is a live-API proxy plus a persistent on-disk SQLite result cache
 (`data/metadome_cache.sqlite`), keyed `(transcript_id, metadome_data_version)`, so completed
-landscapes survive restarts. In Docker, mount a volume at `/app/data`.
+landscapes survive restarts. In Docker, mount a volume at `/data`.
 
 **Data currency — read this before interpreting a number.** This client pins the reviewed
 MetaDome 2.0 Zenodo snapshot ([DOI](https://doi.org/10.5281/zenodo.19376150)). The supported

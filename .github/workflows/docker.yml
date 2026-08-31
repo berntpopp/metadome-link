@@ -55,4 +55,8 @@ jobs:
       # is populated lazily from the live MetaDome API at request time.
       # No registry push here.
       - name: Build
-        run: docker build -f docker/Dockerfile -t metadome-link:ci .
+        run: >-
+          docker build -f docker/Dockerfile -t metadome-link:ci
+          --build-arg APP_VERSION=$(sed -n 's/^version = "\([^"]*\)"/\1/p' pyproject.toml | head -1)
+          --build-arg VCS_REF=${GITHUB_SHA}
+          --build-arg BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ) .

@@ -380,7 +380,6 @@ async def test_get_landscape_processing_path(cache: ResultCache) -> None:
     settings.metadome.poll_soft_deadline_s = 0.05
     svc = _make_service(cache, settings)
     out = await svc.get_landscape(TID, limit=200, offset=0, response_mode="compact")
-    assert out["success"] is True
     assert out["status"] == "processing"
     assert out["transcript_id"] == TID
     assert out["poll_after_s"] > 0

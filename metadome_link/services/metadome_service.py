@@ -18,7 +18,7 @@ from metadome_link.identifiers import (
     validate_transcript_id,
 )
 from metadome_link.services.citation import recommended_citation
-from metadome_link.services.landscape import slice_positions
+from metadome_link.services.landscape import slice_positions, validate_landscape_range
 from metadome_link.services.landscape_views import (
     compare_positions_view,
     get_domains_view,
@@ -47,6 +47,7 @@ _COLD_BUILD_WARNING = (
     "A cold MetaDome build can take up to ~1 hour; poll get_tolerance_landscape "
     "with the given poll_after_s until status is no longer 'processing'."
 )
+
 
 #: In-progress -> ready statuses mapped onto the request handle response.
 _READY_STATUS = "SUCCESS"
@@ -249,7 +250,6 @@ class MetaDomeService:
             )
             if state == "processing":
                 return {
-                    "success": True,
                     "status": "processing",
                     "transcript_id": tid,
                     "poll_after_s": self._poll_after_s(),
@@ -262,6 +262,7 @@ class MetaDomeService:
             landscape = validate_polled_landscape(result, tid)
             self._cache.put_result(tid, landscape)
 
+        validate_landscape_range(landscape, position_start, position_stop)
         if position_start is not None and position_stop is not None:
             entries = slice_positions(landscape, position_start, position_stop)
             page, block = paginate(entries, limit=limit, offset=offset)
@@ -334,6 +335,7 @@ class MetaDomeService:
         require_position_xor(position, position_start, position_stop)
         tid = validate_transcript_id(transcript_id)
         landscape = await self._require_landscape(tid)
+        validate_landscape_range(landscape, position_start, position_stop)
         return self._stamp_caveat(
             get_variant_counts_view(
                 landscape,

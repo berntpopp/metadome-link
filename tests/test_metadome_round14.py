@@ -134,7 +134,8 @@ def test_docker_build_metadata_reaches_runtime_environment() -> None:
 def test_output_schemas_reject_known_shape_mismatches() -> None:
     import jsonschema
 
-    jsonschema.validate({"success": True, "domains": {}}, schemas.GET_POSITION_TOLERANCE_SCHEMA)
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate({"success": True, "domains": {}}, schemas.GET_POSITION_TOLERANCE_SCHEMA)
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(
             {"success": True, "domain_ids": []}, schemas.GET_POSITION_TOLERANCE_SCHEMA

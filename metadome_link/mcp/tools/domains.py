@@ -78,7 +78,6 @@ DomainsArg = Annotated[
             "512 positions and 16 KiB encoded request; Pfam ids are 1.."
             f"{MAX_META_DOMAIN_SELECTOR_KEY_CHARS} characters."
         ),
-        examples=[{"PF00870": [81]}],
     ),
 ]
 
@@ -161,13 +160,7 @@ def register_domain_tools(mcp: FastMCP) -> None:
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_PROTEIN_DOMAINS_SCHEMA,
         tags={"domains"},
-        description=(
-            "List the Pfam protein domains annotated on a transcript's tolerance "
-            "landscape: each domain's ID, Name, start/stop residues, whether a "
-            "meta-domain (homologous) mapping exists, and its alignment depth. "
-            "Requires a built landscape (call request_tolerance_landscape first). "
-            "Signature: get_protein_domains(transcript_id=, response_mode=)."
-        ),
+        description="List Pfam domains and homologous mapping metadata for a built landscape.",
     )
     async def get_protein_domains(
         transcript_id: TranscriptIdArg,
@@ -197,16 +190,7 @@ def register_domain_tools(mcp: FastMCP) -> None:
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_META_DOMAIN_SCHEMA,
         tags={"domains"},
-        description=(
-            "Return homologous (meta-domain) variant evidence for one residue: "
-            "gnomAD normal_variants and ClinVar pathogenic_variants observed at the "
-            "aligned consensus position across the residue's Pfam domain family, each "
-            "carrying its homolog gene_name. Omit `domains` to derive the selector "
-            "from the residue's cached domain mapping; a residue with no meta-domain "
-            "returns empty lists (not an error). Requires a built landscape. "
-            "Signature: get_meta_domain(transcript_id=, position=, domains=, limit=, "
-            "offset=, response_mode=)."
-        ),
+        description="Return paginated homologous meta-domain variants for one built-landscape residue.",
     )
     async def get_meta_domain(
         transcript_id: TranscriptIdArg,

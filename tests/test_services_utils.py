@@ -9,6 +9,8 @@ import json
 
 import pytest
 
+from metadome_link.constants import RECOMMENDED_CITATION
+
 # ---------------------------------------------------------------------------
 # pagination tests
 # ---------------------------------------------------------------------------
@@ -354,7 +356,7 @@ def test_recommended_citation_with_transcript_id_appended() -> None:
 
     cit = recommended_citation(transcript_id="ENST00000269305.9")
     assert "humu.23798" in cit
-    assert "Transcript ENST00000269305.9" in cit
+    assert cit == RECOMMENDED_CITATION
 
 
 def test_recommended_citation_with_gene_name() -> None:
@@ -369,7 +371,7 @@ def test_recommended_citation_transcript_and_gene() -> None:
     from metadome_link.services.citation import recommended_citation
 
     cit = recommended_citation(transcript_id="ENST00000269305.9", gene_name="TP53")
-    assert "Transcript ENST00000269305.9" in cit
+    assert cit == RECOMMENDED_CITATION
 
 
 def test_citation_template_is_string() -> None:

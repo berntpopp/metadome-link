@@ -52,6 +52,7 @@ _SUMMARY_KEYS: tuple[str, ...] = (
     "error_codes",
     "limits",
     "read_only",
+    "tool_modes",
 )
 
 
@@ -79,14 +80,7 @@ def register_discovery_tools(mcp: FastMCP) -> None:
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_SERVER_CAPABILITIES_SCHEMA,
         tags={"discovery"},
-        description=(
-            "Return the metadome-link discovery surface: identity/build/MetaDome data "
-            "version, the frozen tool list, response modes, recommended workflows, the "
-            "error taxonomy, and limits. detail='full' adds the score/async semantics "
-            "and policy notes. Call this first in a cold session, or read "
-            "metadome://capabilities / metadome://tools. "
-            "Signature: get_server_capabilities(detail=, response_mode=)."
-        ),
+        description="Return server identity, pinned data versions, tools, modes, limits, and policy.",
     )
     async def get_server_capabilities(
         detail: Annotated[
@@ -115,14 +109,7 @@ def register_discovery_tools(mcp: FastMCP) -> None:
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_DIAGNOSTICS_SCHEMA,
         tags={"discovery"},
-        description=(
-            "Report local runtime health WITHOUT calling MetaDome: build info, "
-            "result-cache stats (on-disk + LRU sizes, pinned data version), the runtime "
-            "metrics snapshot (request/error counts + latency percentiles), the data "
-            "versions, and the capabilities hash. Use this to confirm cache state or "
-            "diagnose a misconfigured server. "
-            "Signature: get_diagnostics(response_mode=)."
-        ),
+        description="Report local build, cache, metrics, data-version, and capabilities health without egress.",
     )
     async def get_diagnostics(
         response_mode: ResponseMode = "compact",

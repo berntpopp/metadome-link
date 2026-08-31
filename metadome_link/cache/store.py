@@ -31,7 +31,7 @@ import typer
 
 from metadome_link.api.response import parse_json_text
 from metadome_link.config import settings
-from metadome_link.constants import METADOME_DATA_VERSION
+from metadome_link.constants import METADOME_DATA_VERSION, data_profile
 from metadome_link.exceptions import UpstreamSchemaError
 
 # ---------------------------------------------------------------------------
@@ -281,7 +281,8 @@ app = typer.Typer(
 @app.command()
 def status() -> None:
     """Print cache statistics (on-disk count, LRU size, data version)."""
-    cache = ResultCache()
+    profile = data_profile(settings.metadome.genome_build)
+    cache = ResultCache(data_version=profile.data_version)
     try:
         s = cache.stats()
     finally:
@@ -298,7 +299,8 @@ def clear(
     """Clear all cached results for the current data version."""
     if not yes:
         typer.confirm("This will delete all cached results. Continue?", abort=True)
-    cache = ResultCache()
+    profile = data_profile(settings.metadome.genome_build)
+    cache = ResultCache(data_version=profile.data_version)
     try:
         count = cache.clear()
     finally:

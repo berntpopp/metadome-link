@@ -4,7 +4,7 @@
 # metadome-link is a read-only proxy over the MetaDome web API
 # (https://www.metadome.app/metadome/api). The image ships NO bulk data —
 # the SQLite result cache is populated lazily from the live API at request time
-# and persisted in the /app/data volume across container restarts. On first boot
+# and persisted in the /data volume across container restarts. On first boot
 # the entrypoint simply sets up the data directory and starts the unified server.
 
 FROM python:3.14-slim@sha256:cea0e6040540fb2b965b6e7fb5ffa00871e632eef63719f0ea54bca189ce14a6 AS builder

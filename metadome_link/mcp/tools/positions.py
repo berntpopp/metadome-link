@@ -142,13 +142,7 @@ def register_position_tools(mcp: FastMCP) -> None:
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_POSITION_TOLERANCE_SCHEMA,
         tags={"positions"},
-        description=(
-            "Return one residue's missense tolerance (sw_dn_ds + sliding-window coverage), "
-            "its Pfam/meta-domain membership, and explicitly scoped variant evidence on a built "
-            "tolerance landscape. Out-of-range positions raise invalid_input; a not-yet-built "
-            "landscape raises not_found (request_tolerance_landscape first). "
-            "Signature: get_position_tolerance(transcript_id=, position=, response_mode=)."
-        ),
+        description="Return one residue's tolerance, domain membership, and scoped variant evidence.",
     )
     async def get_position_tolerance(
         transcript_id: TranscriptIdArg,
@@ -181,15 +175,7 @@ def register_position_tools(mcp: FastMCP) -> None:
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_VARIANT_COUNTS_SCHEMA,
         tags={"positions"},
-        description=(
-            "Return residue-level ClinVar annotations and explicitly-labelled Pfam homolog "
-            "aggregates on a built landscape, filtered by source (both|gnomad|clinvar). "
-            "MetaDome has no true residue-level gnomAD count, so it is marked unavailable, "
-            "never zero. Accepts one position, an inclusive range, or the whole protein "
-            "(paginated); ClinVar variants include NCBI urls. "
-            "Signature: get_variant_counts(transcript_id=, position=, position_start=, "
-            "position_stop=, source=, limit=, offset=, response_mode=)."
-        ),
+        description="Return paginated ClinVar and labelled Pfam homolog aggregates for positions or ranges.",
     )
     async def get_variant_counts(
         transcript_id: TranscriptIdArg,
@@ -248,14 +234,7 @@ def register_position_tools(mcp: FastMCP) -> None:
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.COMPARE_POSITIONS_SCHEMA,
         tags={"positions"},
-        description=(
-            "Return a side-by-side tolerance table (sw_dn_ds, ref_aa, domain ids, explicitly "
-            "scoped variant evidence) for a batch of residue positions on a built landscape. "
-            "Out-of-range "
-            "positions get a per-item error row -- the whole batch never fails for one bad "
-            "position; the batch size is capped. "
-            "Signature: compare_positions(transcript_id=, positions=, response_mode=)."
-        ),
+        description="Compare multiple protein positions with tolerance and scoped variant evidence.",
     )
     async def compare_positions(
         transcript_id: TranscriptIdArg,

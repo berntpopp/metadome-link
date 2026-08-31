@@ -97,11 +97,11 @@ def test_build_capabilities_server_name() -> None:
 
 
 def test_build_capabilities_read_only() -> None:
-    """read_only must be True."""
+    """Aggregate discovery advertises the compute-orchestration tool."""
     from metadome_link.mcp.capabilities import build_capabilities
 
     caps = build_capabilities()
-    assert caps["read_only"] is True
+    assert caps["read_only"] is False
 
 
 def test_build_capabilities_research_use_only() -> None:

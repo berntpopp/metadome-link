@@ -4,7 +4,7 @@
 
 The image starts the unified server (FastAPI `/health` + MCP `/mcp`) on port 8000
 immediately — there is no bulk-ingest step. The result cache warms lazily as landscapes
-are requested. Mount a persistent volume at `/app/data` so cached landscapes survive
+are requested. Mount a persistent volume at `/data` so cached landscapes survive
 container restarts.
 
 ```bash
@@ -92,7 +92,7 @@ by a token bucket (default 3.0 req/s, burst 5) with retries on 429/5xx/timeout. 
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `METADOME_LINK_CACHE__DB_PATH` | `data/metadome_cache.sqlite` | On-disk SQLite result cache path. Inside Docker, set to `/app/data/metadome_cache.sqlite`. |
+| `METADOME_LINK_CACHE__DB_PATH` | `data/metadome_cache.sqlite` | On-disk SQLite result cache path. Inside Docker, set to `/data/metadome_cache.sqlite`. |
 | `METADOME_LINK_CACHE__TTL_TRANSCRIPTS_S` | `21600` | Strict integer 0..604800; TTL for transcript list cache (0 disables). |
 | `METADOME_LINK_CACHE__LRU_RESULTS` | `64` | Strict integer 0..4096; in-memory LRU size for completed landscapes (0 disables). |
 | `METADOME_LINK_CACHE__LRU_TRANSCRIPTS` | `256` | Strict integer 0..4096; in-memory LRU size for transcript lists (0 disables). |
@@ -192,7 +192,7 @@ namespaces are rejected.
 
 ## Production checklist
 
-- [ ] Mount a named Docker volume at `/app/data` (cache survives restarts).
+- [ ] Mount a named Docker volume at `/data` (cache survives restarts).
 - [ ] Set `METADOME_LINK_LOG_FORMAT=json` for structured log ingestion.
 - [ ] Set `METADOME_LINK_HOST=0.0.0.0` (default in Docker; use `127.0.0.1` behind a
   reverse proxy without Docker networking).

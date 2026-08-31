@@ -118,6 +118,35 @@ def slice_positions(landscape: dict[str, Any], start: int, stop: int) -> list[di
     ]
 
 
+def validate_landscape_range(
+    landscape: dict[str, Any], start: int | None, stop: int | None
+) -> None:
+    """Reject a syntactically valid range outside the loaded protein bounds."""
+    if start is None or stop is None:
+        return
+    entries = landscape.get("positional_annotation")
+    positions: list[int] = []
+    if isinstance(entries, list):
+        for item in entries:
+            value = item.get("protein_pos") if isinstance(item, dict) else None
+            if type(value) is int:
+                positions.append(value)
+    raw_upper = landscape.get("aa_length")
+    upper = raw_upper if type(raw_upper) is int and raw_upper >= 1 else max(positions, default=0)
+    if start > upper:
+        raise InvalidInputError(
+            f"position_start {start} is outside the protein bounds [1, {upper}].",
+            field="position_start",
+            hint=f"Use position_start in [1, {upper}].",
+        )
+    if stop > upper:
+        raise InvalidInputError(
+            f"position_stop {stop} is outside the protein bounds [1, {upper}].",
+            field="position_stop",
+            hint=f"Use position_stop in [1, {upper}].",
+        )
+
+
 def domains_for_position(landscape: dict[str, Any], pos: int) -> dict[str, list[int]]:
     """Derive ``{PfamID: [consensus_pos, ...]}`` for the residue at *pos*.
 
