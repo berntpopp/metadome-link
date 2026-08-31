@@ -14,6 +14,7 @@ import pytest
 import respx
 
 from metadome_link.api.client import MetaDomeClient
+from metadome_link.api.models import validate_metadomain_blocks
 from metadome_link.config import ServerSettings
 from metadome_link.constants import DATA_VERSIONS, METADOME_DATA_VERSION
 from metadome_link.exceptions import UpstreamUnavailableError
@@ -349,6 +350,51 @@ async def test_metadomain_nested_schema_drift_is_typed_upstream_error(mutate: ob
     assert exc_info.value.extra["field"].startswith("PF00870")
     assert exc_info.value.retryable is False
     await client.aclose()
+
+
+@pytest.mark.parametrize(
+    ("variant_kind", "field", "value"),
+    [
+        ("normal_variants", "allele_count", -1.0),
+        ("normal_variants", "allele_count", True),
+        ("normal_variants", "allele_count", 1.5),
+        ("normal_variants", "allele_number", -1.0),
+        ("normal_variants", "allele_number", False),
+        ("normal_variants", "allele_number", 1.5),
+        ("pathogenic_variants", "clinvar_ID", 0.0),
+        ("pathogenic_variants", "clinvar_ID", -1.0),
+        ("pathogenic_variants", "clinvar_ID", True),
+        ("pathogenic_variants", "clinvar_ID", 1.5),
+        ("pathogenic_variants", "clinvar_ID", "6527"),
+    ],
+)
+def test_metadomain_numeric_truth_table_rejects_invalid_values(
+    variant_kind: str, field: str, value: object
+) -> None:
+    payload = _valid_metadomain()
+    payload["PF00870"][variant_kind][0][field] = value
+    with pytest.raises(UpstreamUnavailableError) as exc_info:
+        validate_metadomain_blocks(payload)
+    assert exc_info.value.extra["field"].startswith(f"PF00870.{variant_kind}[0].{field}")
+
+
+@pytest.mark.parametrize(
+    ("variant_kind", "field", "value"),
+    [
+        ("normal_variants", "allele_count", 0),
+        ("normal_variants", "allele_count", 0.0),
+        ("normal_variants", "allele_number", 0),
+        ("normal_variants", "allele_number", 0.0),
+        ("pathogenic_variants", "clinvar_ID", 1),
+        ("pathogenic_variants", "clinvar_ID", 1.0),
+    ],
+)
+def test_metadomain_numeric_truth_table_accepts_documented_boundaries(
+    variant_kind: str, field: str, value: object
+) -> None:
+    payload = _valid_metadomain()
+    payload["PF00870"][variant_kind][0][field] = value
+    validate_metadomain_blocks(payload)
 
 
 @pytest.mark.parametrize("consensus", [None, "bad", [], [1, "bad"], [0], [None]])

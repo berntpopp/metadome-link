@@ -140,8 +140,29 @@ def _is_finite_number(value: object) -> bool:
 def _is_valid_clinvar_id(value: object) -> bool:
     """Accept the numeric forms emitted by the two upstream v2 endpoints."""
     if isinstance(value, str):
-        return bool(value) and all("0" <= character <= "9" for character in value)
-    return _is_finite_number(value) and (not isinstance(value, float) or value.is_integer())
+        return (
+            bool(value)
+            and all("0" <= character <= "9" for character in value)
+            and bool(value.lstrip("0"))
+        )
+    return _is_integer_at_least(value, 1)
+
+
+def _is_finite_integer(value: object) -> bool:
+    """Accept an integer or integer-valued finite float, excluding booleans."""
+    return _is_finite_number(value) and (
+        isinstance(value, int) or (isinstance(value, float) and value.is_integer())
+    )
+
+
+def _is_nonnegative_integer_number(value: object) -> bool:
+    """Validate count values represented as JSON integers or integral floats."""
+    return _is_integer_at_least(value, 0)
+
+
+def _is_integer_at_least(value: object, minimum: int) -> bool:
+    """Check an integral finite numeric value against an inclusive lower bound."""
+    return _is_finite_integer(value) and isinstance(value, (int, float)) and value >= minimum
 
 
 def _validate_variant_records(
@@ -164,7 +185,9 @@ def _validate_variant_records(
             raise _schema_error(item_path)
         for field, types in _METADOMAIN_VARIANT_FIELDS.items():
             value = variant[field]
-            if not isinstance(value, types) or (field == "pos" and isinstance(value, bool)):
+            if not isinstance(value, types) or (
+                field in {"pos", "protein_pos"} and isinstance(value, bool)
+            ):
                 raise _schema_error(f"{item_path}.{field}")
         if not isinstance(variant["pos"], int) or variant["pos"] < 1:
             raise _schema_error(f"{item_path}.pos")
@@ -172,11 +195,11 @@ def _validate_variant_records(
             raise _schema_error(f"{item_path}.protein_pos")
         if pathogenic:
             clinvar_id = variant["clinvar_ID"]
-            if not _is_valid_clinvar_id(clinvar_id):
+            if not _is_integer_at_least(clinvar_id, 1):
                 raise _schema_error(f"{item_path}.clinvar_ID")
         else:
             for field in _NORMAL_VARIANT_FIELDS:
-                if not _is_finite_number(variant[field]):
+                if not _is_nonnegative_integer_number(variant[field]):
                     raise _schema_error(f"{item_path}.{field}")
         validated.append(variant)
     return validated
