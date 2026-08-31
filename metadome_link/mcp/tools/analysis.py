@@ -16,7 +16,7 @@ from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
 from metadome_link.mcp.next_commands import cmd
 from metadome_link.mcp.service_adapters import get_metadome_service
-from metadome_link.mcp.tools._common import ResponseMode, TranscriptIdArg
+from metadome_link.mcp.tools._common import ResponseMode, ThresholdArg, TranscriptIdArg
 
 if TYPE_CHECKING:
     from fastmcp import FastMCP
@@ -80,17 +80,7 @@ def register_analysis_tools(mcp: FastMCP) -> None:
     )
     async def summarize_intolerant_regions(
         transcript_id: TranscriptIdArg,
-        threshold: Annotated[
-            float,
-            Field(
-                gt=0.0,
-                le=2.0,
-                description=(
-                    "sw_dn_ds threshold (exclusive upper bound) for intolerant residues "
-                    "(default 0.5). Lower values identify only the most constrained positions."
-                ),
-            ),
-        ] = 0.5,
+        threshold: ThresholdArg = 0.5,
         min_run: Annotated[
             StrictInt,
             Field(

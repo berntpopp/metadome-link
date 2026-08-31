@@ -17,9 +17,7 @@ envelope. The success-path ``_meta.next_commands`` are built locally by the
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Any
-
-from pydantic import Field, StrictInt
+from typing import TYPE_CHECKING, Any
 
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
@@ -28,6 +26,7 @@ from metadome_link.mcp.service_adapters import get_metadome_service
 from metadome_link.mcp.tools._common import (
     LimitArg,
     OffsetArg,
+    OptionalPositionArg,
     PositionArg,
     PositionsArg,
     ResponseMode,
@@ -193,15 +192,9 @@ def register_position_tools(mcp: FastMCP) -> None:
     )
     async def get_variant_counts(
         transcript_id: TranscriptIdArg,
-        position: Annotated[
-            StrictInt | None, Field(ge=1, description="A single 1-based residue position.")
-        ] = None,
-        position_start: Annotated[
-            StrictInt | None, Field(ge=1, description="Inclusive start of a residue range.")
-        ] = None,
-        position_stop: Annotated[
-            StrictInt | None, Field(ge=1, description="Inclusive stop of a residue range.")
-        ] = None,
+        position: OptionalPositionArg = None,
+        position_start: OptionalPositionArg = None,
+        position_stop: OptionalPositionArg = None,
         source: SourceArg = "both",
         limit: LimitArg = 200,
         offset: OffsetArg = 0,

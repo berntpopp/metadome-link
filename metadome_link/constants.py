@@ -136,6 +136,11 @@ MAX_BATCH_POSITIONS = 50
 #: Maximum genomic/consensus coordinate accepted by finite schema validators.
 MAX_GENOMIC_POSITION = 1_000_000_000
 
+#: Maximum 1-based protein coordinate accepted by request and response validators.
+#: One million residues is well above known protein lengths while bounding all
+#: protein-coordinate arithmetic and serialized payloads to a finite domain.
+MAX_PROTEIN_POSITION = 1_000_000
+
 #: Bounds on caller-supplied endpoint-6 domain selectors.  These keep both the
 #: selector map and its serialised upstream request finite before any network
 #: operation is attempted.

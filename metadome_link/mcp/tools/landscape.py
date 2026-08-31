@@ -13,9 +13,7 @@ per-position / domain / analysis tools.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Any
-
-from pydantic import Field, StrictInt
+from typing import TYPE_CHECKING, Any
 
 from metadome_link.mcp.annotations import COMPUTE_IDEMPOTENT_OPEN_WORLD, READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
@@ -24,6 +22,7 @@ from metadome_link.mcp.service_adapters import get_metadome_service
 from metadome_link.mcp.tools._common import (
     LimitArg,
     OffsetArg,
+    OptionalPositionArg,
     ResponseMode,
     TranscriptIdArg,
 )
@@ -34,10 +33,7 @@ if TYPE_CHECKING:
 #: Optional 1-based protein position bound (``position_start`` / ``position_stop``).
 #: The ``Field`` wraps ``int | None`` so the description lands on the PROPERTY, not
 #: inside the ``anyOf`` int branch (where FastMCP would not surface it to the model).
-_PositionBoundArg = Annotated[
-    StrictInt | None,
-    Field(ge=1, description="1-based protein residue position (inclusive range bound)."),
-]
+_PositionBoundArg = OptionalPositionArg
 
 
 def after_request_landscape(payload: dict[str, Any], transcript_id: str) -> list[dict[str, Any]]:

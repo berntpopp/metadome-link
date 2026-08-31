@@ -19,6 +19,7 @@ from __future__ import annotations
 import math
 from typing import Any, TypedDict
 
+from metadome_link.constants import MAX_GENOMIC_POSITION, MAX_PROTEIN_POSITION
 from metadome_link.exceptions import UpstreamSchemaError
 from metadome_link.identifiers import is_transcript_id
 from metadome_link.mcp._sanitize import sanitize_message
@@ -144,7 +145,6 @@ _PATHOGENIC_VARIANT_FIELDS = {"clinvar_ID"}
 _VARIANT_TYPES = frozenset({"missense", "synonymous", "nonsense"})
 _STRANDS = frozenset({"+", "-"})
 MAX_ALIGNMENT_DEPTH = 100_000
-MAX_GENOMIC_POSITION = 1_000_000_000
 _REQUIRED_RESULT_FIELDS = frozenset(_RESULT_FIELDS)
 
 
@@ -237,7 +237,7 @@ def _validate_variant_records(
                 raise _schema_error(f"{item_path}.{field}")
         if not _is_integer_at_least(variant["pos"], 1, MAX_GENOMIC_POSITION):
             raise _schema_error(f"{item_path}.pos")
-        if not _is_integer_at_least(variant["protein_pos"], 1):
+        if not _is_integer_at_least(variant["protein_pos"], 1, MAX_PROTEIN_POSITION):
             raise _schema_error(f"{item_path}.protein_pos")
         if pathogenic:
             clinvar_id = variant["clinvar_ID"]
@@ -273,7 +273,7 @@ def _validate_position_domains(raw: object, path: str) -> None:
         if (
             not isinstance(consensus, list)
             or not consensus
-            or any(not _is_integer_at_least(pos, 1) for pos in consensus)
+            or any(not _is_integer_at_least(pos, 1, MAX_GENOMIC_POSITION) for pos in consensus)
         ):
             raise _schema_error(f"{domain_path}.consensus_pos")
         for field in _DOMAIN_FIELDS:
@@ -316,9 +316,9 @@ def _validate_result_domains(raw: object, path: str) -> list[dict[str, Any]]:
                 raise _schema_error(f"{domain_path}.{field}")
         if not _is_integer_at_least(domain["meta_domain_alignment_depth"], 0, MAX_ALIGNMENT_DEPTH):
             raise _schema_error(f"{domain_path}.meta_domain_alignment_depth")
-        if not _is_integer_at_least(domain["start"], 1) or not _is_integer_at_least(
-            domain["stop"], 1
-        ):
+        if not _is_integer_at_least(
+            domain["start"], 1, MAX_PROTEIN_POSITION
+        ) or not _is_integer_at_least(domain["stop"], 1, MAX_PROTEIN_POSITION):
             raise _schema_error(f"{domain_path}.start")
         if domain["stop"] < domain["start"]:
             raise _schema_error(f"{domain_path}.stop")
@@ -409,7 +409,7 @@ def validate_positional_annotations(raw: object) -> list[dict[str, Any]]:
                 )
             ):
                 raise _schema_error(f"{path}.{field}")
-            if field == "protein_pos" and not _is_integer_at_least(value, 1):
+            if field == "protein_pos" and not _is_integer_at_least(value, 1, MAX_PROTEIN_POSITION):
                 raise _schema_error(f"{path}.{field}")
             if field == "protein_pos":
                 if value in seen_positions:

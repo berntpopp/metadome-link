@@ -9,13 +9,15 @@ middleware and the discovery surface describe identical constraints.
 
 from __future__ import annotations
 
+import math
 from typing import Annotated, Literal
 
-from pydantic import Field, StrictInt
+from pydantic import BeforeValidator, Field, StrictFloat, StrictInt
 
 from metadome_link.constants import (
     DEFAULT_PAGE_LIMIT,
     MAX_PAGE_LIMIT,
+    MAX_PROTEIN_POSITION,
 )
 
 #: Output-verbosity selector shared by every data tool (default ``compact``).
@@ -48,12 +50,61 @@ GeneOrIdArg = Annotated[
 #: A single 1-based protein residue position.
 PositionArg = Annotated[
     StrictInt,
-    Field(ge=1, description="1-based protein residue position.", examples=[273]),
+    Field(
+        ge=1,
+        le=MAX_PROTEIN_POSITION,
+        description=f"1-based protein residue position (1..{MAX_PROTEIN_POSITION}).",
+        examples=[273],
+    ),
+]
+
+#: Optional 1-based protein coordinate, used for inclusive range bounds.
+OptionalPositionArg = Annotated[
+    StrictInt | None,
+    Field(
+        ge=1,
+        le=MAX_PROTEIN_POSITION,
+        description=f"1-based protein residue position (1..{MAX_PROTEIN_POSITION}).",
+    ),
+]
+
+
+def _require_finite_real(value: object) -> object:
+    """Reject coercive, boolean, and non-finite analysis threshold values."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError("threshold must be a finite real number")
+    try:
+        finite = math.isfinite(value)
+    except (OverflowError, TypeError, ValueError):
+        finite = False
+    if not finite:
+        raise ValueError("threshold must be a finite real number")
+    return value
+
+
+# StrictFloat accepts JSON integers as real numbers but rejects strings/bools;
+# the before-validator adds the finite-value requirement.
+ThresholdArg = Annotated[
+    StrictFloat,
+    BeforeValidator(_require_finite_real),
+    Field(
+        gt=0.0,
+        le=2.0,
+        description=(
+            "sw_dn_ds threshold (exclusive upper bound) for intolerant residues "
+            "(default 0.5). Lower values identify only the most constrained positions."
+        ),
+    ),
 ]
 
 #: A batch of 1-based protein residue positions (e.g. for compare_positions).
 PositionsArg = Annotated[
-    list[StrictInt],
+    list[
+        Annotated[
+            StrictInt,
+            Field(ge=1, le=MAX_PROTEIN_POSITION),
+        ]
+    ],
     Field(
         description="A batch of 1-based protein residue positions to compare side by side.",
         examples=[[175, 248, 273]],
