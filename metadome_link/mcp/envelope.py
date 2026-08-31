@@ -130,6 +130,16 @@ def _capabilities_version() -> str | None:
     return str(version) if version else None
 
 
+def _runtime_data_versions() -> dict[str, str]:
+    """Return the registered service provenance, or the default before startup."""
+    try:
+        from metadome_link.mcp.service_adapters import get_metadome_service
+
+        return get_metadome_service().data_versions
+    except Exception:
+        return dict(DATA_VERSIONS)
+
+
 #: Map a pydantic error ``type`` to a FIXED reason so no caller-supplied input
 #: value (which the pydantic ``msg`` can echo) reaches the caller-visible frame.
 _PYDANTIC_REASONS: dict[str, str] = {
@@ -214,7 +224,7 @@ def _new_meta(tool_name: str) -> dict[str, Any]:
     return {
         "tool": tool_name,
         "request_id": _request_id(),
-        "data_versions": DATA_VERSIONS,
+        "data_versions": _runtime_data_versions(),
         "unsafe_for_clinical_use": True,
     }
 
@@ -441,7 +451,7 @@ async def run_mcp_tool(
                 **existing_meta,
                 "tool": tool_name,
                 "request_id": _request_id(),
-                "data_versions": DATA_VERSIONS,
+                "data_versions": _runtime_data_versions(),
                 "unsafe_for_clinical_use": True,
                 "elapsed_ms": elapsed,
             }

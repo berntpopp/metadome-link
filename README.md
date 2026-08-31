@@ -65,7 +65,7 @@ Health check: `curl localhost:8000/health`. Cache state: `make cache-status`.
 
 | Tool | Purpose |
 |------|---------|
-| `resolve_transcript` | Resolve a gene symbol or versioned ENST id to MetaDome's GRCh38.p14 transcripts; flags the canonical one |
+| `resolve_transcript` | Resolve a gene symbol or versioned ENST id to the configured MetaDome build; prefers analyzable MANE Select |
 | `request_tolerance_landscape` | Submit (or re-confirm) an async landscape build; returns a status handle |
 | `get_tolerance_landscape` | Cache-first fetch of a built landscape; `status:"processing"` while it builds |
 | `get_position_tolerance` | One residue: `sw_dn_ds`, codon context, domains, and explicitly scoped variant evidence |
@@ -84,7 +84,7 @@ the namespace token `metadome`, so `resolve_transcript` surfaces as
 
 Every tool is annotated `READ_ONLY_OPEN_WORLD` and accepts
 `response_mode ∈ {minimal, compact, standard, full}` (default `compact`). Errors are *returned*
-as a typed envelope with a 7-code taxonomy, never raised, and every `compact`-or-richer response
+as a typed envelope with a 6-code wire taxonomy, never raised, and every `compact`-or-richer response
 carries `_meta.next_commands` with ready-to-call follow-ups. Full reference, limits and the
 worked TP53 example: [docs/usage.md](docs/usage.md).
 
@@ -101,8 +101,10 @@ This is a live-API proxy plus a persistent on-disk SQLite result cache
 landscapes survive restarts. In Docker, mount a volume at `/app/data`.
 
 **Data currency — read this before interpreting a number.** This client pins MetaDome 2.0's
-**GRCh38.p14**, **GENCODE v45**, **UniProt 2025_01**, **Pfam 37.4**, **gnomAD v4.1**, and
-**ClinVar 2025-10-06** dataset ([Zenodo DOI 10.5281/zenodo.19376150](https://doi.org/10.5281/zenodo.19376150)).
+The supported profiles are **GRCh37.p13** (GENCODE v19, UniProt 2016_09, Pfam 30.0,
+gnomAD r2.0.2, ClinVar 2018-06-03) and **GRCh38.p14** (GENCODE v45, UniProt 2025_01,
+Pfam 37.4, gnomAD v4.1, ClinVar 2025-10-06; [Zenodo DOI](https://doi.org/10.5281/zenodo.19376150)).
+The configured profile is surfaced in `data_versions`.
 MetaDome does **not** provide true per-residue gnomAD counts: `variant_evidence.residue_level.gnomad`
 therefore reports `available:false`, never a confident zero. Pfam figures live separately under
 `variant_evidence.meta_domain_homolog_aggregate`; they can include other genes and are not

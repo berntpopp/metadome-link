@@ -11,13 +11,11 @@ from fastmcp import FastMCP
 from metadome_link import __version__
 from metadome_link.buildinfo import build_info
 from metadome_link.constants import (
-    DATA_CURRENCY_CAVEAT,
-    DATA_VERSIONS,
+    DEFAULT_DATA_PROFILE,
     DEFAULT_PAGE_LIMIT,
     DEFAULT_RESPONSE_MODE,
     MAX_BATCH_POSITIONS,
     MAX_PAGE_LIMIT,
-    METADOME_DATA_VERSION,
     METADOME_LICENSE,
     RECOMMENDED_CITATION,
     RESEARCH_USE_NOTICE,
@@ -60,6 +58,8 @@ _SUMMARY_KEYS: tuple[str, ...] = (
     "server_version",
     "build",
     "capabilities_version",
+    "genome_build",
+    "data_version",
     "data_versions",
     "data_source",
     "research_use_only",
@@ -93,27 +93,56 @@ def _hash_contract(payload: dict[str, Any]) -> str:
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]
 
 
-def capabilities_version() -> str:
+def _active_profile() -> tuple[dict[str, str], str, str]:
+    """Resolve runtime provenance, falling back to the default before startup."""
+    try:
+        from metadome_link.mcp.service_adapters import get_metadome_service
+
+        service = get_metadome_service()
+        return service.data_versions, service.data_version, service.genome_build
+    except Exception:
+        return (
+            dict(DEFAULT_DATA_PROFILE.data_versions),
+            DEFAULT_DATA_PROFILE.data_version,
+            DEFAULT_DATA_PROFILE.genome_build,
+        )
+
+
+def capabilities_version(
+    *, data_versions: dict[str, str] | None = None, data_version: str | None = None
+) -> str:
     """Cached content hash of the discovery contract (echoed in every ``_meta``)."""
-    key = METADOME_DATA_VERSION
+    versions, resolved_version, _ = _active_profile()
+    if data_versions is not None:
+        versions = data_versions
+    if data_version is not None:
+        resolved_version = data_version
+    key = resolved_version
     cached = _VERSION_CACHE.get(key)
     if cached is None:
-        cached = build_capabilities()["capabilities_version"]
+        cached = build_capabilities(data_versions=versions, data_version=resolved_version)[
+            "capabilities_version"
+        ]
         _VERSION_CACHE[key] = cached
     return cached
 
 
-def build_capabilities() -> dict[str, Any]:
+def build_capabilities(
+    *, data_versions: dict[str, str] | None = None, data_version: str | None = None
+) -> dict[str, Any]:
     """Return the discovery surface describing this server."""
+    active_versions, active_version, active_build = _active_profile()
+    versions = dict(data_versions if data_versions is not None else active_versions)
+    version = data_version if data_version is not None else active_version
     payload: dict[str, Any] = {
         "server": "metadome-link",
         "server_version": __version__,
         "build": build_info(),
-        "data_versions": DATA_VERSIONS,
+        "data_versions": versions,
         "data_source": "MetaDome (www.metadome.app/metadome)",
         "research_use_only": True,
         "research_use_notice": RESEARCH_USE_NOTICE,
-        "data_currency_caveat": DATA_CURRENCY_CAVEAT,
+        "data_currency_caveat": _caveat_for_versions(versions),
         "recommended_citation": RECOMMENDED_CITATION,
         "license": METADOME_LICENSE,
         "tools": TOOLS,
@@ -178,8 +207,31 @@ def build_capabilities() -> dict[str, Any]:
         ),
         "notes": METADOME_REFERENCE_NOTES,
     }
+    payload["data_version"] = version
+    payload["genome_build"] = active_build
     payload["capabilities_version"] = _hash_contract(payload)
     return payload
+
+
+def _caveat_for_versions(versions: dict[str, str]) -> str:
+    """Render a truthful build-specific currency warning from profile values."""
+    assembly = versions.get("assembly", "unknown")
+    components = ", ".join(
+        f"{label} {versions[key]}"
+        for label, key in (
+            ("GENCODE", "gencode"),
+            ("UniProt", "uniprot"),
+            ("Pfam", "pfam"),
+            ("gnomAD", "gnomad"),
+            ("ClinVar", "clinvar"),
+        )
+        if key in versions
+    )
+    return (
+        f"MetaDome data use {assembly} ({components}); MetaDome does not provide true "
+        "per-residue gnomAD counts. Its Pfam meta-domain aggregates can include other "
+        "genes; use live gnomAD/ClinVar for current evidence."
+    )
 
 
 def register_capability_resources(mcp: FastMCP) -> None:

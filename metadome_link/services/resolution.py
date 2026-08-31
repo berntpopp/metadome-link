@@ -1,10 +1,9 @@
 """Pure helpers for transcript resolution: sorting, canonical pick, query typing.
 
-A gene symbol maps to many GENCODE v45 transcripts. The fleet convention (from
-MetaDome v2 identifies a MANE Select transcript when one exists. An analyzable
-MANE Select is canonical; otherwise the longest **protein-coding** transcript
-(``has_protein_data == True``) is the deterministic fallback. Transcripts without
-protein data cannot be visualized and are never canonical.
+A gene symbol maps to many build-specific MetaDome transcripts. The fleet convention
+prefers an analyzable MANE Select transcript when one exists. Otherwise the longest
+analyzable protein-coding transcript (``has_protein_data == True``) is the deterministic
+fallback. Transcripts without protein data cannot be visualized and are never canonical.
 
 These helpers are deterministic and side-effect free so they can be unit-tested
 in isolation and reused by :class:`~metadome_link.services.metadome_service.MetaDomeService`.

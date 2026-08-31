@@ -72,7 +72,7 @@ by a token bucket (default 3.0 req/s, burst 5) with retries on 429/5xx/timeout. 
 | Variable | Default | Purpose |
 |----------|---------|---------|
 | `METADOME_LINK_METADOME__BASE_URL` | `https://www.metadome.app/metadome/api` | MetaDome API base URL. |
-| `METADOME_LINK_METADOME__GENOME_BUILD` | `GRCh38.p14` | Exact MetaDome dataset namespace. |
+| `METADOME_LINK_METADOME__GENOME_BUILD` | `GRCh38.p14` | Exact namespace: `GRCh37.p13` or `GRCh38.p14`; arbitrary patch levels are rejected. |
 | `METADOME_LINK_METADOME__REQUEST_TIMEOUT_S` | `30.0` | Per-request HTTP timeout (s). |
 | `METADOME_LINK_METADOME__POLL_SOFT_DEADLINE_S` | `20.0` | Max poll-loop wall time before returning `status:"processing"`. |
 | `METADOME_LINK_METADOME__POLL_INITIAL_INTERVAL_S` | `2.0` | Initial poll sleep (s). |
@@ -163,12 +163,12 @@ upstream release, bump `METADOME_DATA_VERSION` in `metadome_link/constants.py` a
 
 ## Data version pinning
 
-MetaDome data is pinned at
+MetaDome supports two reviewed profiles. GRCh38 is
 `metadome2.0-grch38.p14-gencode45-uniprot2025_01-pfam37.4-gnomad4.1-clinvar2025-10-06`
-([Zenodo DOI 10.5281/zenodo.19376150](https://doi.org/10.5281/zenodo.19376150)). This constant
-(`METADOME_DATA_VERSION`) is the cache key and also drives `capabilities_version`. Review and
-bump it together with `DATA_VERSIONS`, the API contract, and `METADOME_LINK_METADOME__GENOME_BUILD`
-when MetaDome publishes another release.
+([Zenodo DOI](https://doi.org/10.5281/zenodo.19376150)); GRCh37 is
+`metadome2.0-grch37.p13-gencode19-uniprot2016_09-pfam30-gnomad2.0.2-clinvar2018-06-03`.
+The selected profile is the cache key and drives `capabilities_version`; arbitrary build
+namespaces are rejected.
 
 ## Production checklist
 

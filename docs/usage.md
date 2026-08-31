@@ -13,9 +13,8 @@ with ready-to-call follow-up tools.
 
 #### `get_server_capabilities(detail="summary"|"full", response_mode="compact")`
 
-Cold-start orientation. Returns the server identity, `data_versions` (MetaDome 2.0:
-GRCh38.p14 / GENCODE v45 / UniProt 2025_01 / Pfam 37.4 / gnomAD v4.1 /
-ClinVar 2025-10-06), the frozen 11-tool list, response
+Cold-start orientation. Returns the server identity, the configured `data_versions`
+(MetaDome 2.0 GRCh37.p13 or GRCh38.p14 profile), the frozen 11-tool list, response
 modes, recommended workflows, error codes, limits, and policy notes (research-use + data-currency
 caveats). `detail="full"` adds score semantics and provenance policy prose.
 
@@ -31,11 +30,12 @@ data versions, capabilities hash. Use to confirm cache state or diagnose a misco
 
 #### `resolve_transcript(query, response_mode="compact")`
 
-Resolve a free-text gene symbol or versioned Ensembl transcript id to MetaDome GRCh38.p14
-transcript candidates.
+Resolve a free-text gene symbol or versioned Ensembl transcript id to the configured
+MetaDome build (GRCh37.p13 or GRCh38.p14) transcript candidates.
 
 - **Gene symbol** (`TP53`, `BRCA1`): returns all transcripts sorted by `aa_length` descending;
-  the longest protein-coding entry is flagged `canonical`. Unknown gene → `not_found`.
+  an analyzable MANE Select entry is preferred as `canonical`, otherwise the longest
+  analyzable protein-coding entry. Unknown gene → `not_found`.
 - **ENST id** (`ENST00000269305.9`): the `.N` version suffix is required; validated and echoed
   directly without an upstream call. An id without a version suffix → `invalid_input`.
 
@@ -191,8 +191,9 @@ The canonical five-step pattern for a variant-interpretation query.
 ```json
 { "tool": "resolve_transcript", "arguments": { "query": "TP53" } }
 ```
-Returns all GRCh38.p14 transcripts sorted by length; the longest protein-coding entry is flagged
-`canonical`. For TP53 this is `ENST00000269305.9` (393 aa, MANE Select).
+Returns all configured-build transcripts sorted by length; an analyzable MANE Select entry is
+preferred as `canonical`, otherwise the longest analyzable protein-coding entry. For TP53 this
+is `ENST00000269305.9` (393 aa, MANE Select).
 
 **Step 2 — request the landscape:**
 ```json

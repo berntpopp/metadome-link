@@ -45,10 +45,12 @@ from metadome_link.api.url_guard import (
 )
 from metadome_link.config import ServerSettings
 from metadome_link.config import settings as default_settings
+from metadome_link.constants import data_profile
 from metadome_link.exceptions import (
     InvalidInputError,
     NotFoundError,
     RateLimitedError,
+    UpstreamSchemaError,
     UpstreamUnavailableError,
 )
 from metadome_link.identifiers import validate_transcript_id
@@ -65,6 +67,7 @@ _BACKOFF_MAX_SECONDS = 8.0
 
 #: Celery / MetaDome in-progress status values (loop while status is one of these).
 _PENDING_STATUSES = frozenset({"PENDING", "SENT", "STARTED", "RECEIVED", "RETRY"})
+_TERMINAL_STATUSES = frozenset({"SUCCESS", "FAILURE"})
 
 
 class _TokenBucket:
@@ -121,6 +124,10 @@ class MetaDomeClient:
         self._cfg: MetaDomeSettings = resolved.metadome
         self._base_url = self._cfg.base_url.rstrip("/")
         self._genome_build = self._cfg.genome_build
+        profile = data_profile(self._genome_build)
+        self._data_version = profile.data_version
+        self._data_versions = dict(profile.data_versions)
+        self._data_currency_caveat = profile.data_currency_caveat
         # F-10: derive the redirect/destination allowlist from the CONFIGURED base
         # URL host (never hardcoded, so an operator base-URL override still works).
         self._url_guard = make_url_guard(build_origin_allowlist(self._cfg.base_url))
@@ -136,6 +143,26 @@ class MetaDomeClient:
     def base_url(self) -> str:
         """The configured upstream base URL (no trailing slash)."""
         return self._base_url
+
+    @property
+    def genome_build(self) -> str:
+        """The exact configured upstream namespace."""
+        return self._genome_build
+
+    @property
+    def data_version(self) -> str:
+        """The cache/provenance identity for the configured build."""
+        return self._data_version
+
+    @property
+    def data_versions(self) -> dict[str, str]:
+        """Return a copy of the configured build's component provenance."""
+        return dict(self._data_versions)
+
+    @property
+    def data_currency_caveat(self) -> str:
+        """The configured build's historical-data warning."""
+        return self._data_currency_caveat
 
     # -- transport -------------------------------------------------------------
 
@@ -260,11 +287,24 @@ class MetaDomeClient:
         body = await self._get_json(
             f"/get_transcripts/{quote(self._genome_build, safe='')}/{quote(gene, safe='')}"
         )
-        raw = body.get("transcript_ids", []) if isinstance(body, dict) else []
+        if not isinstance(body, dict) or "transcript_ids" not in body:
+            raise UpstreamSchemaError(
+                "MetaDome transcript response is missing transcript_ids.",
+                field="transcript_ids",
+            )
+        raw = body["transcript_ids"]
+        if not isinstance(raw, list):
+            raise UpstreamSchemaError(
+                "MetaDome transcript response has invalid transcript_ids.",
+                field="transcript_ids",
+            )
         out: list[dict[str, Any]] = []
         for entry in raw:
-            if not isinstance(entry, dict):
-                continue
+            if not isinstance(entry, dict) or not isinstance(entry.get("gencode_id"), str):
+                raise UpstreamSchemaError(
+                    "MetaDome transcript response contains an invalid transcript entry.",
+                    field="transcript_ids",
+                )
             out.append(
                 {
                     "gencode_id": entry.get("gencode_id"),
@@ -300,9 +340,17 @@ class MetaDomeClient:
         string if the upstream body lacks a ``status`` key).
         """
         body = await self._get_json(f"/status/{self._genome_build}/{transcript_id}")
-        if isinstance(body, dict):
-            return str(body.get("status", ""))
-        return ""
+        status_raw = body.get("status") if isinstance(body, dict) else None
+        if not isinstance(status_raw, str):
+            raise UpstreamSchemaError(
+                "MetaDome status response is missing a valid status.", field="status"
+            )
+        status = status_raw
+        if status not in _PENDING_STATUSES | _TERMINAL_STATUSES:
+            raise UpstreamSchemaError(
+                "MetaDome status response contains an unknown status.", field="status"
+            )
+        return status
 
     async def get_result(self, transcript_id: str) -> dict[str, Any]:
         """GET ``/result/<genome_build>/<transcript_id>``; return the normalized landscape.
@@ -313,12 +361,20 @@ class MetaDomeClient:
         """
         body = await self._get_json(f"/result/{self._genome_build}/{transcript_id}")
         if not isinstance(body, dict):
-            raise UpstreamUnavailableError("MetaDome result had an unexpected shape.")
+            raise UpstreamSchemaError(
+                "MetaDome result response has an invalid object shape.",
+                field="result",
+            )
         positions = body.get("positional_annotation")
-        if isinstance(positions, list):
-            for entry in positions:
-                if isinstance(entry, dict):
-                    _coerce_clinvar_ids(entry.get("ClinVar"))
+        if not isinstance(positions, list) or any(
+            not isinstance(entry, dict) for entry in positions
+        ):
+            raise UpstreamSchemaError(
+                "MetaDome result response is missing valid positional_annotation.",
+                field="positional_annotation",
+            )
+        for entry in positions:
+            _coerce_clinvar_ids(entry.get("ClinVar"))
         return body
 
     async def get_error(self, transcript_id: str) -> dict[str, Any]:

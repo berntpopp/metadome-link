@@ -17,7 +17,7 @@ metadome_link/
   config.py          # pydantic-settings, prefix METADOME_LINK_, nested MetaDomeSettings + CacheSettings
   constants.py       # pinned versions, citations, caveats, limits, ENST_RE
   identifiers.py     # normalize_gene_symbol, validate_transcript_id (requires .N version)
-  exceptions.py      # MetaDomeError + 7 subclasses (7-code taxonomy)
+  exceptions.py      # MetaDomeError + typed subclasses (6-code wire taxonomy)
 
   api/
     client.py        # async MetaDomeClient: 6 endpoints + poll_until_ready loop
@@ -102,13 +102,13 @@ backoff (initial→max interval) and a token-bucket politeness limiter.
 | On-disk SQLite | Completed landscapes | `data/metadome_cache.sqlite` | Permanent (per `metadome_data_version`) |
 | In-memory TTL | Transcript lists | RAM | Time-based (default 6 h) |
 
-Cache keys include `metadome_data_version`
-(`metadome2.0-grch38.p14-gencode45-uniprot2025_01-pfam37.4-gnomad4.1-clinvar2025-10-06`)
-so a MetaDome upstream update automatically invalidates stale entries when the constant is bumped.
+Cache keys include the selected profile's `metadome_data_version` (GRCh37.p13 or
+GRCh38.p14), so entries from different builds cannot collide and upstream updates
+automatically invalidate stale entries.
 
 `/status` is **never cached** — always fetched live.
 
-## Error taxonomy (7 codes)
+## Error taxonomy (6 wire codes)
 
 All errors are **returned** (not raised) as a structured envelope:
 

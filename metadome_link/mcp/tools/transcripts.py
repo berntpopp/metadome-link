@@ -1,9 +1,9 @@
 """Transcript-resolution tools (``resolve_transcript``).
 
 Resolves a free-text gene symbol or versioned ENST id to MetaDome transcript
-candidate(s). Gene queries are sorted by ``aa_length`` descending and the
-longest protein-coding transcript is flagged ``canonical``. A bare ENST id is
-validated and echoed without an upstream call.
+candidate(s). Gene queries are sorted by ``aa_length`` descending and an analyzable
+MANE Select transcript is preferred as ``canonical`` (otherwise the longest
+analyzable protein-coding transcript). A bare ENST id is validated and echoed.
 
 After a successful gene resolution, ``_meta.next_commands`` includes
 ``request_tolerance_landscape`` for the canonical transcript, steering the
@@ -28,7 +28,7 @@ def after_resolve_transcript(payload: dict[str, Any]) -> list[dict[str, Any]]:
     """Build ``next_commands`` for a successful ``resolve_transcript`` response.
 
     - **Gene path**: suggests ``request_tolerance_landscape`` for the canonical
-      transcript (the longest protein-coding entry), followed by
+      transcript (the preferred analyzable MANE Select entry), followed by
       ``get_tolerance_landscape`` so the client can start the poll loop right away.
     - **ID path**: same, using the echoed transcript id directly.
     - **Not analyzable**: a gene whose transcripts all have
@@ -67,9 +67,10 @@ def register_transcript_tools(mcp: FastMCP) -> None:
         tags={"transcripts"},
         description=(
             "Resolve a gene symbol or versioned Ensembl transcript id to MetaDome "
-            "GRCh38.p14 transcript candidate(s). A gene symbol returns all transcripts "
-            "sorted by protein length (aa_length descending) with the longest "
-            "protein-coding entry flagged canonical. A bare ENST id (version suffix "
+            "MetaDome transcript candidate(s). A gene symbol returns all transcripts "
+            "sorted by protein length (aa_length descending), preferring an analyzable "
+            "MANE Select entry as canonical and otherwise the longest analyzable "
+            "protein-coding entry. A bare ENST id (version suffix "
             "required) is validated and echoed directly. Use the canonical_transcript_id "
             "with request_tolerance_landscape to start a tolerance-landscape build. "
             "Signature: resolve_transcript(query=, response_mode=)."

@@ -48,16 +48,15 @@ is a **first-class success state** (not an error), carrying `poll_after_s` /
 ## Invariants
 
 - Services return plain dicts; the envelope owns `success`/`_meta` and returns
-  structured errors. **7-code error taxonomy**: `invalid_input`, `not_found`,
-  `ambiguous_query`, `data_unavailable`, `rate_limited`, `upstream_unavailable`,
-  `internal_error`.
+  structured errors. **6-code wire error taxonomy**: `invalid_input`, `not_found`,
+  `ambiguous_query`, `rate_limited`, `upstream_unavailable`, `internal`.
 - Every `compact` (default) or richer response carries `_meta.next_commands`
   (ready-to-call follow-ups); `minimal` is the explicit opt-out and returns only
   `_meta = {tool, request_id}`. `_meta` verbosity is tiered by `response_mode`:
   `compact` keeps `next_commands` + `capabilities_version` but drops `elapsed_ms`;
   `standard`/`full` add `elapsed_ms`.
-- **`_meta.data_versions` is ALWAYS present** (GRCh37, Gencode v19, gnomAD r2.0.2,
-  ClinVar 2018-06-03, Pfam 30.0) — the hg19/data-currency caveat surface.
+- **`_meta.data_versions` is ALWAYS present** and identifies the selected live build
+  (`GRCh37.p13` or `GRCh38.p14`) plus its component snapshot.
 - Every tool declares `output_schema` + `READ_ONLY_OPEN_WORLD` annotations, and its
   first description sentence is a discovery summary ending with
   `Signature: tool(args...)`.
@@ -73,7 +72,9 @@ is a **first-class success state** (not an error), carrying `poll_after_s` /
   registered tool set.
 - Identifiers are normalised/validated in `identifiers.py` (Ensembl transcript ids
   must carry a `.N` version: `^ENST\d{11}\.\d+$`).
-- MetaDome data is **GRCh37/hg19, gnomAD r2.0.2, ClinVar 2018-06-03** — historical.
+- MetaDome serves two explicit historical profiles: **GRCh37.p13** (GENCODE v19,
+  gnomAD r2.0.2, ClinVar 2018-06-03) and **GRCh38.p14** (GENCODE v45, gnomAD v4.1,
+  ClinVar 2025-10-06). The selected profile is surfaced on every response.
   Surface the data-currency caveat; do not present counts as current.
 
 ## Definition of done

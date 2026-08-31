@@ -72,9 +72,8 @@ class MetaDomeSettings(BaseModel):
         default="https://www.metadome.app/metadome/api",
         description="Base URL of the MetaDome web API (no auth required).",
     )
-    genome_build: str = Field(
+    genome_build: Literal["GRCh37.p13", "GRCh38.p14"] = Field(
         default="GRCh38.p14",
-        pattern=r"^GRCh(?:37|38)\.p\d+$",
         description="Exact MetaDome genome-build dataset namespace.",
     )
     request_timeout_s: float = Field(

@@ -1,23 +1,4 @@
-"""MetaDome service orchestration — the logic core of the data plane.
-
-:class:`MetaDomeService` composes the async :class:`MetaDomeClient`, the on-disk
-:class:`ResultCache`, and the pure shaping/pagination/citation/landscape helpers
-into the per-tool operations the MCP plane exposes. It follows the fleet
-contract strictly:
-
-- **Returns plain dicts** — never a ``success``/``_meta`` envelope (the envelope
-  is added by ``mcp/envelope.py::run_mcp_tool``). Every record-derived payload
-  carries ``recommended_citation``.
-- **Raises typed exceptions** (:mod:`metadome_link.exceptions`) on error; it
-  never builds an error envelope itself.
-
-Async model: MetaDome builds landscapes asynchronously (cold builds up to ~1 h),
-so ``get_landscape`` and the per-position helpers are **cache-first**. On a miss
-they do ONE soft-deadline ``poll_until_ready`` attempt; a still-building job is a
-first-class ``status: "processing"`` success state (for ``get_landscape``) or a
-typed ``not_found`` / not-ready error pointing at request+poll (for the
-per-position helpers via :meth:`_require_landscape`).
-"""
+"""Service orchestration for live MetaDome lookups and cached landscapes."""
 
 from __future__ import annotations
 
@@ -82,15 +63,7 @@ class MetaDomeService:
         *,
         settings: ServerSettings | None = None,
     ) -> None:
-        """Build the service.
-
-        Args:
-            client: The async :class:`MetaDomeClient` (injected; respx-mocked in
-                tests). The service owns its lifecycle only via :meth:`aclose`.
-            cache: The on-disk :class:`ResultCache` for completed landscapes.
-            settings: Optional :class:`ServerSettings` override; defaults to the
-                module singleton. Only ``settings.metadome`` is consumed here.
-        """
+        """Build a service over an injected client, cache, and settings."""
         if settings is None:
             from metadome_link.config import settings as default_settings
 
@@ -106,8 +79,28 @@ class MetaDomeService:
         """The on-disk :class:`ResultCache` (read-only handle for diagnostics)."""
         return self._cache
 
+    @property
+    def genome_build(self) -> str:
+        return self._client.genome_build
+
+    @property
+    def data_version(self) -> str:
+        return self._client.data_version
+
+    @property
+    def data_versions(self) -> dict[str, str]:
+        return self._client.data_versions
+
+    @property
+    def data_currency_caveat(self) -> str:
+        return self._client.data_currency_caveat
+
+    def _stamp_caveat(self, payload: dict[str, Any]) -> dict[str, Any]:
+        if "data_currency_caveat" in payload:
+            payload["data_currency_caveat"] = self.data_currency_caveat
+        return payload
+
     async def aclose(self) -> None:
-        """Close the underlying client (idempotent)."""
         await self._client.aclose()
 
     @property
@@ -127,7 +120,7 @@ class MetaDomeService:
         A bare ``ENST...`` query is validated (``.N`` version required) and echoed
         without an upstream call. A gene symbol is looked up via endpoint 1; the
         candidates are sorted by ``aa_length`` descending and an analyzable
-        MANE Select transcript (or longest protein-coding fallback) is canonical.
+        MANE Select transcript (or longest analyzable protein-coding fallback) is canonical.
 
         Returns (gene path)::
 
@@ -141,7 +134,7 @@ class MetaDomeService:
 
         Raises:
             InvalidInputError: A malformed/unversioned ENST id.
-            NotFoundError: No GRCh38.p14 transcripts exist for the gene.
+            NotFoundError: No transcripts exist for the configured build.
         """
         if detect_query_type(query) == "id" and looks_like_transcript_query(query):
             tid = validate_transcript_id(query)
@@ -156,7 +149,7 @@ class MetaDomeService:
         transcripts = await self._client.get_transcripts(gene)
         if not transcripts:
             raise NotFoundError(
-                f"No GRCh38.p14 transcripts for gene '{gene}'.",
+                f"No {self.genome_build} transcripts for gene '{gene}'.",
                 recovery_action="check_input",
                 field="query",
             )
@@ -178,11 +171,11 @@ class MetaDomeService:
         }
         if not analyzable:
             payload["note"] = (
-                f"No {gene} transcript in MetaDome (GRCh38.p14/GENCODE v45) has protein data "
+                f"No {gene} transcript in MetaDome ({self.genome_build}) has protein data "
                 "(has_protein_data=false for all); MetaDome cannot build a tolerance "
                 "landscape for this gene. Do not call request_tolerance_landscape."
             )
-        return shape_record(payload, response_mode)
+        return self._stamp_caveat(shape_record(payload, response_mode))
 
     # -- async landscape request ----------------------------------------------
 
@@ -291,7 +284,7 @@ class MetaDomeService:
                 transcript_id=tid, gene_name=landscape.get("gene_name")
             ),
         }
-        return shape_record(payload, response_mode)
+        return self._stamp_caveat(shape_record(payload, response_mode))
 
     # -- per-position ----------------------------------------------------------
 
@@ -341,16 +334,18 @@ class MetaDomeService:
             )
         tid = validate_transcript_id(transcript_id)
         landscape = await self._require_landscape(tid)
-        return get_variant_counts_view(
-            landscape,
-            tid,
-            position=position,
-            position_start=position_start,
-            position_stop=position_stop,
-            source=source,
-            limit=limit,
-            offset=offset,
-            response_mode=response_mode,
+        return self._stamp_caveat(
+            get_variant_counts_view(
+                landscape,
+                tid,
+                position=position,
+                position_start=position_start,
+                position_stop=position_stop,
+                source=source,
+                limit=limit,
+                offset=offset,
+                response_mode=response_mode,
+            )
         )
 
     async def compare_positions(
@@ -417,15 +412,17 @@ class MetaDomeService:
         raw: dict[str, Any] = {}
         if requested:
             raw = await self._client.get_metadomain_annotation(tid, position, requested)
-        return get_meta_domain_view(
-            landscape,
-            tid,
-            position,
-            requested,
-            raw,
-            limit=limit,
-            offset=offset,
-            response_mode=response_mode,
+        return self._stamp_caveat(
+            get_meta_domain_view(
+                landscape,
+                tid,
+                position,
+                requested,
+                raw,
+                limit=limit,
+                offset=offset,
+                response_mode=response_mode,
+            )
         )
 
     # -- analysis --------------------------------------------------------------
@@ -451,13 +448,15 @@ class MetaDomeService:
         """
         tid = validate_transcript_id(transcript_id)
         landscape = await self._require_landscape(tid)
-        return summarize_intolerant_regions_view(
-            landscape,
-            tid,
-            threshold=threshold,
-            min_run=min_run,
-            top_n=top_n,
-            response_mode=response_mode,
+        return self._stamp_caveat(
+            summarize_intolerant_regions_view(
+                landscape,
+                tid,
+                threshold=threshold,
+                min_run=min_run,
+                top_n=top_n,
+                response_mode=response_mode,
+            )
         )
 
     # -- internals -------------------------------------------------------------

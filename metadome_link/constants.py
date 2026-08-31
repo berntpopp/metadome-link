@@ -3,28 +3,91 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
+from dataclasses import dataclass
+from types import MappingProxyType
 
 #: Bumped whenever the on-disk SQLite result-cache schema changes.
 SCHEMA_VERSION = "1"
 
-#: Pinned MetaDome upstream data release. Cache keys + capabilities_version derive
-#: from this; bump manually if MetaDome updates.
-METADOME_DATA_VERSION = (
-    "metadome2.0-grch38.p14-gencode45-uniprot2025_01-pfam37.4-gnomad4.1-clinvar2025-10-06"
+
+@dataclass(frozen=True)
+class DataProfile:
+    """Immutable provenance identity for one live MetaDome build namespace."""
+
+    genome_build: str
+    data_version: str
+    data_versions: Mapping[str, str]
+    data_currency_caveat: str
+
+
+_PROFILE_37_VERSIONS = MappingProxyType(
+    {
+        "assembly": "GRCh37.p13",
+        "gencode": "v19",
+        "uniprot": "2016_09",
+        "gnomad": "r2.0.2",
+        "clinvar": "2018-06-03",
+        "pfam": "30.0",
+        "metadome_app": "2.0",
+    }
+)
+_PROFILE_38_VERSIONS = MappingProxyType(
+    {
+        "assembly": "GRCh38.p14",
+        "gencode": "v45",
+        "uniprot": "2025_01",
+        "gnomad": "v4.1",
+        "clinvar": "2025-10-06",
+        "pfam": "37.4",
+        "metadome_app": "2.0",
+        "data_doi": "10.5281/zenodo.19376150",
+    }
 )
 
-#: Structured component versions of the pinned MetaDome release. Surfaced in
-#: ``_meta.data_versions`` on EVERY response (the data-currency caveat surface).
-DATA_VERSIONS: dict[str, str] = {
-    "assembly": "GRCh38.p14",
-    "gencode": "v45",
-    "uniprot": "2025_01",
-    "gnomad": "v4.1",
-    "clinvar": "2025-10-06",
-    "pfam": "37.4",
-    "metadome_app": "2.0",
-    "data_doi": "10.5281/zenodo.19376150",
-}
+DATA_PROFILES: Mapping[str, DataProfile] = MappingProxyType(
+    {
+        "GRCh37.p13": DataProfile(
+            genome_build="GRCh37.p13",
+            data_version="metadome2.0-grch37.p13-gencode19-uniprot2016_09-pfam30-gnomad2.0.2-clinvar2018-06-03",
+            data_versions=_PROFILE_37_VERSIONS,
+            data_currency_caveat=(
+                "MetaDome data use GRCh37.p13/hg19, GENCODE v19, UniProt 2016_09, "
+                "Pfam 30.0, gnomAD r2.0.2, and ClinVar 2018-06-03; the snapshot is "
+                "historical and MetaDome does not provide true per-residue gnomAD counts."
+            ),
+        ),
+        "GRCh38.p14": DataProfile(
+            genome_build="GRCh38.p14",
+            data_version="metadome2.0-grch38.p14-gencode45-uniprot2025_01-pfam37.4-gnomad4.1-clinvar2025-10-06",
+            data_versions=_PROFILE_38_VERSIONS,
+            data_currency_caveat=(
+                "MetaDome 2.0 data use GRCh38.p14, GENCODE v45, UniProt 2025_01, "
+                "Pfam 37.4, gnomAD v4.1, and ClinVar 2025-10-06; MetaDome does not "
+                "provide true per-residue gnomAD counts."
+            ),
+        ),
+    }
+)
+
+SUPPORTED_GENOME_BUILDS = tuple(DATA_PROFILES)
+
+
+def data_profile(genome_build: str) -> DataProfile:
+    """Return the exact profile for a supported API namespace."""
+    try:
+        return DATA_PROFILES[genome_build]
+    except KeyError:
+        raise ValueError(
+            f"Unsupported MetaDome genome build; choose one of {SUPPORTED_GENOME_BUILDS}."
+        ) from None
+
+
+DEFAULT_DATA_PROFILE = DATA_PROFILES["GRCh38.p14"]
+
+# Backwards-compatible default aliases. Runtime consumers must use ``data_profile``.
+METADOME_DATA_VERSION = DEFAULT_DATA_PROFILE.data_version
+DATA_VERSIONS: dict[str, str] = dict(DEFAULT_DATA_PROFILE.data_versions)
 
 #: Canonical citation pasted verbatim into capability/_meta/record payloads.
 RECOMMENDED_CITATION = (
@@ -47,11 +110,9 @@ RESEARCH_USE_NOTICE = (
 )
 
 #: Prominent data-currency caveat (the pinned-release / aggregate-counts warning).
-DATA_CURRENCY_CAVEAT = (
-    "MetaDome 2.0 data use GRCh38.p14, GENCODE v45, UniProt 2025_01, Pfam 37.4, "
-    "gnomAD v4.1, and ClinVar 2025-10-06; MetaDome does not provide true "
-    "per-residue gnomAD counts. Its Pfam meta-domain aggregates can include other genes; "
-    "use live gnomAD/ClinVar for current evidence."
+DATA_CURRENCY_CAVEAT = DEFAULT_DATA_PROFILE.data_currency_caveat + (
+    " Its Pfam meta-domain aggregates can include other genes; use live gnomAD/ClinVar "
+    "for current evidence."
 )
 
 #: Provenance carried next to every Pfam meta-domain variant aggregate.  The

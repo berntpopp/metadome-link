@@ -19,8 +19,8 @@ MetaDome computes tolerance landscapes asynchronously (Celery workers, cold
 builds can take up to ~1 hour for large transcripts). metadome-link caches
 completed landscapes on disk in `/app/data/metadome_cache.sqlite` so repeat
 requests are instant. The cache is keyed by `(transcript_id, data_version)`;
-the data version is fixed at `gencode19-gnomad2.0.2-clinvar20180603-pfam30-app1.0.1`
-(MetaDome does not update its snapshot).
+the data version is selected by `METADOME_LINK_METADOME__GENOME_BUILD` and is fixed to
+one of the reviewed profiles (`GRCh37.p13` or `GRCh38.p14`).
 
 ## Volume
 

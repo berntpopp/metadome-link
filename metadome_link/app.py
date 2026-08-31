@@ -17,7 +17,7 @@ from fastmcp.server.http import HostOriginGuardMiddleware
 from metadome_link import __version__
 from metadome_link.buildinfo import build_info
 from metadome_link.config import settings
-from metadome_link.constants import DATA_VERSIONS
+from metadome_link.constants import data_profile
 from metadome_link.mcp.capabilities import capabilities_version
 
 if TYPE_CHECKING:
@@ -64,8 +64,11 @@ def create_app() -> FastAPI:
             "status": "ok",
             "version": __version__,
             "transport": "streamable-http-stateless",
-            "data_versions": DATA_VERSIONS,
-            "capabilities_version": capabilities_version(),
+            "data_versions": dict(data_profile(settings.metadome.genome_build).data_versions),
+            "capabilities_version": capabilities_version(
+                data_versions=dict(data_profile(settings.metadome.genome_build).data_versions),
+                data_version=data_profile(settings.metadome.genome_build).data_version,
+            ),
         }
 
     @app.get("/")

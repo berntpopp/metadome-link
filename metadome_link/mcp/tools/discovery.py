@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING, Annotated, Any, Literal
 from pydantic import Field
 
 from metadome_link.buildinfo import build_info
-from metadome_link.constants import DATA_VERSIONS
 from metadome_link.mcp import metrics
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.capabilities import (
@@ -131,7 +130,7 @@ def register_discovery_tools(mcp: FastMCP) -> None:
                 "build": build_info(),
                 "cache_stats": service.cache.stats(),
                 "metrics": metrics.snapshot(),
-                "data_versions": DATA_VERSIONS,
+                "data_versions": service.data_versions,
                 "capabilities_version": capabilities_version(),
             }
             payload.setdefault("_meta", {})["next_commands"] = [

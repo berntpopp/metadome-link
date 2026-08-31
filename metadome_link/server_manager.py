@@ -50,7 +50,10 @@ class UnifiedServerManager:
     def _build_service(self) -> MetaDomeService:
         """Construct the single live service (client + cache) and register it."""
         self._client = MetaDomeClient(settings)
-        self._cache = ResultCache(db_path=settings.cache.db_path)
+        self._cache = ResultCache(
+            db_path=settings.cache.db_path,
+            data_version=self._client.data_version,
+        )
         service = MetaDomeService(self._client, self._cache, settings=settings)
         set_metadome_service(service)
         return service
