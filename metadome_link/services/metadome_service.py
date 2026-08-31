@@ -4,15 +4,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from metadome_link.api.models import validate_cached_landscape, validate_result_document
-from metadome_link.constants import (
-    DATA_CURRENCY_CAVEAT,
-    DEFAULT_PAGE_LIMIT,
-    MAX_BATCH_POSITIONS,
-)
+from metadome_link.api.models import validate_cached_landscape, validate_polled_landscape
+from metadome_link.constants import DATA_CURRENCY_CAVEAT, DEFAULT_PAGE_LIMIT, MAX_BATCH_POSITIONS
 from metadome_link.exceptions import (
     InvalidInputError,
     NotFoundError,
+    UpstreamSchemaError,
     metadome_build_failure,
 )
 from metadome_link.identifiers import (
@@ -72,6 +69,11 @@ class MetaDomeService:
         self._client = client
         self._cache = cache
         self._settings = settings
+        if cache.data_version != client.data_version:
+            raise UpstreamSchemaError(
+                "MetaDome service client and result cache use different data profiles.",
+                field="data_version",
+            )
 
     # -- lifecycle -------------------------------------------------------------
 
@@ -255,7 +257,7 @@ class MetaDomeService:
             if state == "failed":
                 raise metadome_build_failure(tid, result)
             # state == "ready"
-            landscape = validate_result_document(result or {})
+            landscape = validate_polled_landscape(result, tid)
             self._cache.put_result(tid, landscape)
 
         if position_start is not None and position_stop is not None:
@@ -464,12 +466,7 @@ class MetaDomeService:
     # -- internals -------------------------------------------------------------
 
     async def _require_landscape(self, transcript_id: str) -> dict[str, Any]:
-        """Return the cached landscape, or attempt ONE soft poll, else raise.
-
-        Used by every per-position/domain/summary method. A still-building job
-        raises :class:`NotFoundError` (``recovery_action="switch_tool"``) carrying
-        ``next_commands`` hints to request + poll the landscape; a ``FAILURE``
-        """
+        """Return the cached landscape, or attempt one soft poll, else raise."""
         cached = validate_cached_landscape(self._cache.get_result(transcript_id), transcript_id)
         if cached is not None:
             return cached
@@ -477,7 +474,7 @@ class MetaDomeService:
             transcript_id, soft_deadline_s=self._soft_deadline_s
         )
         if state == "ready":
-            landscape = validate_result_document(result or {})
+            landscape = validate_polled_landscape(result, transcript_id)
             self._cache.put_result(transcript_id, landscape)
             return landscape
         if state == "failed":

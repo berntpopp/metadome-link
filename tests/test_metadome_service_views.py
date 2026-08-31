@@ -133,6 +133,28 @@ async def test_require_landscape_not_ready_raises_not_found(cache: ResultCache) 
     await svc.aclose()
 
 
+@respx.mock
+async def test_require_landscape_poll_result_must_match_requested_transcript(
+    cache: ResultCache,
+) -> None:
+    """Per-position cache-miss polls cannot return another transcript's result."""
+    svc = _make_service(cache)
+    wrong = _load("result_TP53.json")
+    wrong["transcript_id"] = "ENST00000504937.5"
+
+    async def wrong_result(
+        _transcript_id: str, *, soft_deadline_s: float
+    ) -> tuple[str, dict[str, Any]]:
+        return "ready", wrong
+
+    svc._client.poll_until_ready = wrong_result  # type: ignore[method-assign]
+    with pytest.raises(UpstreamSchemaError) as exc_info:
+        await svc.get_position(TID, 1, response_mode="compact")
+    assert exc_info.value.extra["field"] == "transcript_id"
+    assert cache.get_result(TID) is None
+    await svc.aclose()
+
+
 # ---------------------------------------------------------------------------
 # get_position
 # ---------------------------------------------------------------------------

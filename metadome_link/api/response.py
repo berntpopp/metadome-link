@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 import httpx
@@ -35,6 +36,16 @@ def _validate_unicode(value: object) -> None:
         for key, item in value.items():
             _validate_unicode(key)
             _validate_unicode(item)
+
+
+def parse_json_text(payload: str | bytes, *, field: str = "response_body") -> Any:
+    """Decode text with the same strict JSON rules used for HTTP responses."""
+    try:
+        decoded = json.loads(payload, parse_constant=_reject_constant)
+        _validate_unicode(decoded)
+        return decoded
+    except (ValueError, UnicodeError, RecursionError) as exc:
+        raise UpstreamSchemaError("MetaDome returned malformed JSON.", field=field) from exc
 
 
 def parse_json(response: httpx.Response) -> Any:

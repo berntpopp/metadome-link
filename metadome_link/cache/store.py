@@ -29,8 +29,10 @@ from typing import Any
 
 import typer
 
+from metadome_link.api.response import parse_json_text
 from metadome_link.config import settings
 from metadome_link.constants import METADOME_DATA_VERSION
+from metadome_link.exceptions import UpstreamSchemaError
 
 # ---------------------------------------------------------------------------
 # TTLCache
@@ -171,6 +173,11 @@ class ResultCache:
     # Public interface
     # ------------------------------------------------------------------
 
+    @property
+    def data_version(self) -> str:
+        """Return the pinned profile identity used by this cache."""
+        return self._data_version
+
     def get_result(self, transcript_id: str) -> dict[str, Any] | None:
         """Return the cached landscape for *transcript_id*, or ``None`` on miss.
 
@@ -186,7 +193,12 @@ class ResultCache:
         ).fetchone()
         if row is None:
             return None
-        value: dict[str, Any] = json.loads(row[0])
+        decoded = parse_json_text(row[0], field="cache_body")
+        if not isinstance(decoded, dict):
+            raise UpstreamSchemaError(
+                "MetaDome cache contains a non-object JSON value.", field="cache_body"
+            )
+        value: dict[str, Any] = decoded
         # Warm the LRU
         self._lru.set(transcript_id, value)
         return value

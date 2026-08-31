@@ -485,3 +485,13 @@ def validate_cached_landscape(
     if result["transcript_id"] != expected_transcript_id:
         raise _schema_error("transcript_id")
     return result
+
+
+def validate_polled_landscape(raw: object | None, expected_transcript_id: str) -> dict[str, Any]:
+    """Validate a ready poll result and bind it to the requested transcript."""
+    result = validate_cached_landscape(raw, expected_transcript_id)
+    if result is None:
+        raise UpstreamSchemaError(
+            "MetaDome returned no landscape for a ready build.", field="result"
+        )
+    return result

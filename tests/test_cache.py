@@ -5,10 +5,14 @@ All DB tests use tmp_path, never the real data/ directory.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from metadome_link.cache.store import ResultCache, TTLCache
+from metadome_link.exceptions import UpstreamSchemaError
 
 # ---------------------------------------------------------------------------
 # TTLCache tests
@@ -114,6 +118,50 @@ class TestResultCache:
         result = cache.get_result("ENST00000269305.9")
         assert result == landscape
         cache.close()
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            '{"status":"\\ud800"}',
+            '{"\\ud800":"ok"}',
+            '{"status":NaN}',
+            '{"status":Infinity}',
+            '{"status":-Infinity}',
+        ],
+    )
+    def test_direct_json_loading_rejects_invalid_unicode_and_numbers(
+        self, tmp_path: Path, payload: str
+    ) -> None:
+        """SQLite cache reads use the same strict JSON contract as HTTP reads."""
+        db = str(tmp_path / "test.sqlite")
+        cache = ResultCache(db_path=db)
+        try:
+            cache._conn.execute(
+                "INSERT INTO results (transcript_id, data_version, fetched_at, json) "
+                "VALUES (?, ?, ?, ?)",
+                ("ENST00000269305.9", cache._data_version, "now", payload),
+            )
+            cache._conn.commit()
+            with pytest.raises(UpstreamSchemaError):
+                cache.get_result("ENST00000269305.9")
+        finally:
+            cache.close()
+
+    def test_direct_json_loading_accepts_supplementary_scalars(self, tmp_path: Path) -> None:
+        """Valid supplementary Unicode scalars remain valid cache values."""
+        db = str(tmp_path / "test.sqlite")
+        cache = ResultCache(db_path=db)
+        payload = json.dumps({"😀": "ok"}, ensure_ascii=False)
+        try:
+            cache._conn.execute(
+                "INSERT INTO results (transcript_id, data_version, fetched_at, json) "
+                "VALUES (?, ?, ?, ?)",
+                ("ENST00000269305.9", cache._data_version, "now", payload),
+            )
+            cache._conn.commit()
+            assert cache.get_result("ENST00000269305.9") == {"😀": "ok"}
+        finally:
+            cache.close()
 
     def test_different_data_version_misses(self, tmp_path: Path) -> None:
         """A cache entry stored with one data_version returns None for a different version."""

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import pytest
+
 from metadome_link.api.client import MetaDomeClient
 from metadome_link.cache.store import ResultCache
 from metadome_link.config import ServerSettings
+from metadome_link.exceptions import UpstreamSchemaError
 from metadome_link.mcp.capabilities import build_capabilities
 from metadome_link.mcp.envelope import run_mcp_tool
 from metadome_link.mcp.notfound_guard import unknown_tool_envelope
@@ -12,6 +15,19 @@ from metadome_link.mcp.service_adapters import set_metadome_service
 from metadome_link.services.metadome_service import MetaDomeService
 
 TID = "ENST00000269305.9"
+
+
+def test_service_rejects_cache_profile_mismatch(tmp_path: object) -> None:
+    """A service must not combine a GRCh37 client with a GRCh38 cache."""
+    settings = ServerSettings(metadome={"genome_build": "GRCh37.p13"})
+    client = MetaDomeClient(settings)
+    cache = ResultCache(db_path=str(tmp_path) + "/cache.sqlite")
+    try:
+        with pytest.raises(UpstreamSchemaError) as exc_info:
+            MetaDomeService(client, cache, settings=settings)
+        assert exc_info.value.extra["field"] == "data_version"
+    finally:
+        cache.close()
 
 
 async def test_alternate_profile_flows_into_capabilities_and_envelope(tmp_path: object) -> None:
