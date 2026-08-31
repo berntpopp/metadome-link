@@ -169,6 +169,21 @@ def test_json_parser_accepts_valid_surrogate_pair_scalar(
 
 
 @pytest.mark.parametrize(
+    "payload",
+    [
+        b'{"transcript_id":"ENST00000269305.9","transcript_id":"ENST00000504937.5"}',
+        b'{"profile":{"genome_build":"GRCh38.p14","genome_build":"GRCh37.p13"}}',
+    ],
+)
+def test_json_parser_rejects_duplicate_object_members(payload: bytes) -> None:
+    """Conflicting top-level identity members cannot use last-key-wins parsing."""
+    response = httpx.Response(200, content=payload)
+    with pytest.raises(UpstreamUnavailableError) as exc_info:
+        parse_json(response)
+    assert exc_info.value.extra["field"] == "response_body"
+
+
+@pytest.mark.parametrize(
     "value",
     [-1, 1.5, True, float("inf"), 10**1000],
 )
@@ -183,6 +198,35 @@ def test_domain_count_breakdowns_reject_invalid_numbers(value: object) -> None:
     domain["pathogenic_variant_count_per_clinsig"] = {"Pathogenic": value}
     with pytest.raises(UpstreamUnavailableError):
         validate_positional_annotations(body["positional_annotation"])
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("sw_coverage", 0),
+        ("sw_coverage", 0.0),
+        ("sw_coverage", False),
+        ("sw_coverage", 1.0),
+        ("sw_coverage", 1.0001),
+        ("sw_size", 9),
+        ("sw_size", 10.0),
+        ("sw_size", True),
+        ("sw_size", 10),
+    ],
+)
+def test_position_numeric_contract_enforces_coverage_and_size(field: str, value: object) -> None:
+    """Coverage is in (0,1], while Smith-Waterman size is exactly ten."""
+    body = _load_result()
+    body["positional_annotation"][0][field] = value
+    valid = (field == "sw_coverage" and value == 1.0) or (
+        field == "sw_size" and type(value) is int and value == 10
+    )
+    if valid:
+        validate_result_document(body)
+    else:
+        with pytest.raises(UpstreamUnavailableError) as exc_info:
+            validate_result_document(body)
+        assert exc_info.value.extra["field"] == f"positional_annotation[0].{field}"
 
 
 @pytest.mark.parametrize("endpoint", ["status", "result", "error"])

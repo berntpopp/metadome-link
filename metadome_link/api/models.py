@@ -405,11 +405,15 @@ def validate_positional_annotations(raw: object) -> list[dict[str, Any]]:
                 field in {"sw_coverage", "sw_dn_ds"}
                 and value is not None
                 and (
-                    not _is_finite_number(value) or (isinstance(value, (int, float)) and value < 0)
+                    not _is_finite_number(value)
+                    or (field == "sw_coverage" and isinstance(value, (int, float)) and value <= 0)
+                    or (field == "sw_dn_ds" and isinstance(value, (int, float)) and value < 0)
                 )
             ):
                 raise _schema_error(f"{path}.{field}")
-            if field in {"protein_pos", "sw_size"} and not _is_integer_at_least(value, 1):
+            if field == "protein_pos" and not _is_integer_at_least(value, 1):
+                raise _schema_error(f"{path}.{field}")
+            if field == "sw_size" and value != 10:
                 raise _schema_error(f"{path}.{field}")
             if field == "sw_coverage" and isinstance(value, (int, float)) and value > 1:
                 raise _schema_error(f"{path}.{field}")
@@ -489,9 +493,4 @@ def validate_cached_landscape(
 
 def validate_polled_landscape(raw: object | None, expected_transcript_id: str) -> dict[str, Any]:
     """Validate a ready poll result and bind it to the requested transcript."""
-    result = validate_cached_landscape(raw, expected_transcript_id)
-    if result is None:
-        raise UpstreamSchemaError(
-            "MetaDome returned no landscape for a ready build.", field="result"
-        )
-    return result
+    return validate_cached_landscape(raw or {}, expected_transcript_id) or {}

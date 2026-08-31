@@ -186,6 +186,7 @@ def resolve_meta_domain_request(
     the cached residue's ``domains`` map (empty when the residue has no usable
     meta-domain mapping). Validates ``position`` is in range either way.
     """
+    position_to_entry(landscape, position)
     return domains if domains else domains_for_position(landscape, position)
 
 

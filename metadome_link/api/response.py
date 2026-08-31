@@ -15,6 +15,16 @@ def _reject_constant(value: str) -> object:
     raise ValueError(f"nonstandard JSON constant: {value}")
 
 
+def _reject_duplicate_members(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Reject duplicate object members instead of applying last-key-wins."""
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("duplicate JSON object member")
+        result[key] = value
+    return result
+
+
 def _validate_unicode(value: object) -> None:
     """Reject lone UTF-16 surrogate code points in keys and values."""
     if isinstance(value, str):
@@ -41,7 +51,11 @@ def _validate_unicode(value: object) -> None:
 def parse_json_text(payload: str | bytes, *, field: str = "response_body") -> Any:
     """Decode text with the same strict JSON rules used for HTTP responses."""
     try:
-        decoded = json.loads(payload, parse_constant=_reject_constant)
+        decoded = json.loads(
+            payload,
+            object_pairs_hook=_reject_duplicate_members,
+            parse_constant=_reject_constant,
+        )
         _validate_unicode(decoded)
         return decoded
     except (ValueError, UnicodeError, RecursionError) as exc:
@@ -51,7 +65,10 @@ def parse_json_text(payload: str | bytes, *, field: str = "response_body") -> An
 def parse_json(response: httpx.Response) -> Any:
     """Decode JSON and classify malformed or excessively deep payloads."""
     try:
-        decoded = response.json(parse_constant=_reject_constant)
+        decoded = response.json(
+            object_pairs_hook=_reject_duplicate_members,
+            parse_constant=_reject_constant,
+        )
         _validate_unicode(decoded)
         return decoded
     except (ValueError, UnicodeError, RecursionError) as exc:

@@ -305,6 +305,29 @@ async def test_get_meta_domain_non_metadomain_residue_empty(cache: ResultCache) 
     await svc.aclose()
 
 
+@respx.mock
+async def test_get_meta_domain_explicit_domains_still_validates_position(
+    cache: ResultCache,
+) -> None:
+    """An explicit domain selector cannot bypass the residue position bounds."""
+    cache.put_result(TID, _load("result_TP53.json"))
+    respx.post(f"{BASE}/get_metadomain_annotation/").mock(
+        return_value=httpx.Response(200, json=_load("metadomain_p175.json"))
+    )
+    svc = _make_service(cache)
+    with pytest.raises(InvalidInputError) as exc_info:
+        await svc.get_meta_domain(
+            TID,
+            9999,
+            domains={"PF00870": [81]},
+            limit=100,
+            offset=0,
+            response_mode="standard",
+        )
+    assert exc_info.value.extra["field"] == "position"
+    await svc.aclose()
+
+
 # ---------------------------------------------------------------------------
 # summarize_intolerant_regions
 # ---------------------------------------------------------------------------

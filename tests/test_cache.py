@@ -127,6 +127,7 @@ class TestResultCache:
             '{"status":NaN}',
             '{"status":Infinity}',
             '{"status":-Infinity}',
+            '{"transcript_id":"ENST00000269305.9","transcript_id":"ENST00000504937.5"}',
         ],
     )
     def test_direct_json_loading_rejects_invalid_unicode_and_numbers(
