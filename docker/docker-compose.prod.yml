@@ -51,7 +51,7 @@ services:
           memory: 1G
           cpus: "1.0"
           pids: 256
-    restart: on-failure
+    restart: unless-stopped
 
     # No bulk download — the server starts immediately after uvicorn binds.
     healthcheck:
