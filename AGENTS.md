@@ -80,6 +80,33 @@ is a **first-class success state** (not an error), carrying `poll_after_s` /
   profile is surfaced on every response.
   Surface the data-currency caveat; do not present counts as current.
 
+## Fleet Deploy Contract
+
+`docker/docker-compose.npm.yml` is the file the GeneFoundry fleet controller
+(`strato_v6_docker_npm`) deploys and validates. The service it declares must set
+`user: "<uid>:<gid>"` numerically -- this image's own value, read from
+`docker/Dockerfile` (currently `10001:10001`, from `groupadd --gid 10001` /
+`useradd --uid 10001 --gid app`), never copied from a sibling `-link` repo.
+
+`user` must NOT appear in the Compose files listed in `container-release.json`
+(`docker/docker-compose.yml`, `docker/docker-compose.prod.yml`) -- the shared
+release gate (`container_release.py validate-compose`) forbids it there.
+
+Guard test: extended into `tests/test_metadome_round15.py` (this repo's unit
+tests for Docker/Compose already lived at top-level `tests/`, not `tests/unit/`)
+-- asserts both halves of the contract (numeric `user` in the npm overlay, no
+`user` in the release Compose files).
+
+Release checklist this repo enforces: bump `pyproject.toml` `version`, run
+`uv lock`, add a `CHANGELOG.md` heading `## [x.y.z] - YYYY-MM-DD`, bump
+`CITATION.cff` `version:` **and** `date-released:` together --
+`tests/test_metadome_round12.py::test_citation_release_date_matches_current_release`
+hard-pins both as literal strings for the current release, so a bump that skips
+either one fails CI -- tag `vx.y.z`, then approve the `release` environment gate
+(it can fire twice) via `gh api
+repos/berntpopp/metadome-link/actions/runs/<id>/pending_deployments`
+(`status: waiting` is the gate).
+
 ## Definition of done
 
 `make ci-local` must be green:
