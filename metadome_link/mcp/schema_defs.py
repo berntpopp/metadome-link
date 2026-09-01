@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
-import re
 from copy import deepcopy
 from typing import Any
+
+from metadome_link.mcp.schema_command_defs import NEXT_COMMAND
+from metadome_link.mcp.schema_utils import closed
 
 STR = {"type": "string"}
 STR_NULL = {"type": ["string", "null"]}
@@ -15,42 +17,6 @@ NUM = {"type": "number"}
 NUM_NULL = {"type": ["number", "null"]}
 BOOL = {"type": "boolean"}
 STR_ARRAY = {"type": "array", "items": STR}
-
-
-def closed(properties: dict[str, Any], required: tuple[str, ...] = ()) -> dict[str, Any]:
-    """Return a compact closed object schema with an explicit required set."""
-    groups: dict[str, tuple[dict[str, Any], list[str]]] = {}
-    for name, value in properties.items():
-        identity = json.dumps(value, sort_keys=True, separators=(",", ":"))
-        if identity not in groups:
-            groups[identity] = (value, [])
-        groups[identity][1].append(name)
-    patterns = {}
-    for value, names in groups.values():
-        joined = "|".join(re.escape(name) for name in names)
-        patterns[f"^{joined}$" if len(names) == 1 else f"^({joined})$"] = value
-    schema: dict[str, Any] = {
-        "type": "object",
-        "patternProperties": patterns,
-        "additionalProperties": False,
-    }
-    if required and set(required) == set(properties):
-        schema["minProperties"] = len(required)
-    elif required:
-        schema["required"] = list(required)
-    property_schema: dict[str, Any] = {
-        "type": "object",
-        "properties": properties,
-        "additionalProperties": False,
-    }
-    if "minProperties" in schema:
-        property_schema["minProperties"] = schema["minProperties"]
-    if "required" in schema:
-        property_schema["required"] = schema["required"]
-    return min(
-        (schema, property_schema),
-        key=lambda value: len(json.dumps(value, separators=(",", ":"))),
-    )
 
 
 def _replace_ref(node: Any, reference: str, replacement: dict[str, Any]) -> Any:
@@ -98,14 +64,6 @@ _DATA_VERSION_KEYS = (
     "data_doi",
 )
 DATA_VERSIONS = closed(dict.fromkeys(_DATA_VERSION_KEYS, STR), _DATA_VERSION_KEYS)
-
-NEXT_COMMAND = closed(
-    {
-        "tool": STR,
-        "arguments": {"type": "object"},
-    },
-    ("tool", "arguments"),
-)
 
 META = closed(
     {
@@ -424,6 +382,7 @@ def output_schema(
     constraint: dict[str, Any] | None = None,
     defs: dict[str, Any] | None = None,
     candidates: bool = False,
+    next_command: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a genuine two-branch, closed success/error output contract."""
     success_properties = {
@@ -444,17 +403,20 @@ def output_schema(
         ("success", "_meta", "error_code", "message", "retryable", "recovery_action"),
     )
     error.pop("type")
-    all_defs = {
-        "V": DATA_VERSIONS,
-        "N": NEXT_COMMAND,
-        "M": META,
-        **(defs or {}),
-    }
+    meta = META
+    all_defs = {"V": DATA_VERSIONS, "M": meta, **(defs or {})}
+    if next_command is None:
+        all_defs["N"] = NEXT_COMMAND
+    else:
+        all_defs["M"] = _replace_ref(deepcopy(META), "#/$defs/N", next_command)
     if candidates:
         all_defs["C"] = CANDIDATE
     return _inline_single_use_defs(
         {
             "type": "object",
+            # The branches own the exact field sets. This root pattern only
+            # marks those branch-validated names as evaluated for the root's
+            # explicit closed-object contract.
             "patternProperties": {".*": {}},
             "additionalProperties": False,
             "oneOf": [success, error],

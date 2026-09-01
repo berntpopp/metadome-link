@@ -3,9 +3,10 @@
 ## Docker
 
 The image starts the unified server (FastAPI `/health` + MCP `/mcp`) on port 8000
-immediately — there is no bulk-ingest step. The result cache warms lazily as landscapes
-are requested. Mount a persistent volume at `/data` so cached landscapes survive
-container restarts.
+immediately — there is no bulk-ingest step. The read-only data tools poll/fetch landscapes
+and populate the result cache lazily; only the explicit `request_tolerance_landscape` tool
+submits an upstream build. Mount a persistent volume at `/data` so cached landscapes
+survive container restarts.
 
 ```bash
 # Local dev
@@ -166,18 +167,18 @@ entry and environment variable to register this server in the GeneFoundry router
 # Outside Docker
 uv run metadome-link-cache status    # print on-disk stats + pinned data version
 uv run metadome-link-cache clear     # delete all cached landscapes
-uv run metadome-link-cache warm TP53 BRCA1  # resolve, build/poll, and cache landscapes
+uv run metadome-link-cache warm TP53 BRCA1  # resolve, poll/fetch, and cache completed landscapes
 
 # Inside Docker (exec into running container)
 docker exec metadome-link metadome-link-cache status
 ```
 
 `warm` normalizes and de-duplicates at most 32 gene symbols, uses the configured genome-build
-profile and cache limits, and reports each gene separately. A gene is reported as warmed only
-after its completed landscape is persisted in the profile-specific SQLite namespace. Unknown
-genes, upstream errors, and landscapes still processing at the configured poll deadline are
-reported as failures; the command continues with the remaining genes and exits nonzero if any
-gene failed.
+profile and cache limits, and performs read-only resolution plus poll/fetch for each gene. It
+does not submit a build; a gene is reported as warmed only after its already-completed landscape
+is persisted in the profile-specific SQLite namespace. Unknown genes, upstream errors, and
+landscapes still processing at the configured poll deadline are reported as failures; the
+command continues with the remaining genes and exits nonzero if any gene failed.
 
 The SQLite cache is keyed `(transcript_id, metadome_data_version)`. When MetaDome ships a new
 upstream release, update the corresponding build profile in `metadome_link/constants.py` and

@@ -52,11 +52,30 @@ class _CompactToolSchemas(Transform):
     def _compact(tool: Tool) -> Tool:
         parameters = deepcopy(tool.parameters)
         for name, prop in parameters.get("properties", {}).items():
-            if isinstance(prop, dict) and (
-                tool.name != "get_variant_counts" or name not in {"limit", "offset"}
-            ):
-                prop.pop("default", None)
-        return tool.model_copy(update={"parameters": parameters})
+            if isinstance(prop, dict):
+                if tool.name != "get_variant_counts" or name not in {"limit", "offset"}:
+                    prop.pop("default", None)
+                # An enum already rejects every value of the wrong JSON type.
+                # Omitting its redundant `type` preserves the exact contract.
+                if "enum" in prop:
+                    prop.pop("type", None)
+        output_schema = deepcopy(tool.output_schema)
+        branches = output_schema.get("oneOf") if isinstance(output_schema, dict) else None
+        if (
+            isinstance(output_schema, dict)
+            and isinstance(branches, list)
+            and branches
+            and all(
+                isinstance(branch, dict) and branch.get("additionalProperties") is False
+                for branch in branches
+            )
+        ):
+            # Each oneOf branch is already closed. The root pair is required on
+            # the source constant for explicit contract inspection, but is
+            # validation-redundant in the advertised schema.
+            output_schema.pop("patternProperties", None)
+            output_schema.pop("additionalProperties", None)
+        return tool.model_copy(update={"parameters": parameters, "output_schema": output_schema})
 
     async def list_tools(self, tools: Sequence[Tool]) -> Sequence[Tool]:
         return [self._compact(tool) for tool in tools]

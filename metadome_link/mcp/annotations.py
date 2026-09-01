@@ -1,4 +1,4 @@
-"""Shared MCP tool annotations (read-only research server)."""
+"""Shared annotations for read-only data tools and the explicit build trigger."""
 
 from __future__ import annotations
 

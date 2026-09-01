@@ -1,4 +1,4 @@
-"""metadome-link: a read-only MCP/API server wrapping the MetaDome web service."""
+"""metadome-link: an MCP/API server with read-only data tools and one explicit build trigger."""
 
 from __future__ import annotations
 

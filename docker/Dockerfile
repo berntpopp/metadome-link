@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Multi-stage Dockerfile for metadome-link.
 #
-# metadome-link is a read-only proxy over the MetaDome web API
+# metadome-link exposes read-only data tools plus one explicit idempotent build trigger
 # (https://www.metadome.app/metadome/api). The image ships NO bulk data —
 # the SQLite result cache is populated lazily from the live API at request time
 # and persisted in the /data volume across container restarts. On first boot

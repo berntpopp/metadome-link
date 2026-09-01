@@ -10,6 +10,7 @@ import pytest
 from fastmcp import Client
 
 from metadome_link.mcp import schemas
+from metadome_link.mcp.schema_defs import NEXT_COMMAND
 
 _TID = "ENST00000269305.9"
 _SCHEMAS: dict[str, dict[str, Any]] = {
@@ -61,6 +62,26 @@ _PRIMARY_DATA_FIELD = {
 _READ_ONLY_ARGS = {
     name: args for name, args in _SUCCESS_ARGS.items() if name != "request_tolerance_landscape"
 }
+
+
+def test_next_command_arguments_are_recursive_and_closed() -> None:
+    """Command arguments accept real nested selectors but reject injected fields."""
+    command = {
+        "tool": "get_meta_domain",
+        "arguments": {
+            "transcript_id": _TID,
+            "position": 175,
+            "domains": {"PF00870": [81]},
+            "limit": 100,
+            "offset": 0,
+        },
+    }
+    jsonschema.validate(command, NEXT_COMMAND)
+
+    injected = deepcopy(command)
+    injected["arguments"]["unexpected_nested"] = {"instruction": "submit"}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(injected, NEXT_COMMAND)
 
 
 async def _success(facade: Any, call_tool: Any, tool_name: str) -> dict[str, Any]:

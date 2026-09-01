@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+from copy import deepcopy
 from typing import Any
 
 import httpx
@@ -100,7 +101,12 @@ async def test_all_live_tools_advertise_their_output_schemas(facade: Any) -> Non
         tools = {item.name: item for item in await client.list_tools()}
     assert set(tools) == set(expected)
     for name, schema in expected.items():
-        assert tools[name].outputSchema == schema
+        assert schema["additionalProperties"] is False
+        assert all(branch["additionalProperties"] is False for branch in schema["oneOf"])
+        wire_schema = deepcopy(schema)
+        wire_schema.pop("patternProperties")
+        wire_schema.pop("additionalProperties")
+        assert tools[name].outputSchema == wire_schema
 
 
 def test_docs_describe_tool_modes_and_terminal_cached_failures_truthfully() -> None:
@@ -108,8 +114,20 @@ def test_docs_describe_tool_modes_and_terminal_cached_failures_truthfully() -> N
     agents = pathlib.Path("AGENTS.md").read_text()
     usage = pathlib.Path("docs/usage.md").read_text()
     architecture = pathlib.Path("docs/architecture.md").read_text()
+    deployment = pathlib.Path("docs/deployment.md").read_text()
+    package = pathlib.Path("metadome_link/__init__.py").read_text()
+    app = pathlib.Path("metadome_link/app.py").read_text()
+    annotations = pathlib.Path("metadome_link/mcp/annotations.py").read_text()
+    docker_readme = pathlib.Path("docker/README.md").read_text()
+    dockerfile = pathlib.Path("docker/Dockerfile").read_text()
     assert "Every tool is annotated `READ_ONLY_OPEN_WORLD`" not in readme
     assert "request_tolerance_landscape" in readme and "idempotent" in readme
+    assert "build/poll" not in deployment
+    assert "read-only data tools poll/fetch" in deployment.lower()
+    assert "only the explicit `request_tolerance_landscape` tool" in deployment
+    for text in (package, app, annotations, docker_readme, dockerfile):
+        assert "whole server is read-only" not in text.lower()
+        assert "read-only data tools" in text
     assert "_meta = {tool, request_id, data_versions, unsafe_for_clinical_use}" in " ".join(
         agents.split()
     )

@@ -2,6 +2,19 @@
 
 from __future__ import annotations
 
+from metadome_link.mcp.schema_command_defs import (
+    CAPABILITIES_NEXT_COMMAND,
+    COMPARE_NEXT_COMMAND,
+    DIAGNOSTICS_NEXT_COMMAND,
+    DOMAINS_NEXT_COMMAND,
+    LANDSCAPE_NEXT_COMMAND,
+    META_NEXT_COMMAND,
+    POSITION_NEXT_COMMAND,
+    REQUEST_NEXT_COMMAND,
+    RESOLVE_NEXT_COMMAND,
+    SUMMARY_NEXT_COMMAND,
+    VARIANT_NEXT_COMMAND,
+)
 from metadome_link.mcp.schema_defs import (
     BOOL,
     BUILD,
@@ -29,9 +42,9 @@ from metadome_link.mcp.schema_defs import (
     TALLY,
     TOOL_MODES,
     TRANSCRIPT,
-    closed,
     output_schema,
 )
+from metadome_link.mcp.schema_utils import closed
 
 _CITATION = {"recommended_citation": STR}
 _CAVEAT = {"data_currency_caveat": STR}
@@ -91,6 +104,7 @@ GET_SERVER_CAPABILITIES_SCHEMA = output_schema(
         "detail",
     ),
     defs={"b": BUILD, "l": LIMITS, "tm": TOOL_MODES},
+    next_command=CAPABILITIES_NEXT_COMMAND,
 )
 
 GET_DIAGNOSTICS_SCHEMA = output_schema(
@@ -111,6 +125,7 @@ GET_DIAGNOSTICS_SCHEMA = output_schema(
         "y": LATENCY,
         "z": TALLY,
     },
+    next_command=DIAGNOSTICS_NEXT_COMMAND,
 )
 
 RESOLVE_TRANSCRIPT_SCHEMA = output_schema(
@@ -136,6 +151,7 @@ RESOLVE_TRANSCRIPT_SCHEMA = output_schema(
     },
     defs={"t": TRANSCRIPT},
     candidates=True,
+    next_command=RESOLVE_NEXT_COMMAND,
 )
 
 REQUEST_TOLERANCE_LANDSCAPE_SCHEMA = output_schema(
@@ -157,6 +173,7 @@ REQUEST_TOLERANCE_LANDSCAPE_SCHEMA = output_schema(
         "cold_build_warning",
         "recommended_citation",
     ),
+    next_command=REQUEST_NEXT_COMMAND,
 )
 
 GET_TOLERANCE_LANDSCAPE_SCHEMA = output_schema(
@@ -188,6 +205,7 @@ GET_TOLERANCE_LANDSCAPE_SCHEMA = output_schema(
         "q": POSITION_DOMAIN,
         "c": CLINVAR_VARIANT,
     },
+    next_command=LANDSCAPE_NEXT_COMMAND,
 )
 
 GET_POSITION_TOLERANCE_SCHEMA = output_schema(
@@ -214,6 +232,7 @@ GET_POSITION_TOLERANCE_SCHEMA = output_schema(
     },
     ("transcript_id", "protein_pos", "variant_evidence", "recommended_citation"),
     defs={"dm": DOMAIN_MEMBERSHIP, **EVIDENCE_DEFS},
+    next_command=POSITION_NEXT_COMMAND,
 )
 
 GET_VARIANT_COUNTS_SCHEMA = output_schema(
@@ -242,6 +261,7 @@ GET_VARIANT_COUNTS_SCHEMA = output_schema(
     },
     ("transcript_id", "source", "positions", "pagination", "recommended_citation"),
     defs={"p": PAGINATION, "c": CLINVAR_VARIANT, **EVIDENCE_DEFS},
+    next_command=VARIANT_NEXT_COMMAND,
 )
 
 COMPARE_POSITIONS_SCHEMA = output_schema(
@@ -276,6 +296,7 @@ COMPARE_POSITIONS_SCHEMA = output_schema(
     },
     ("transcript_id", "comparison", "recommended_citation"),
     defs=EVIDENCE_DEFS,
+    next_command=COMPARE_NEXT_COMMAND,
 )
 
 GET_PROTEIN_DOMAINS_SCHEMA = output_schema(
@@ -287,6 +308,7 @@ GET_PROTEIN_DOMAINS_SCHEMA = output_schema(
     },
     ("transcript_id", "domains", "recommended_citation"),
     defs={"d": DOMAIN},
+    next_command=DOMAINS_NEXT_COMMAND,
 )
 
 GET_META_DOMAIN_SCHEMA = output_schema(
@@ -312,6 +334,7 @@ GET_META_DOMAIN_SCHEMA = output_schema(
         "a": PATHOGENIC_META_VARIANT,
         "m": META_DOMAIN,
     },
+    next_command=META_NEXT_COMMAND,
 )
 
 SUMMARIZE_INTOLERANT_REGIONS_SCHEMA = output_schema(
@@ -333,4 +356,5 @@ SUMMARIZE_INTOLERANT_REGIONS_SCHEMA = output_schema(
         "recommended_citation",
     ),
     defs={"i": INTOLERANT_REGION, **EVIDENCE_DEFS},
+    next_command=SUMMARY_NEXT_COMMAND,
 )

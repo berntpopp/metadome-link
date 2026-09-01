@@ -29,7 +29,8 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="metadome-link",
         description=(
-            "Read-only MCP/API server wrapping the MetaDome web service "
+            "MCP/API server with read-only data tools and one explicit idempotent "
+            "landscape-build trigger, wrapping the MetaDome web service "
             "(per-position missense tolerance landscapes, Pfam domains, "
             "meta-domain homolog variant aggregation)."
         ),
