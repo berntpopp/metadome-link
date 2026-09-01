@@ -48,6 +48,16 @@ the configured profile is GRCh37.p13 or GRCh38.p14, using build-specific compone
 the reviewed v2 snapshot (GRCh37: gnomAD r2.0.2; GRCh38: gnomAD v4.1; both: ClinVar
 2025-10-06). Use live gnomAD/ClinVar for current data.
 
+## Fleet deploy contract
+
+`docker/docker-compose.npm.yml` (the file the fleet controller `strato_v6_docker_npm`
+deploys) must declare `user: "10001:10001"` numerically -- this image's own uid:gid
+from `docker/Dockerfile`, never copied from a sibling `-link` repo. `user` must NOT
+appear in `docker-compose.yml` / `docker-compose.prod.yml` (the release gate forbids
+it there). Guarded by `tests/test_metadome_round15.py`. Release bumps must update
+`CITATION.cff` `version:` **and** `date-released:` together --
+`tests/test_metadome_round12.py` pins both as literals.
+
 ## Two-plane invariants (non-negotiable)
 
 1. **Data plane returns plain dicts; MCP plane owns `success`/`_meta`.** Services raise typed

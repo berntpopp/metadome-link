@@ -45,6 +45,36 @@ complete profile (GRCh37.p13 or GRCh38.p14), including its GENCODE, UniProt, Pfa
 and ClinVar snapshots. Do not represent either profile with a single unqualified
 `METADOME_DATA_VERSION` string.
 
+## Fleet deploy contract
+
+`docker/docker-compose.npm.yml` is the Compose file the GeneFoundry fleet controller
+(`strato_v6_docker_npm`) deploys and validates. It declares `user: "10001:10001"` --
+this image's own numeric uid:gid, read from `docker/Dockerfile`'s
+`groupadd --gid 10001 app && useradd --uid 10001 --gid app ...`; the controller's
+runtime observer proves the effective uid from `/proc`, so the declared value must
+be numeric, not the account name. `user` must NOT appear in `docker/docker-compose.yml`
+or `docker/docker-compose.prod.yml` -- those are the Compose files listed in
+`container-release.json`, and the shared release gate (`container_release.py
+validate-compose`) forbids `user` on them. `tests/test_metadome_round15.py` guards
+both halves of this contract.
+
+Release checklist: bump `pyproject.toml` `version`, run `uv lock`, add a
+`CHANGELOG.md` heading `## [x.y.z] - YYYY-MM-DD`, bump `CITATION.cff` `version:`
+**and** `date-released:` together --
+`tests/test_metadome_round12.py::test_citation_release_date_matches_current_release`
+hard-pins both as literal strings for the current release, so this repo's release
+fails CI if only one is updated -- tag `vx.y.z`, then approve the `release` GitHub
+Environment gate (it fires twice) via `gh api
+repos/berntpopp/metadome-link/actions/runs/<id>/pending_deployments`
+(`status: waiting` is the gate).
+
+Self-check that the controller can render and project this overlay:
+
+```bash
+METADOME_LINK_IMAGE="ghcr.io/berntpopp/metadome-link@sha256:<64 hex>" docker compose -f docker/docker-compose.npm.yml config --format json > /tmp/r.json
+# from strato_v6_docker_npm: uv run python -c "import sys,json; sys.path.insert(0,'scripts'); from utils.deployment_preflight import canonical_projection; canonical_projection(json.load(open('/tmp/r.json')), project='metadome-link'); print('PROJECTION OK')"
+```
+
 ## Configuration (environment variables)
 
 All settings use the `METADOME_LINK_` prefix; nested models use `__` as the delimiter.
