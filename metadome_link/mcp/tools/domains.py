@@ -19,8 +19,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Annotated, Any
 
-from pydantic import Field
+from pydantic import Field, StrictInt
 
+from metadome_link.constants import (
+    MAX_GENOMIC_POSITION,
+    MAX_META_DOMAIN_SELECTOR_DOMAINS,
+    MAX_META_DOMAIN_SELECTOR_KEY_CHARS,
+    MAX_META_DOMAIN_SELECTOR_POSITIONS_PER_DOMAIN,
+)
+from metadome_link.mcp import schemas as output_schemas
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
 from metadome_link.mcp.next_commands import cmd
@@ -41,15 +48,30 @@ _DEFAULT_META_DOMAIN_LIMIT = 100
 
 #: Optional ``{PfamID: [consensus_pos, ...]}`` meta-domain selector. Omit to let
 #: the service derive it from the cached residue's ``domains`` map.
+_DomainSelectorMap = Annotated[
+    dict[
+        str,
+        Annotated[
+            list[Annotated[StrictInt, Field(ge=1, le=MAX_GENOMIC_POSITION)]],
+            Field(min_length=1, max_length=MAX_META_DOMAIN_SELECTOR_POSITIONS_PER_DOMAIN),
+        ],
+    ],
+    Field(
+        max_length=MAX_META_DOMAIN_SELECTOR_DOMAINS,
+        json_schema_extra={
+            "propertyNames": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": MAX_META_DOMAIN_SELECTOR_KEY_CHARS,
+            }
+        },
+    ),
+]
 DomainsArg = Annotated[
-    dict[str, list[int]] | None,
+    _DomainSelectorMap | None,
     Field(
         default=None,
-        description=(
-            "Optional meta-domain selector {PfamID: [consensus_pos, ...]}. Omit to "
-            "derive it from the residue's cached domain mapping."
-        ),
-        examples=[{"PF00870": [81]}],
+        description="Pfam selector.",
     ),
 ]
 
@@ -89,6 +111,7 @@ def _after_get_meta_domain(
     """
     steps: list[dict[str, Any]] = []
     meta_domains = payload.get("meta_domains")
+    requested_domains = payload.get("requested_domains")
     if isinstance(meta_domains, dict):
         for block in meta_domains.values():
             if not isinstance(block, dict):
@@ -105,6 +128,12 @@ def _after_get_meta_domain(
                                 "get_meta_domain",
                                 transcript_id=transcript_id,
                                 position=position,
+                                **(
+                                    {"domains": requested_domains}
+                                    if isinstance(requested_domains, dict)
+                                    else {}
+                                ),
+                                limit=int(page_block.get("limit", _DEFAULT_META_DOMAIN_LIMIT)),
                                 offset=int(next_offset),
                             )
                         )
@@ -121,17 +150,10 @@ def register_domain_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="get_protein_domains",
-        title="Get Protein Domains",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=None,
+        output_schema=output_schemas.GET_PROTEIN_DOMAINS_SCHEMA,
         tags={"domains"},
-        description=(
-            "List the Pfam protein domains annotated on a transcript's tolerance "
-            "landscape: each domain's ID, Name, start/stop residues, whether a "
-            "meta-domain (homologous) mapping exists, and its alignment depth. "
-            "Requires a built landscape (call request_tolerance_landscape first). "
-            "Signature: get_protein_domains(transcript_id=, response_mode=)."
-        ),
+        description="Signature: get_protein_domains(transcript_id, response_mode=).",
     )
     async def get_protein_domains(
         transcript_id: TranscriptIdArg,
@@ -157,19 +179,12 @@ def register_domain_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="get_meta_domain",
-        title="Get Meta-Domain Variants",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=None,
+        output_schema=output_schemas.GET_META_DOMAIN_SCHEMA,
         tags={"domains"},
         description=(
-            "Return homologous (meta-domain) variant evidence for one residue: "
-            "gnomAD normal_variants and ClinVar pathogenic_variants observed at the "
-            "aligned consensus position across the residue's Pfam domain family, each "
-            "carrying its homolog gene_name. Omit `domains` to derive the selector "
-            "from the residue's cached domain mapping; a residue with no meta-domain "
-            "returns empty lists (not an error). Requires a built landscape. "
-            "Signature: get_meta_domain(transcript_id=, position=, domains=, limit=, "
-            "offset=, response_mode=)."
+            "Signature: get_meta_domain(transcript_id, position, domains=, limit=, offset=, "
+            "response_mode=)."
         ),
     )
     async def get_meta_domain(

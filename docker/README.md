@@ -7,9 +7,10 @@ make docker-logs        # follow logs
 make docker-down        # stop
 ```
 
-metadome-link is a **read-only API proxy** MCP server: it fetches tolerance
-landscapes, protein domain annotations, and variant counts from the live
-[MetaDome web API](https://stuart.radboudumc.nl/metadome/api) at request time.
+metadome-link is an **MCP/API proxy with read-only data tools and one explicit
+idempotent build trigger**: it fetches tolerance landscapes, protein domain annotations,
+and variant counts from the live
+[MetaDome web API](https://www.metadome.app/metadome/api) at request time.
 The image ships **no pre-built data** — on first boot the server starts
 immediately and the SQLite result cache populates lazily as requests arrive.
 
@@ -17,19 +18,19 @@ immediately and the SQLite result cache populates lazily as requests arrive.
 
 MetaDome computes tolerance landscapes asynchronously (Celery workers, cold
 builds can take up to ~1 hour for large transcripts). metadome-link caches
-completed landscapes on disk in `/app/data/metadome_cache.sqlite` so repeat
+completed landscapes on disk in `/data/metadome_cache.sqlite` so repeat
 requests are instant. The cache is keyed by `(transcript_id, data_version)`;
-the data version is fixed at `gencode19-gnomad2.0.2-clinvar20180603-pfam30-app1.0.1`
-(MetaDome does not update its snapshot).
+the data version is selected by `METADOME_LINK_METADOME__GENOME_BUILD` and is fixed to
+one of the reviewed profiles (`GRCh37.p13` or `GRCh38.p14`).
 
 ## Volume
 
-Mount a named volume at `/app/data` so the SQLite result cache persists across
+Mount a named volume at `/data` so the SQLite result cache persists across
 container restarts:
 
 ```yaml
 volumes:
-  - metadome-data:/app/data
+  - metadome-data:/data
 ```
 
 The entrypoint creates the directory automatically on first boot.

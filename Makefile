@@ -1,5 +1,5 @@
 .PHONY: help install lock upgrade sync \
-        format format-check lint lint-ci lint-fix lint-loc lint-readme \
+        format format-check lint lint-ci lint-fix lint-loc lint-readme lint-surface \
         typecheck test test-fast test-unit test-integration test-cov \
         check ci-local precommit clean verify-deploy \
         cache-status cache-clear cache-warm dev mcp-serve \
@@ -7,6 +7,9 @@
 
 DOCKER_COMPOSE := $(shell if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then echo "docker compose"; elif command -v docker-compose >/dev/null 2>&1; then echo "docker-compose"; else echo "docker compose"; fi)
 COMPOSE := $(DOCKER_COMPOSE) -f docker/docker-compose.yml $(shell [ -f docker/.env ] && echo "--env-file docker/.env")
+APP_VERSION ?= $(shell sed -n 's/^version = "\([^"]*\)"/\1/p' pyproject.toml | head -1)
+VCS_REF ?= $(shell git rev-parse HEAD)
+BUILD_DATE ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 
 .DEFAULT_GOAL := help
 
@@ -45,6 +48,9 @@ lint-loc: ## Enforce per-file line budget
 lint-readme: ## Enforce the GeneFoundry README Standard v1
 	uv run python scripts/check_readme.py
 
+lint-surface: ## Enforce canonical router B1/B2 and schema-doc S1-S3 gates
+	uv run pytest tests/test_tool_surface_budget.py -q
+
 typecheck: ## Type check package
 	uv run mypy metadome_link server.py mcp_server.py
 
@@ -65,7 +71,7 @@ test-cov: ## Run tests with coverage
 
 check: format lint ## Format and lint
 
-ci-local: format-check lint-ci lint-loc lint-readme typecheck test-fast ## Fast local CI-equivalent checks
+ci-local: format-check lint-ci lint-loc lint-readme lint-surface typecheck test-fast ## Fast local CI-equivalent checks
 
 precommit: ci-local ## Run checks expected before commit
 
@@ -82,7 +88,7 @@ cache-status: ## Print on-disk result cache stats / pinned data version
 cache-clear: ## Clear the on-disk result cache
 	uv run metadome-link-cache clear
 
-cache-warm: ## Warm popular transcripts (e.g. make cache-warm GENES="TP53 BRCA1")
+cache-warm: ## Warm up to 32 genes for the configured profile (nonzero if any fail)
 	uv run metadome-link-cache warm $(GENES)
 
 dev: ## Start unified REST + MCP development server
@@ -92,7 +98,7 @@ mcp-serve: ## Start local stdio MCP server
 	uv run python mcp_server.py
 
 docker-build: ## Build Docker image
-	$(COMPOSE) build
+	$(COMPOSE) build --build-arg APP_VERSION=$(APP_VERSION) --build-arg VCS_REF=$(VCS_REF) --build-arg BUILD_DATE=$(BUILD_DATE)
 
 docker-up: ## Start Docker stack (random free host port; see docker/.env)
 	$(COMPOSE) up -d

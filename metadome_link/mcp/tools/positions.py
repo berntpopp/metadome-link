@@ -17,10 +17,9 @@ envelope. The success-path ``_meta.next_commands`` are built locally by the
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import TYPE_CHECKING, Any
 
-from pydantic import Field
-
+from metadome_link.mcp import schemas as output_schemas
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
 from metadome_link.mcp.next_commands import _more_steps, cmd
@@ -28,6 +27,7 @@ from metadome_link.mcp.service_adapters import get_metadome_service
 from metadome_link.mcp.tools._common import (
     LimitArg,
     OffsetArg,
+    OptionalPositionArg,
     PositionArg,
     PositionsArg,
     ResponseMode,
@@ -138,17 +138,10 @@ def register_position_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="get_position_tolerance",
-        title="Get Position Tolerance",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=None,
+        output_schema=output_schemas.GET_POSITION_TOLERANCE_SCHEMA,
         tags={"positions"},
-        description=(
-            "Return one residue's missense tolerance (sw_dn_ds + sliding-window coverage), "
-            "its Pfam/meta-domain membership, and explicitly scoped variant evidence on a built "
-            "tolerance landscape. Out-of-range positions raise invalid_input; a not-yet-built "
-            "landscape raises not_found (request_tolerance_landscape first). "
-            "Signature: get_position_tolerance(transcript_id=, position=, response_mode=)."
-        ),
+        description="Signature: get_position_tolerance(transcript_id, position, response_mode=).",
     )
     async def get_position_tolerance(
         transcript_id: TranscriptIdArg,
@@ -177,31 +170,19 @@ def register_position_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="get_variant_counts",
-        title="Get Variant Counts",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=None,
+        output_schema=output_schemas.GET_VARIANT_COUNTS_SCHEMA,
         tags={"positions"},
         description=(
-            "Return residue-level ClinVar annotations and explicitly-labelled Pfam homolog "
-            "aggregates on a built landscape, filtered by source (both|gnomad|clinvar). "
-            "MetaDome has no true residue-level gnomAD count, so it is marked unavailable, "
-            "never zero. Accepts one position, an inclusive range, or the whole protein "
-            "(paginated); ClinVar variants include NCBI urls. "
-            "Signature: get_variant_counts(transcript_id=, position=, position_start=, "
+            "Signature: get_variant_counts(transcript_id, position=, position_start=, "
             "position_stop=, source=, limit=, offset=, response_mode=)."
         ),
     )
     async def get_variant_counts(
         transcript_id: TranscriptIdArg,
-        position: Annotated[
-            int | None, Field(ge=1, description="A single 1-based residue position.")
-        ] = None,
-        position_start: Annotated[
-            int | None, Field(ge=1, description="Inclusive start of a residue range.")
-        ] = None,
-        position_stop: Annotated[
-            int | None, Field(ge=1, description="Inclusive stop of a residue range.")
-        ] = None,
+        position: OptionalPositionArg = None,
+        position_start: OptionalPositionArg = None,
+        position_stop: OptionalPositionArg = None,
         source: SourceArg = "both",
         limit: LimitArg = 200,
         offset: OffsetArg = 0,
@@ -250,18 +231,10 @@ def register_position_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="compare_positions",
-        title="Compare Positions",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=None,
+        output_schema=output_schemas.COMPARE_POSITIONS_SCHEMA,
         tags={"positions"},
-        description=(
-            "Return a side-by-side tolerance table (sw_dn_ds, ref_aa, domain ids, explicitly "
-            "scoped variant evidence) for a batch of residue positions on a built landscape. "
-            "Out-of-range "
-            "positions get a per-item error row -- the whole batch never fails for one bad "
-            "position; the batch size is capped. "
-            "Signature: compare_positions(transcript_id=, positions=, response_mode=)."
-        ),
+        description="Signature: compare_positions(transcript_id, positions, response_mode=).",
     )
     async def compare_positions(
         transcript_id: TranscriptIdArg,

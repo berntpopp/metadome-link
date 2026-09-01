@@ -29,7 +29,7 @@ services:
       - 'METADOME_LINK_CORS_ORIGINS=["https://metadome-link.genefoundry.org"]'
       - METADOME_LINK_LOG_LEVEL=${LOG_LEVEL_API:-INFO}
       - METADOME_LINK_LOG_FORMAT=json
-      - METADOME_LINK_CACHE__DB_PATH=/app/data/metadome_cache.sqlite
+      - METADOME_LINK_CACHE__DB_PATH=/data/metadome_cache.sqlite
     # The ENTRYPOINT sets up the data dir and exec's the unified server.
     healthcheck:
       test: ["CMD", "curl", "-f", "-H", "Host: localhost", "http://127.0.0.1:8000/health"]
@@ -45,7 +45,7 @@ services:
       - /tmp/metadome-link:rw,noexec,nosuid,size=64m,mode=1777
     volumes:
       # Persist the SQLite result cache across container restarts.
-      - metadome-data:/app/data
+      - metadome-data:/data
     networks:
       - metadome_link_internal_net
       - npm_proxy_network

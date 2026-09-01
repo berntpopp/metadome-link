@@ -3,9 +3,10 @@
 ## Docker
 
 The image starts the unified server (FastAPI `/health` + MCP `/mcp`) on port 8000
-immediately — there is no bulk-ingest step. The result cache warms lazily as landscapes
-are requested. Mount a persistent volume at `/app/data` so cached landscapes survive
-container restarts.
+immediately — there is no bulk-ingest step. The read-only data tools poll/fetch landscapes
+and populate the result cache lazily; only the explicit `request_tolerance_landscape` tool
+submits an upstream build. Mount a persistent volume at `/data` so cached landscapes
+survive container restarts.
 
 ```bash
 # Local dev
@@ -35,8 +36,14 @@ reverse proxy — never published directly to the internet.
 Health check:
 ```bash
 curl http://localhost:8000/health
-# → {"status": "ok", "data_versions": {"assembly": "GRCh37", ...}}
+# → {"status": "ok", "data_versions": {"assembly": "GRCh38.p14", ...}}
 ```
+
+The health endpoint is an operational REST response; MCP tool responses place the same
+build-specific provenance under `_meta.data_versions`. The configured build selects the
+complete profile (GRCh37.p13 or GRCh38.p14), including its GENCODE, UniProt, Pfam, gnomAD,
+and ClinVar snapshots. Do not represent either profile with a single unqualified
+`METADOME_DATA_VERSION` string.
 
 ## Configuration (environment variables)
 
@@ -71,23 +78,33 @@ by a token bucket (default 3.0 req/s, burst 5) with retries on 429/5xx/timeout. 
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `METADOME_LINK_METADOME__BASE_URL` | `https://stuart.radboudumc.nl/metadome/api` | MetaDome API base URL. |
+| `METADOME_LINK_METADOME__BASE_URL` | `https://www.metadome.app/metadome/api` | MetaDome API base URL. |
+| `METADOME_LINK_METADOME__GENOME_BUILD` | `GRCh38.p14` | Exact namespace: `GRCh37.p13` or `GRCh38.p14`; arbitrary patch levels are rejected. |
 | `METADOME_LINK_METADOME__REQUEST_TIMEOUT_S` | `30.0` | Per-request HTTP timeout (s). |
 | `METADOME_LINK_METADOME__POLL_SOFT_DEADLINE_S` | `20.0` | Max poll-loop wall time before returning `status:"processing"`. |
 | `METADOME_LINK_METADOME__POLL_INITIAL_INTERVAL_S` | `2.0` | Initial poll sleep (s). |
 | `METADOME_LINK_METADOME__POLL_MAX_INTERVAL_S` | `8.0` | Maximum inter-poll sleep (s). |
 | `METADOME_LINK_METADOME__POLITENESS_RATE_PER_S` | `3.0` | Token-bucket refill rate (req/s). |
-| `METADOME_LINK_METADOME__POLITENESS_BURST` | `5` | Token-bucket burst capacity. |
-| `METADOME_LINK_METADOME__MAX_RETRIES` | `3` | Retries on 429/5xx/timeout. |
+| `METADOME_LINK_METADOME__POLITENESS_BURST` | `5` | Strict integer 1..1000; token-bucket burst capacity. |
+| `METADOME_LINK_METADOME__MAX_RETRIES` | `3` | Strict integer 0..10; retries on 429/5xx/timeout. |
+| `METADOME_LINK_METADOME__MAX_RESPONSE_BYTES` | `67108864` | Strict integer 1..134217728; hard upstream response cap. |
 
 ### Cache (`METADOME_LINK_CACHE__*`)
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `METADOME_LINK_CACHE__DB_PATH` | `data/metadome_cache.sqlite` | On-disk SQLite result cache path. Inside Docker, set to `/app/data/metadome_cache.sqlite`. |
-| `METADOME_LINK_CACHE__TTL_TRANSCRIPTS_S` | `21600` | TTL for transcript list cache (default 6 h). |
-| `METADOME_LINK_CACHE__LRU_RESULTS` | `64` | In-memory LRU size for completed landscapes. |
-| `METADOME_LINK_CACHE__LRU_TRANSCRIPTS` | `256` | In-memory LRU size for transcript lists. |
+| `METADOME_LINK_CACHE__DB_PATH` | `data/metadome_cache.sqlite` | On-disk SQLite result cache path. Inside Docker, set to `/data/metadome_cache.sqlite`. |
+| `METADOME_LINK_CACHE__TTL_TRANSCRIPTS_S` | `21600` | Strict integer 0..604800; TTL for transcript list cache (0 disables). |
+| `METADOME_LINK_CACHE__LRU_RESULTS` | `64` | Strict integer 0..4096; in-memory LRU size for completed landscapes (0 disables). |
+| `METADOME_LINK_CACHE__LRU_TRANSCRIPTS` | `256` | Strict integer 0..4096; in-memory LRU size for transcript lists (0 disables). |
+
+### Live integration evidence
+
+The default CI-equivalent suite does not call the public service. To run the six
+build-scoped v2 endpoint checks against a real authorized target, set
+`METADOME_LINK_LIVE_INTEGRATION=1` and run `make test-integration`; optionally set
+`METADOME_LINK_LIVE_BASE_URL`, `METADOME_LINK_LIVE_GENE`, and
+`METADOME_LINK_LIVE_TRANSCRIPT_ID`. No captured fixture is treated as live evidence.
 
 ## Transports
 
@@ -150,26 +167,40 @@ entry and environment variable to register this server in the GeneFoundry router
 # Outside Docker
 uv run metadome-link-cache status    # print on-disk stats + pinned data version
 uv run metadome-link-cache clear     # delete all cached landscapes
-uv run metadome-link-cache warm TP53 BRCA1  # pre-warm popular transcripts
+uv run metadome-link-cache warm TP53 BRCA1  # resolve, poll/fetch, and cache completed landscapes
 
 # Inside Docker (exec into running container)
 docker exec metadome-link metadome-link-cache status
 ```
 
+`warm` normalizes and de-duplicates at most 32 gene symbols, uses the configured genome-build
+profile and cache limits, and performs read-only resolution plus poll/fetch for each gene. It
+does not submit a build; a gene is reported as warmed only after its already-completed landscape
+is persisted in the profile-specific SQLite namespace. Unknown genes, upstream errors, and
+landscapes still processing at the configured poll deadline are reported as failures; the
+command continues with the remaining genes and exits nonzero if any gene failed.
+
 The SQLite cache is keyed `(transcript_id, metadome_data_version)`. When MetaDome ships a new
-upstream release, bump `METADOME_DATA_VERSION` in `metadome_link/constants.py` and run
-`metadome-link-cache clear` — the server will refetch landscapes on demand.
+upstream release, update the corresponding build profile in `metadome_link/constants.py` and
+run `metadome-link-cache clear` — the server will refetch landscapes on demand. The
+`METADOME_DATA_VERSION` constant is only the backwards-compatible alias for the default
+GRCh38 profile; it is not a substitute for the selected build-specific profile.
 
 ## Data version pinning
 
-MetaDome data is frozen at `gencode19-gnomad2.0.2-clinvar20180603-pfam30-app1.0.1` (GRCh37,
-gnomAD r2.0.2, ClinVar 2018-06-03). This constant (`METADOME_DATA_VERSION`) is the cache key
-and also drives `capabilities_version`. Bump it manually in `metadome_link/constants.py`
-if MetaDome upstream updates its data version.
+MetaDome supports two reviewed build-specific profiles from the same v2 Zenodo snapshot
+([DOI](https://doi.org/10.5281/zenodo.19376150)). GRCh37 uses GENCODE v19 and gnomAD
+r2.0.2; GRCh38 uses GENCODE v45 and gnomAD v4.1; both use UniProt 2025_01, Pfam 37.4,
+and ClinVar 2025-10-06. Their assembly/build identity remains distinct. GRCh38 is
+`metadome2.0-grch38.p14-gencode45-uniprot2025_01-pfam37.4-gnomad4.1-clinvar2025-10-06`
+and GRCh37 is
+`metadome2.0-grch37.p13-gencode19-uniprot2025_01-pfam37.4-gnomad2.0.2-clinvar2025-10-06`.
+The selected profile is the cache key and drives `capabilities_version`; arbitrary build
+namespaces are rejected.
 
 ## Production checklist
 
-- [ ] Mount a named Docker volume at `/app/data` (cache survives restarts).
+- [ ] Mount a named Docker volume at `/data` (cache survives restarts).
 - [ ] Set `METADOME_LINK_LOG_FORMAT=json` for structured log ingestion.
 - [ ] Set `METADOME_LINK_HOST=0.0.0.0` (default in Docker; use `127.0.0.1` behind a
   reverse proxy without Docker networking).

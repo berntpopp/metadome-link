@@ -7,6 +7,10 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
+from metadome_link.constants import RECOMMENDED_CITATION
+
 # ---------------------------------------------------------------------------
 # pagination tests
 # ---------------------------------------------------------------------------
@@ -99,7 +103,7 @@ def test_shape_record_compact_drops_null_and_empty() -> None:
     from metadome_link.services.shaping import shape_record
 
     record = {
-        "transcript_id": "ENST00000269305.4",
+        "transcript_id": "ENST00000269305.9",
         "gene_name": "TP53",
         "aa_length": None,
         "domains": [],
@@ -120,7 +124,7 @@ def test_shape_record_standard_keeps_all_fields() -> None:
     from metadome_link.services.shaping import shape_record
 
     record = {
-        "transcript_id": "ENST00000269305.4",
+        "transcript_id": "ENST00000269305.9",
         "gene_name": "TP53",
         "aa_length": None,
         "domains": [],
@@ -134,7 +138,7 @@ def test_shape_record_full_keeps_all_fields() -> None:
     from metadome_link.services.shaping import shape_record
 
     record = {
-        "transcript_id": "ENST00000269305.4",
+        "transcript_id": "ENST00000269305.9",
         "aa_length": None,
         "domains": [],
     }
@@ -148,7 +152,7 @@ def test_shape_record_minimal_keeps_collection_results() -> None:
     from metadome_link.services.shaping import shape_record
 
     record = {
-        "transcript_id": "ENST00000269305.4",
+        "transcript_id": "ENST00000269305.9",
         "gene_name": "TP53",
         "domains": [{"name": "p53"}],
         "meta_domains": {"PF00870": {"pathogenic_variants": [{"pos": 175}]}},
@@ -157,7 +161,7 @@ def test_shape_record_minimal_keeps_collection_results() -> None:
     }
     result = shape_record(record, "minimal")
 
-    assert result["transcript_id"] == "ENST00000269305.4"
+    assert result["transcript_id"] == "ENST00000269305.9"
     assert result["domains"] == [{"name": "p53"}]
     assert result["meta_domains"] == {"PF00870": {"pathogenic_variants": [{"pos": 175}]}}
     # the mandatory citation survives; only the redundant prose caveat is dropped
@@ -175,7 +179,7 @@ def test_shape_record_minimal_keeps_scalar_results() -> None:
     from metadome_link.services.shaping import shape_record
 
     record = {
-        "transcript_id": "ENST00000269305.4",
+        "transcript_id": "ENST00000269305.9",
         "protein_pos": 175,
         "ref_aa": "R",
         "sw_dn_ds": 0.123,
@@ -198,14 +202,14 @@ def test_shape_record_minimal_keeps_build_handle_scalars() -> None:
     from metadome_link.services.shaping import shape_record
 
     record = {
-        "job_id": "ENST00000269305.4",
+        "job_id": "ENST00000269305.9",
         "status": "processing",
         "poll_after_s": 30,
         "recommended_citation": "MetaDome ...",
     }
     result = shape_record(record, "minimal")
 
-    assert result["job_id"] == "ENST00000269305.4"
+    assert result["job_id"] == "ENST00000269305.9"
     assert result["status"] == "processing"
     assert result["poll_after_s"] == 30
     assert result["recommended_citation"] == "MetaDome ..."
@@ -215,7 +219,7 @@ def test_shape_record_compact_preserves_meta_and_success() -> None:
     from metadome_link.services.shaping import shape_record
 
     record = {
-        "transcript_id": "ENST00000269305.4",
+        "transcript_id": "ENST00000269305.9",
         "_meta": {"tool": "get_landscape"},
         "success": True,
         "empty_field": [],
@@ -232,7 +236,7 @@ def test_select_fields_returns_requested_fields_plus_anchors() -> None:
     from metadome_link.services.shaping import select_fields
 
     payload = {
-        "transcript_id": "ENST00000269305.4",
+        "transcript_id": "ENST00000269305.9",
         "gene_name": "TP53",
         "aa_length": 393,
         "domains": [{"name": "p53"}],
@@ -261,7 +265,7 @@ def test_select_fields_no_fields_returns_payload_unchanged() -> None:
 def test_char_budget_guard_under_budget_unchanged() -> None:
     from metadome_link.services.shaping import char_budget_guard
 
-    payload = {"transcript_id": "ENST00000269305.4", "gene_name": "TP53"}
+    payload = {"transcript_id": "ENST00000269305.9", "gene_name": "TP53"}
     result = char_budget_guard(payload, max_chars=10_000)
 
     assert result == payload
@@ -272,7 +276,7 @@ def test_char_budget_guard_over_budget_truncates_lists_and_injects_summary() -> 
     from metadome_link.services.shaping import char_budget_guard
 
     payload = {
-        "transcript_id": "ENST00000269305.4",
+        "transcript_id": "ENST00000269305.9",
         "positions": list(range(500)),  # big list
         "domains": list(range(50)),  # another list
     }
@@ -285,7 +289,7 @@ def test_char_budget_guard_over_budget_truncates_lists_and_injects_summary() -> 
     # dropped_summary must be injected
     assert "dropped_summary" in result
     # transcript_id must survive (scalar)
-    assert result["transcript_id"] == "ENST00000269305.4"
+    assert result["transcript_id"] == "ENST00000269305.9"
     # at least one list field was truncated
     positions = result.get("positions", [])
     assert isinstance(positions, list)
@@ -295,7 +299,7 @@ def test_char_budget_guard_truncates_nested_meta_domain_lists() -> None:
     from metadome_link.services.shaping import char_budget_guard
 
     payload = {
-        "transcript_id": "ENST00000269305.4",
+        "transcript_id": "ENST00000269305.9",
         "protein_position": 175,
         "meta_domains": {
             "PF00870": {
@@ -316,9 +320,16 @@ def test_char_budget_guard_truncates_nested_meta_domain_lists() -> None:
     assert len(result["meta_domains"]["PF00870"]["pathogenic_variants"]) < 400
     # Dict scaffolding (alignment_depth, identity anchors) survives.
     assert result["meta_domains"]["PF00870"]["alignment_depth"] == 42
-    assert result["transcript_id"] == "ENST00000269305.4"
+    assert result["transcript_id"] == "ENST00000269305.9"
     # The caller's input dict is not mutated.
     assert payload == original_input
+
+
+def test_char_budget_guard_rejects_untruncatable_oversized_scalars() -> None:
+    from metadome_link.services.shaping import char_budget_guard
+
+    with pytest.raises(ValueError):
+        char_budget_guard({"huge": "x" * 1_000}, max_chars=100)
 
 
 def test_response_modes_and_default_exported() -> None:
@@ -343,9 +354,9 @@ def test_recommended_citation_contains_doi() -> None:
 def test_recommended_citation_with_transcript_id_appended() -> None:
     from metadome_link.services.citation import recommended_citation
 
-    cit = recommended_citation(transcript_id="ENST00000269305.4")
+    cit = recommended_citation(transcript_id="ENST00000269305.9")
     assert "humu.23798" in cit
-    assert "Transcript ENST00000269305.4" in cit
+    assert cit == RECOMMENDED_CITATION
 
 
 def test_recommended_citation_with_gene_name() -> None:
@@ -359,8 +370,8 @@ def test_recommended_citation_with_gene_name() -> None:
 def test_recommended_citation_transcript_and_gene() -> None:
     from metadome_link.services.citation import recommended_citation
 
-    cit = recommended_citation(transcript_id="ENST00000269305.4", gene_name="TP53")
-    assert "Transcript ENST00000269305.4" in cit
+    cit = recommended_citation(transcript_id="ENST00000269305.9", gene_name="TP53")
+    assert cit == RECOMMENDED_CITATION
 
 
 def test_citation_template_is_string() -> None:

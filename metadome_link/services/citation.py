@@ -1,8 +1,8 @@
 """Citation helpers for MetaDome payloads.
 
-``recommended_citation`` returns the verbatim Wiel et al. 2019 citation string,
-optionally extended with a transcript-specific suffix so downstream tasks can
-paste it directly into tool responses without knowing the citation text.
+``recommended_citation`` returns the verbatim Wiel et al. 2019 citation string.
+Transcript identity is carried by the surrounding structured response fields,
+never appended to the bibliographic record.
 
 ``citation_template`` returns the bare template string used internally for
 ``recommended_citation`` generation.
@@ -18,14 +18,12 @@ def recommended_citation(
     transcript_id: str | None = None,
     gene_name: str | None = None,
 ) -> str:
-    """Return the canonical MetaDome citation, optionally suffixed.
+    """Return the canonical verbatim MetaDome citation.
 
     Parameters
     ----------
     transcript_id:
-        When supplied, appends `` Transcript {transcript_id}.`` to the base
-        citation so callers can reference a specific transcript without
-        constructing the citation themselves.
+        Accepted for API compatibility; identity remains a separate field.
     gene_name:
         Reserved for future use (e.g. gene-level citation variants).  Currently
         has no effect on the returned string; included so callers can pass it
@@ -34,12 +32,10 @@ def recommended_citation(
     Returns
     -------
     str
-        The verbatim Wiel 2019 citation, with an optional transcript suffix.
+        The verbatim Wiel 2019 citation.
     """
-    cit = RECOMMENDED_CITATION
-    if transcript_id:
-        cit = f"{cit} Transcript {transcript_id}."
-    return cit
+    del transcript_id, gene_name
+    return RECOMMENDED_CITATION
 
 
 def citation_template() -> str:

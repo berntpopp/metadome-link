@@ -1,30 +1,4 @@
-"""Async HTTP client for the MetaDome web API.
-
-MetaDome (https://stuart.radboudumc.nl/metadome/api) is a fully-open, no-auth
-service. It builds per-transcript tolerance landscapes **asynchronously** (a
-Celery job, cold builds up to ~1 h), so the workflow is a submit -> poll-status
--> fetch-result split. This client wraps the six endpoints behind typed methods
-and normalizes their quirks:
-
-- Endpoint 1 (``/get_transcripts/<gene>``) returns a misspelled ``trancript_ids``
-  key and a comma-joined ``refseq_nm_numbers`` string -> normalized to a
-  ``refseq_ids`` list. An unknown gene is **HTTP 200 with an empty list**, not an
-  error, so :meth:`get_transcripts` returns ``[]`` rather than raising.
-- Endpoints 2-6 require a **trailing slash**; endpoint 1 has **none**.
-- Transcript ids must carry the ``.N`` version suffix or ``submit`` returns 400.
-- ``clinvar_ID`` is a ``str`` in ``/result/`` but a ``float`` in
-  ``/get_metadomain_annotation/`` -> coerced to ``str`` in both.
-
-Reliability layer (lifted/adapted from ``mavedb-link``): one shared
-``httpx.AsyncClient``, a token-bucket politeness limiter, and jittered
-exponential backoff on 429/5xx/timeouts. Status codes map to the typed
-exceptions the MCP envelope classifies:
-
-- 404 -> :class:`NotFoundError`
-- 400 -> :class:`InvalidInputError`
-- 429 (after retries) -> :class:`RateLimitedError`
-- 5xx / timeout / network (after retries) -> :class:`UpstreamUnavailableError`
-"""
+"""Async, retrying HTTP client for MetaDome v2's six build-scoped endpoints."""
 
 from __future__ import annotations
 
@@ -36,6 +10,12 @@ from urllib.parse import quote
 
 import httpx
 
+from metadome_link.api.models import (
+    validate_metadomain_blocks,
+    validate_result_document,
+    validate_transcript_entries,
+)
+from metadome_link.api.response import parse_json
 from metadome_link.api.url_guard import (
     MAX_REDIRECTS,
     DisallowedURLError,
@@ -43,15 +23,19 @@ from metadome_link.api.url_guard import (
     make_url_guard,
     read_capped_response,
 )
-from metadome_link.config import ServerSettings
+from metadome_link.cache.transcripts import TranscriptCache
+from metadome_link.config import ServerSettings, validate_finite_seconds
 from metadome_link.config import settings as default_settings
+from metadome_link.constants import data_profile
 from metadome_link.exceptions import (
     InvalidInputError,
     NotFoundError,
     RateLimitedError,
+    UpstreamSchemaError,
     UpstreamUnavailableError,
 )
-from metadome_link.identifiers import validate_transcript_id
+from metadome_link.identifiers import require_matching_gene, validate_transcript_id
+from metadome_link.services.selectors import validate_meta_domain_request
 
 if TYPE_CHECKING:
     from metadome_link.config import MetaDomeSettings
@@ -65,15 +49,11 @@ _BACKOFF_MAX_SECONDS = 8.0
 
 #: Celery / MetaDome in-progress status values (loop while status is one of these).
 _PENDING_STATUSES = frozenset({"PENDING", "SENT", "STARTED", "RECEIVED", "RETRY"})
+_TERMINAL_STATUSES = frozenset({"SUCCESS", "FAILURE"})
 
 
 class _TokenBucket:
-    """A simple async token-bucket limiter for upstream politeness.
-
-    Refills at ``rate`` tokens/second up to ``burst`` capacity; :meth:`acquire`
-    blocks (cooperatively) until a token is available. A non-positive ``rate``
-    disables limiting entirely.
-    """
+    """Async token-bucket limiter for upstream politeness."""
 
     def __init__(self, *, rate: float, burst: int) -> None:
         """Initialise with a refill rate (tokens/s) and burst capacity."""
@@ -109,17 +89,19 @@ class MetaDomeClient:
         *,
         client: httpx.AsyncClient | None = None,
     ) -> None:
-        """Build the client.
-
-        Args:
-            settings: Optional :class:`ServerSettings` override (defaults to the
-                module-level singleton). Only ``settings.metadome`` is consumed.
-            client: Optional injected ``httpx.AsyncClient`` (for tests). When
-                provided it is reused as-is and **not** closed by :meth:`aclose`.
-        """
+        """Build the client from optional settings and an injected HTTP client."""
         resolved = settings if settings is not None else default_settings
         self._cfg: MetaDomeSettings = resolved.metadome
         self._base_url = self._cfg.base_url.rstrip("/")
+        self._genome_build = self._cfg.genome_build
+        profile = data_profile(self._genome_build)
+        self._data_version = profile.data_version
+        self._data_versions = dict(profile.data_versions)
+        self._data_currency_caveat = profile.data_currency_caveat
+        self._transcript_cache = TranscriptCache(
+            ttl_seconds=resolved.cache.ttl_transcripts_s,
+            maxsize=resolved.cache.lru_transcripts,
+        )
         # F-10: derive the redirect/destination allowlist from the CONFIGURED base
         # URL host (never hardcoded, so an operator base-URL override still works).
         self._url_guard = make_url_guard(build_origin_allowlist(self._cfg.base_url))
@@ -135,6 +117,26 @@ class MetaDomeClient:
     def base_url(self) -> str:
         """The configured upstream base URL (no trailing slash)."""
         return self._base_url
+
+    @property
+    def genome_build(self) -> str:
+        """The exact configured upstream namespace."""
+        return self._genome_build
+
+    @property
+    def data_version(self) -> str:
+        """The cache/provenance identity for the configured build."""
+        return self._data_version
+
+    @property
+    def data_versions(self) -> dict[str, str]:
+        """Return a copy of the configured build's component provenance."""
+        return dict(self._data_versions)
+
+    @property
+    def data_currency_caveat(self) -> str:
+        """The configured build's historical-data warning."""
+        return self._data_currency_caveat
 
     # -- transport -------------------------------------------------------------
 
@@ -210,16 +212,7 @@ class MetaDomeClient:
 
     @staticmethod
     def _raise_for_status(response: httpx.Response) -> None:
-        """Map a non-2xx response to a typed exception (2xx returns ``None``).
-
-        The upstream response BODY is deliberately NOT interpolated into the
-        exception message: a caller-influenced query can make MetaDome reflect
-        hostile prose (incl. control/zero-width/bidi/NUL) into a 4xx body, and
-        echoing it verbatim would smuggle attacker-controlled text into a
-        caller-visible message. Fixed, status-keyed, body-free messages are raised
-        instead (the HTTP status is a safe, non-attacker-controlled scalar); the
-        body is not logged either, preserving the no-PII-in-logs invariant.
-        """
+        """Map non-2xx statuses to fixed, body-free typed exceptions."""
         status = response.status_code
         if status < 400:
             return
@@ -235,40 +228,55 @@ class MetaDomeClient:
         """GET ``base_url + path`` and return parsed JSON (status mapped first)."""
         response = await self._send("GET", f"{self._base_url}{path}")
         self._raise_for_status(response)
-        return response.json()
+        return parse_json(response)
 
     async def _post_json(self, path: str, body: dict[str, Any]) -> Any:
         """POST a JSON body to ``base_url + path`` and return parsed JSON."""
         response = await self._send("POST", f"{self._base_url}{path}", json=body)
         self._raise_for_status(response)
-        return response.json()
+        return parse_json(response)
 
     # -- endpoints -------------------------------------------------------------
 
     async def get_transcripts(self, gene: str) -> list[dict[str, Any]]:
-        """GET ``/get_transcripts/<gene>`` (endpoint 1, no trailing slash).
+        """GET the build-scoped transcript list and normalize its entries."""
+        return await self._transcript_cache.get(
+            (self._genome_build, gene), lambda: self._fetch_transcripts(gene)
+        )
 
-        Returns a normalized transcript list (each entry has ``gencode_id``,
-        ``aa_length``, ``has_protein_data`` and a ``refseq_ids`` *list* split from
-        the upstream ``refseq_nm_numbers`` string). An unknown gene yields an
-        empty list (upstream returns HTTP 200 with an empty list, not 404), so
-        this method never raises :class:`NotFoundError`.
-        """
+    async def _fetch_transcripts(self, gene: str) -> list[dict[str, Any]]:
+        """Fetch and validate one transcript response without consulting the cache."""
         # URL-encode the gene segment so metacharacters in a free-text query
         # cannot rewrite the request path (normalize_gene_symbol still upstream).
-        body = await self._get_json(f"/get_transcripts/{quote(gene, safe='')}")
-        # NOTE: upstream key is the misspelled ``trancript_ids`` (sic).
-        raw = body.get("trancript_ids", []) if isinstance(body, dict) else []
+        body = await self._get_json(
+            f"/get_transcripts/{quote(self._genome_build, safe='')}/{quote(gene, safe='')}"
+        )
+        if not isinstance(body, dict) or "transcript_ids" not in body:
+            raise UpstreamSchemaError(
+                "MetaDome transcript response is missing transcript_ids.",
+                field="transcript_ids",
+            )
+        if body.get("genome_build") != self._genome_build:
+            raise UpstreamSchemaError(
+                "MetaDome transcript response has an unexpected genome build.",
+                field="genome_build",
+            )
+        raw = body["transcript_ids"]
+        entries = validate_transcript_entries(raw)
+        require_matching_gene(body.get("gene_name"), gene)
+        if isinstance(raw, list) and raw and body.get("gene_name") is None:
+            raise UpstreamSchemaError(
+                "MetaDome transcript response is missing gene_name.", field="gene_name"
+            )
         out: list[dict[str, Any]] = []
-        for entry in raw:
-            if not isinstance(entry, dict):
-                continue
+        for entry in entries:
             out.append(
                 {
-                    "gencode_id": entry.get("gencode_id"),
-                    "aa_length": entry.get("aa_length"),
-                    "has_protein_data": bool(entry.get("has_protein_data", False)),
-                    "refseq_ids": _split_refseq(entry.get("refseq_nm_numbers", "")),
+                    "gencode_id": entry["gencode_id"],
+                    "aa_length": entry["aa_length"],
+                    "has_protein_data": entry["has_protein_data"],
+                    "mane_transcript_type": entry["mane_transcript_type"],
+                    "refseq_ids": _split_refseq(entry["refseq_nm_numbers"]),
                 }
             )
         return out
@@ -280,44 +288,59 @@ class MetaDomeClient:
         :class:`InvalidInputError` by ``_raise_for_status``.
         """
         tid = validate_transcript_id(transcript_id)
-        body = await self._post_json("/submit_visualization/", {"transcript_id": tid})
-        if isinstance(body, dict):
-            echoed = body.get("transcript_id")
-            if isinstance(echoed, str):
-                return echoed
+        body = await self._post_json(
+            "/submit_visualization/",
+            {"transcript_id": tid, "genome_build": self._genome_build},
+        )
+        if not isinstance(body, dict) or body.get("transcript_id") != tid:
+            raise UpstreamSchemaError(
+                "MetaDome submit response has an unexpected transcript id.",
+                field="transcript_id",
+            )
+        if "genome_build" in body and body["genome_build"] != self._genome_build:
+            raise UpstreamSchemaError(
+                "MetaDome submit response has an unexpected genome build.",
+                field="genome_build",
+            )
         return tid
 
     async def get_status(self, transcript_id: str) -> str:
-        """GET ``/status/<transcript_id>/`` (endpoint 3); return the raw status string.
-
-        One of ``PENDING|SENT|STARTED|RECEIVED|RETRY|SUCCESS|FAILURE`` (empty
-        string if the upstream body lacks a ``status`` key).
-        """
-        body = await self._get_json(f"/status/{transcript_id}/")
-        if isinstance(body, dict):
-            return str(body.get("status", ""))
-        return ""
+        """GET the build-scoped status and return its validated state."""
+        tid = validate_transcript_id(transcript_id)
+        body = await self._get_json(f"/status/{self._genome_build}/{tid}")
+        status_raw = body.get("status") if isinstance(body, dict) else None
+        if not isinstance(status_raw, str):
+            raise UpstreamSchemaError(
+                "MetaDome status response is missing a valid status.", field="status"
+            )
+        status = status_raw
+        if status not in _PENDING_STATUSES | _TERMINAL_STATUSES:
+            raise UpstreamSchemaError(
+                "MetaDome status response contains an unknown status.", field="status"
+            )
+        return status
 
     async def get_result(self, transcript_id: str) -> dict[str, Any]:
-        """GET ``/result/<transcript_id>/`` (endpoint 4); return the normalized landscape.
-
-        Every ``positional_annotation[i].ClinVar[].clinvar_ID`` is coerced to a
-        ``str``. The ``positional_annotation`` length is left as-is (== protein
-        length upstream). A 404 (not built yet) raises :class:`NotFoundError`.
-        """
-        body = await self._get_json(f"/result/{transcript_id}/")
-        if not isinstance(body, dict):
-            raise UpstreamUnavailableError("MetaDome result had an unexpected shape.")
-        positions = body.get("positional_annotation")
-        if isinstance(positions, list):
-            for entry in positions:
-                if isinstance(entry, dict):
-                    _coerce_clinvar_ids(entry.get("ClinVar"))
-        return body
+        """GET and validate a complete build-scoped landscape document."""
+        tid = validate_transcript_id(transcript_id)
+        body = await self._get_json(f"/result/{self._genome_build}/{tid}")
+        if not isinstance(body, dict) or body.get("transcript_id") != tid:
+            raise UpstreamSchemaError(
+                "MetaDome result response has an unexpected transcript id.",
+                field="transcript_id",
+            )
+        result = validate_result_document(body)
+        positions = result["positional_annotation"]
+        for entry in positions:
+            _coerce_clinvar_ids(entry.get("ClinVar"))
+        if isinstance(result.get("refseq_ids"), str):
+            result["refseq_ids"] = _split_refseq(result["refseq_ids"])
+        return result
 
     async def get_error(self, transcript_id: str) -> dict[str, Any]:
-        """GET ``/error/<transcript_id>/`` (endpoint 5); return the stored error dict."""
-        body = await self._get_json(f"/error/{transcript_id}/")
+        """GET the stored build-scoped error dictionary."""
+        tid = validate_transcript_id(transcript_id)
+        body = await self._get_json(f"/error/{self._genome_build}/{tid}")
         if isinstance(body, dict):
             return body
         return {"error": str(body)}
@@ -328,24 +351,33 @@ class MetaDomeClient:
         protein_position: int,
         requested_domains: dict[str, list[int]],
     ) -> dict[str, Any]:
-        """POST ``/get_metadomain_annotation/`` (endpoint 6); coerce ``clinvar_ID`` to str.
-
-        ``requested_domains`` maps a Pfam id to a list of 1-based consensus
-        positions (read from ``domains[<PF>].consensus_pos`` of the landscape).
-        Every ``pathogenic_variants[].clinvar_ID`` (a ``float`` upstream) is
-        coerced to a ``str``.
-        """
+        """POST endpoint 6 after validating the finite selector request."""
         tid = validate_transcript_id(transcript_id)
+        requested_domains = validate_meta_domain_request(protein_position, requested_domains)
         body = await self._post_json(
             "/get_metadomain_annotation/",
             {
                 "transcript_id": tid,
+                "genome_build": self._genome_build,
                 "protein_position": protein_position,
                 "requested_domains": requested_domains,
             },
         )
         if not isinstance(body, dict):
             raise UpstreamUnavailableError("MetaDome metadomain had an unexpected shape.")
+        unexpected = set(body) - set(requested_domains)
+        if unexpected:
+            raise UpstreamSchemaError(
+                "MetaDome metadomain returned an unrequested domain.",
+                field=f"metadomain_annotation.{next(iter(unexpected))}",
+            )
+        missing = set(requested_domains) - set(body)
+        if missing:
+            raise UpstreamSchemaError(
+                "MetaDome metadomain omitted a requested domain.",
+                field=f"metadomain_annotation.{next(iter(missing))}",
+            )
+        validate_metadomain_blocks(body)
         for domain in body.values():
             if isinstance(domain, dict):
                 _coerce_clinvar_ids(domain.get("pathogenic_variants"))
@@ -359,40 +391,60 @@ class MetaDomeClient:
         *,
         soft_deadline_s: float,
     ) -> tuple[str, dict[str, Any] | None]:
-        """Submit (idempotent) then poll status until terminal or the soft deadline.
+        """Poll status/result without submitting, until terminal state or deadline.
 
-        Returns one of three states, never blocking past ``soft_deadline_s``:
-
-        - ``("ready", result_dict)`` -- status reached SUCCESS within the deadline.
-        - ``("processing", None)`` -- still building when the deadline elapsed.
-        - ``("failed", error_dict)`` -- status reached FAILURE.
-
-        Honours the politeness limiter (via the underlying requests) and an
-        interval backoff from ``poll_initial_interval_s`` toward
-        ``poll_max_interval_s`` with small jitter.
+        Submission is deliberately owned by the explicit compute-orchestration
+        tool.  Read-only callers use this method on a cache miss and must never
+        create upstream work as a side effect.
         """
         tid = validate_transcript_id(transcript_id)
         start = time.monotonic()
-        await self.submit_visualization(tid)
-
+        try:
+            deadline_seconds = validate_finite_seconds(soft_deadline_s, maximum=3600)
+        except ValueError:
+            raise InvalidInputError(
+                "soft_deadline_s must be a finite value in (0, 3600].",
+                field="soft_deadline_s",
+            ) from None
+        deadline = start + deadline_seconds
         interval = self._cfg.poll_initial_interval_s
         max_interval = self._cfg.poll_max_interval_s
         while True:
-            status = await self.get_status(tid)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return "processing", None
+            try:
+                status = await asyncio.wait_for(self.get_status(tid), timeout=remaining)
+            except TimeoutError:
+                return "processing", None
             if status == "SUCCESS":
-                return "ready", await self.get_result(tid)
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return "processing", None
+                try:
+                    result = await asyncio.wait_for(self.get_result(tid), timeout=remaining)
+                except TimeoutError:
+                    return "processing", None
+                return "ready", result
             if status == "FAILURE":
-                return "failed", await self.get_error(tid)
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    return "processing", None
+                try:
+                    error = await asyncio.wait_for(self.get_error(tid), timeout=remaining)
+                except TimeoutError:
+                    return "processing", None
+                return "failed", error
             # status is PENDING/SENT/STARTED/RECEIVED/RETRY (or unknown) -> keep waiting.
-            elapsed = time.monotonic() - start
-            if elapsed >= soft_deadline_s:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
                 return "processing", None
             # Sleep, but never overrun the soft deadline.
             jitter = interval * random.uniform(0.0, 0.1)  # noqa: S311
-            sleep_for = min(interval + jitter, soft_deadline_s - elapsed)
+            sleep_for = min(interval + jitter, remaining)
             if sleep_for > 0:
                 await asyncio.sleep(sleep_for)
-            if time.monotonic() - start >= soft_deadline_s:
+            if time.monotonic() >= deadline:
                 return "processing", None
             interval = min(interval * 1.5, max_interval)
 

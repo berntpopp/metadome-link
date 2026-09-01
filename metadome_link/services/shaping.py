@@ -163,22 +163,24 @@ def char_budget_guard(payload: dict[str, Any], *, max_chars: int) -> dict[str, A
     result: dict[str, Any] = copy.deepcopy(payload)
     dropped: dict[str, int] = {}
 
-    while len(json.dumps(result)) > max_chars:
+    while True:
+        if dropped:
+            parts = [f"{k}: {n} item(s) dropped" for k, n in sorted(dropped.items())]
+            result["dropped_summary"] = (
+                "Truncated to fit response budget. " + "; ".join(parts) + "."
+            )
+        if len(json.dumps(result)) <= max_chars:
+            if dropped:
+                _reconcile_pagination(result)
+            return result
         targets = _guard_list_targets(result)
         if not targets:
-            break  # nothing left to truncate
+            raise ValueError("Response exceeds maximum size after list truncation.")
         label, container, key = max(targets, key=lambda t: len(t[1][t[2]]))
         lst = container[key]
         step = min(_GUARD_TRUNCATE_STEP, len(lst))
         container[key] = lst[: len(lst) - step]
         dropped[label] = dropped.get(label, 0) + step
-
-    if dropped:
-        parts = [f"{k}: {n} item(s) dropped" for k, n in sorted(dropped.items())]
-        result["dropped_summary"] = "Truncated to fit response budget. " + "; ".join(parts) + "."
-        _reconcile_pagination(result)
-
-    return result
 
 
 def _reconcile_pagination(payload: dict[str, Any]) -> None:
@@ -212,7 +214,12 @@ def _reconcile_page_block(items: object, block: dict[str, Any]) -> None:
     if not isinstance(total, int) or not isinstance(offset, int):
         return
     returned = len(items)
-    next_offset = offset + returned
+    # Preserve forward progress when shaping drops every row from a page. The
+    # pre-shaping ``returned`` count is still the honest cursor advancement.
+    prior_returned = block.get("returned", 0)
+    fallback = min(block.get("limit", 0), max(total - offset, 0))
+    advance = returned or prior_returned or fallback
+    next_offset = offset + advance
     block["returned"] = returned
     block["truncated"] = next_offset < total
     block["next_offset"] = next_offset if next_offset < total else None

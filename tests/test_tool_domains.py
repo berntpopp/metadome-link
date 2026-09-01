@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Any
 
-TID = "ENST00000269305.4"
+TID = "ENST00000269305.9"
 
 
 async def test_get_protein_domains_returns_pfam_list(facade: Any, call_tool: Any) -> None:

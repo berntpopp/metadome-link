@@ -9,13 +9,13 @@ Guidance for agents and contributors working in this repository.
 
 ## What this is
 
-`metadome-link` is a read-only MCP + REST server that wraps the **MetaDome** web
+`metadome-link` is a data-reading MCP + REST server with an idempotent build trigger that wraps the **MetaDome** web
 service (Wiel et al., *Human Mutation* 2019). It exposes, per human protein
 transcript: the per-residue missense **tolerance landscape** (`sw_dn_ds`, lower =
 more intolerant), **Pfam domain** annotations, **meta-domain** (homolog) variant
 aggregation, and per-residue ClinVar annotations. MetaDome does not expose true
 per-residue gnomAD counts; its explicitly-labelled Pfam aggregates may span genes
-(GRCh37/hg19). It is one
+(GRCh37/hg19 or GRCh38.p14, defaulting to GRCh38.p14). It is one
 backend in the GeneFoundry `-link` fleet, federated behind `genefoundry-router`
 under the namespace **`metadome`**. It mirrors the sibling fleet stack lifted from
 `mondo-link` (MCP plane) and `mavedb-link` (async API client + TTL cache).
@@ -48,17 +48,17 @@ is a **first-class success state** (not an error), carrying `poll_after_s` /
 ## Invariants
 
 - Services return plain dicts; the envelope owns `success`/`_meta` and returns
-  structured errors. **7-code error taxonomy**: `invalid_input`, `not_found`,
-  `ambiguous_query`, `data_unavailable`, `rate_limited`, `upstream_unavailable`,
-  `internal_error`.
+  structured errors. **6-code wire error taxonomy**: `invalid_input`, `not_found`,
+  `ambiguous_query`, `rate_limited`, `upstream_unavailable`, `internal`.
 - Every `compact` (default) or richer response carries `_meta.next_commands`
-  (ready-to-call follow-ups); `minimal` is the explicit opt-out and returns only
-  `_meta = {tool, request_id}`. `_meta` verbosity is tiered by `response_mode`:
+  (ready-to-call follow-ups); `minimal` is the explicit opt-out and retains the
+  essential answer/identity fields plus `_meta = {tool, request_id, data_versions,
+  unsafe_for_clinical_use}`. `_meta` verbosity is tiered by `response_mode`:
   `compact` keeps `next_commands` + `capabilities_version` but drops `elapsed_ms`;
   `standard`/`full` add `elapsed_ms`.
-- **`_meta.data_versions` is ALWAYS present** (GRCh37, Gencode v19, gnomAD r2.0.2,
-  ClinVar 2018-06-03, Pfam 30.0) — the hg19/data-currency caveat surface.
-- Every tool declares `output_schema` + `READ_ONLY_OPEN_WORLD` annotations, and its
+- **`_meta.data_versions` is ALWAYS present** and identifies the selected live build
+  (`GRCh37.p13` or `GRCh38.p14`) plus its component snapshot.
+- Every tool declares an output schema plus the appropriate read-only or compute annotation, and its
   first description sentence is a discovery summary ending with
   `Signature: tool(args...)`.
 - **Every tool's real output (success + error, all response modes) must validate
@@ -73,7 +73,11 @@ is a **first-class success state** (not an error), carrying `poll_after_s` /
   registered tool set.
 - Identifiers are normalised/validated in `identifiers.py` (Ensembl transcript ids
   must carry a `.N` version: `^ENST\d{11}\.\d+$`).
-- MetaDome data is **GRCh37/hg19, gnomAD r2.0.2, ClinVar 2018-06-03** — historical.
+- MetaDome serves two explicit historical profiles, **GRCh37.p13** and **GRCh38.p14**,
+  using build-specific components from the reviewed v2 snapshot (GRCh37: GENCODE v19,
+  gnomAD r2.0.2; GRCh38: GENCODE v45, gnomAD v4.1; both: UniProt 2025_01, Pfam 37.4,
+  ClinVar 2025-10-06; Zenodo DOI 10.5281/zenodo.19376150). The selected assembly/build
+  profile is surfaced on every response.
   Surface the data-currency caveat; do not present counts as current.
 
 ## Definition of done
@@ -102,7 +106,7 @@ make install          # uv sync --group dev
 make ci-local         # the definition-of-done gate (see above)
 make test             # pytest, unit only
 make test-fast        # pytest -n auto
-make test-integration # live MetaDome endpoint tests (opt-in)
+METADOME_LINK_LIVE_INTEGRATION=1 make test-integration # live v2 endpoint contract (opt-in)
 make test-cov         # pytest --cov (coverage ≥ 80%)
 make dev              # unified REST + MCP server on 127.0.0.1:8000
 make mcp-serve        # stdio MCP server

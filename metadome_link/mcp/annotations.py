@@ -1,4 +1,4 @@
-"""Shared MCP tool annotations (read-only research server)."""
+"""Shared annotations for read-only data tools and the explicit build trigger."""
 
 from __future__ import annotations
 
@@ -6,9 +6,6 @@ from mcp.types import ToolAnnotations
 
 READ_ONLY_OPEN_WORLD = ToolAnnotations(
     readOnlyHint=True,
-    destructiveHint=False,
-    idempotentHint=True,
-    openWorldHint=True,
 )
 
 #: A compute-STARTING tool: it mutates upstream state (POSTs a build job) so it is

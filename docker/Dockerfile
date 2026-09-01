@@ -1,10 +1,10 @@
 # syntax=docker/dockerfile:1
 # Multi-stage Dockerfile for metadome-link.
 #
-# metadome-link is a read-only proxy over the MetaDome web API
-# (https://stuart.radboudumc.nl/metadome/api). The image ships NO bulk data —
+# metadome-link exposes read-only data tools plus one explicit idempotent build trigger
+# (https://www.metadome.app/metadome/api). The image ships NO bulk data —
 # the SQLite result cache is populated lazily from the live API at request time
-# and persisted in the /app/data volume across container restarts. On first boot
+# and persisted in the /data volume across container restarts. On first boot
 # the entrypoint simply sets up the data directory and starts the unified server.
 
 FROM python:3.14-slim@sha256:cea0e6040540fb2b965b6e7fb5ffa00871e632eef63719f0ea54bca189ce14a6 AS builder
@@ -110,7 +110,9 @@ LABEL org.opencontainers.image.title="metadome-link" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.vendor="GeneFoundry"
 ENV APP_VERSION="${APP_VERSION}" \
-    VCS_REF="${VCS_REF}"
+    VCS_REF="${VCS_REF}" \
+    METADOME_LINK_GIT_SHA="${VCS_REF}" \
+    METADOME_LINK_BUILT_AT="${BUILD_DATE}"
 
 # METADOME_LINK_ALLOW_PUBLIC_BIND=true is the explicit, audited opt-in that the
 # F-04 bind guard requires: inside the container the server intentionally binds

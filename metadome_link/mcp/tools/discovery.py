@@ -15,8 +15,8 @@ from typing import TYPE_CHECKING, Annotated, Any, Literal
 from pydantic import Field
 
 from metadome_link.buildinfo import build_info
-from metadome_link.constants import DATA_VERSIONS
 from metadome_link.mcp import metrics
+from metadome_link.mcp import schemas as output_schemas
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.capabilities import (
     build_capabilities,
@@ -39,6 +39,8 @@ _SUMMARY_KEYS: tuple[str, ...] = (
     "build",
     "capabilities_version",
     "data_versions",
+    "genome_build",
+    "data_version",
     "data_source",
     "research_use_only",
     "recommended_citation",
@@ -50,6 +52,7 @@ _SUMMARY_KEYS: tuple[str, ...] = (
     "error_codes",
     "limits",
     "read_only",
+    "tool_modes",
 )
 
 
@@ -73,23 +76,15 @@ def register_discovery_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="get_server_capabilities",
-        title="Get Server Capabilities",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=None,
+        output_schema=output_schemas.GET_SERVER_CAPABILITIES_SCHEMA,
         tags={"discovery"},
-        description=(
-            "Return the metadome-link discovery surface: identity/build/MetaDome data "
-            "version, the frozen tool list, response modes, recommended workflows, the "
-            "error taxonomy, and limits. detail='full' adds the score/async semantics "
-            "and policy notes. Call this first in a cold session, or read "
-            "metadome://capabilities / metadome://tools. "
-            "Signature: get_server_capabilities(detail=, response_mode=)."
-        ),
+        description="Signature: get_server_capabilities(detail=, response_mode=).",
     )
     async def get_server_capabilities(
         detail: Annotated[
             Literal["summary", "full"],
-            Field(description="summary (default, light) or full (adds semantics + notes)."),
+            Field(description="Detail level."),
         ] = "summary",
         response_mode: ResponseMode = "compact",
     ) -> ToolReturn:
@@ -109,18 +104,10 @@ def register_discovery_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="get_diagnostics",
-        title="Get MetaDome Diagnostics",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=None,
+        output_schema=output_schemas.GET_DIAGNOSTICS_SCHEMA,
         tags={"discovery"},
-        description=(
-            "Report local runtime health WITHOUT calling MetaDome: build info, "
-            "result-cache stats (on-disk + LRU sizes, pinned data version), the runtime "
-            "metrics snapshot (request/error counts + latency percentiles), the data "
-            "versions, and the capabilities hash. Use this to confirm cache state or "
-            "diagnose a misconfigured server. "
-            "Signature: get_diagnostics(response_mode=)."
-        ),
+        description="Signature: get_diagnostics(response_mode=).",
     )
     async def get_diagnostics(
         response_mode: ResponseMode = "compact",
@@ -131,7 +118,7 @@ def register_discovery_tools(mcp: FastMCP) -> None:
                 "build": build_info(),
                 "cache_stats": service.cache.stats(),
                 "metrics": metrics.snapshot(),
-                "data_versions": DATA_VERSIONS,
+                "data_versions": service.data_versions,
                 "capabilities_version": capabilities_version(),
             }
             payload.setdefault("_meta", {})["next_commands"] = [

@@ -13,9 +13,11 @@ so they are deterministic and unit-testable. They raise
 
 from __future__ import annotations
 
+import math
 from typing import Any
 
 from metadome_link.constants import (
+    MAX_PROTEIN_POSITION,
     META_DOMAIN_HOMOLOG_AGGREGATE_PROVENANCE,
     RESIDUE_GNOMAD_UNAVAILABLE_REASON,
 )
@@ -45,7 +47,11 @@ def _max_position(landscape: dict[str, Any]) -> int:
     ``protein_pos`` observed in the entries.
     """
     aa_length = landscape.get("aa_length")
-    if isinstance(aa_length, int) and aa_length > 0:
+    if (
+        isinstance(aa_length, int)
+        and not isinstance(aa_length, bool)
+        and 0 < aa_length <= MAX_PROTEIN_POSITION
+    ):
         return aa_length
     positions = [
         int(e["protein_pos"])
@@ -66,6 +72,8 @@ def position_to_entry(landscape: dict[str, Any], pos: int) -> dict[str, Any]:
         InvalidInputError: If *pos* is < 1 or beyond the protein length, or if
             no entry exists for that position.
     """
+    if type(pos) is not int:
+        raise InvalidInputError("Position must be a positive integer.", field="position")
     upper = _max_position(landscape)
     if pos < 1 or (upper and pos > upper):
         raise InvalidInputError(
@@ -89,12 +97,54 @@ def slice_positions(landscape: dict[str, Any], start: int, stop: int) -> list[di
     The bounds are clamped lazily — entries outside the range are simply omitted;
     an empty result is valid (e.g. a range past the protein length).
     """
-    lo, hi = (start, stop) if start <= stop else (stop, start)
+    if (
+        type(start) is not int
+        or type(stop) is not int
+        or start < 1
+        or stop < 1
+        or start > stop
+        or start > MAX_PROTEIN_POSITION
+        or stop > MAX_PROTEIN_POSITION
+    ):
+        raise InvalidInputError(
+            "position_start and position_stop must be bounded, ordered integers.",
+            field="position_start/position_stop",
+        )
+    lo, hi = start, stop
     return [
         e
         for e in _positions(landscape)
         if isinstance(e.get("protein_pos"), int) and lo <= e["protein_pos"] <= hi
     ]
+
+
+def validate_landscape_range(
+    landscape: dict[str, Any], start: int | None, stop: int | None
+) -> None:
+    """Reject a syntactically valid range outside the loaded protein bounds."""
+    if start is None or stop is None:
+        return
+    entries = landscape.get("positional_annotation")
+    positions: list[int] = []
+    if isinstance(entries, list):
+        for item in entries:
+            value = item.get("protein_pos") if isinstance(item, dict) else None
+            if type(value) is int:
+                positions.append(value)
+    raw_upper = landscape.get("aa_length")
+    upper = raw_upper if type(raw_upper) is int and raw_upper >= 1 else max(positions, default=0)
+    if start > upper:
+        raise InvalidInputError(
+            f"position_start {start} is outside the protein bounds [1, {upper}].",
+            field="position_start",
+            hint=f"Use position_start in [1, {upper}].",
+        )
+    if stop > upper:
+        raise InvalidInputError(
+            f"position_stop {stop} is outside the protein bounds [1, {upper}].",
+            field="position_stop",
+            hint=f"Use position_stop in [1, {upper}].",
+        )
 
 
 def domains_for_position(landscape: dict[str, Any], pos: int) -> dict[str, list[int]]:
@@ -215,6 +265,17 @@ def intolerant_runs(
     ascending (most constrained first) and the top *top_n* returned, each as
     ``{start, stop, length, mean_sw_dn_ds, min_sw_dn_ds}``.
     """
+    try:
+        finite_threshold = (
+            not isinstance(threshold, bool)
+            and isinstance(threshold, (int, float))
+            and math.isfinite(threshold)
+            and 0 < threshold <= 2
+        )
+    except (OverflowError, TypeError, ValueError):
+        finite_threshold = False
+    if not finite_threshold:
+        raise InvalidInputError("threshold must be a finite number in (0, 2].", field="threshold")
     entries = sorted(
         (e for e in _positions(landscape) if isinstance(e.get("protein_pos"), int)),
         key=lambda e: int(e["protein_pos"]),

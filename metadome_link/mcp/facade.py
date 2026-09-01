@@ -11,9 +11,11 @@ facade builds today with only the two discovery tools live.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import TYPE_CHECKING
 
 from fastmcp import FastMCP
+from fastmcp.server.transforms import GetToolNext, Transform
 
 from metadome_link import __version__
 from metadome_link.mcp.capabilities import register_capability_resources
@@ -35,9 +37,58 @@ from metadome_link.mcp.tools import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
+
+    from fastmcp.tools.base import Tool
+    from fastmcp.utilities.versions import VersionSpec
 
     from metadome_link.services.metadome_service import MetaDomeService
+
+
+class _CompactToolSchemas(Transform):
+    """Drop redundant JSON-Schema defaults while preserving runtime defaults."""
+
+    @staticmethod
+    def _compact(tool: Tool) -> Tool:
+        parameters = deepcopy(tool.parameters)
+        for name, prop in parameters.get("properties", {}).items():
+            if isinstance(prop, dict):
+                if tool.name != "get_variant_counts" or name not in {"limit", "offset"}:
+                    prop.pop("default", None)
+                # An enum already rejects every value of the wrong JSON type.
+                # Omitting its redundant `type` preserves the exact contract.
+                if "enum" in prop:
+                    prop.pop("type", None)
+        output_schema = deepcopy(tool.output_schema)
+        branches = output_schema.get("oneOf") if isinstance(output_schema, dict) else None
+        if (
+            isinstance(output_schema, dict)
+            and isinstance(branches, list)
+            and branches
+            and all(
+                isinstance(branch, dict) and branch.get("additionalProperties") is False
+                for branch in branches
+            )
+        ):
+            # Each oneOf branch is already closed. The root pair is required on
+            # the source constant for explicit contract inspection, but is
+            # validation-redundant in the advertised schema.
+            output_schema.pop("patternProperties", None)
+            output_schema.pop("additionalProperties", None)
+        return tool.model_copy(update={"parameters": parameters, "output_schema": output_schema})
+
+    async def list_tools(self, tools: Sequence[Tool]) -> Sequence[Tool]:
+        return [self._compact(tool) for tool in tools]
+
+    async def get_tool(
+        self,
+        name: str,
+        call_next: GetToolNext,
+        *,
+        version: VersionSpec | None = None,
+    ) -> Tool | None:
+        tool = await call_next(name, version=version)
+        return self._compact(tool) if tool is not None else None
 
 
 def create_metadome_mcp(
@@ -83,6 +134,11 @@ def create_metadome_mcp(
     register_domain_tools(mcp)
     register_analysis_tools(mcp)
     register_capability_resources(mcp)
+
+    # Function defaults remain authoritative at invocation time. Omitting their
+    # duplicate JSON-Schema `default` keywords keeps the canonical router surface
+    # under B1/B2 without removing descriptions, examples, enums, or constraints.
+    mcp.add_transform(_CompactToolSchemas())
 
     mcp.add_middleware(ArgValidationMiddleware())
 

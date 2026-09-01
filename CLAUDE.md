@@ -8,11 +8,11 @@ file only highlights the essentials.
 
 ## Essentials
 
-- `metadome-link` is a read-only MCP + REST server that wraps the **MetaDome** web
+- `metadome-link` is a data-reading MCP + REST server with an idempotent build trigger that wraps the **MetaDome** web
   service: per-residue missense tolerance landscapes (`sw_dn_ds`), Pfam domains,
   meta-domain homolog variant aggregation, and per-residue ClinVar annotations.
   MetaDome does not expose true per-residue gnomAD counts; Pfam aggregates may span
-  genes (GRCh37/hg19). One backend in the GeneFoundry `-link` fleet.
+  genes (GRCh37/hg19 or GRCh38.p14; default GRCh38.p14). One backend in the GeneFoundry `-link` fleet.
 - **Two planes:** the data plane (`config`/`constants`/`identifiers`/`api`/`cache`/
   `services`) calls MetaDome over async httpx, normalizes, and returns plain dicts;
   the MCP plane (`mcp/`) is domain-agnostic scaffolding (lifted from `mondo-link`)
@@ -23,9 +23,10 @@ file only highlights the essentials.
   `get_tolerance_landscape`); `status:"processing"` is a first-class success state.
   Cold builds can take ~1 h; the poll loop never blocks past a soft deadline.
 - **Invariants:** every `compact`+ (default) response carries `_meta.next_commands`
-  (`minimal` opts out → `_meta = {tool, request_id}`); `_meta.data_versions` is
-  ALWAYS present; 7-code error taxonomy; each tool has `output_schema` +
-  `READ_ONLY_OPEN_WORLD` and a first sentence ending `Signature: tool(args...)`;
+  (`minimal` retains `_meta = {tool, request_id, data_versions, unsafe_for_clinical_use}`);
+  `_meta.data_versions` is ALWAYS present; 6-code error taxonomy; each tool has an
+  `output_schema` plus the appropriate read-only or compute annotation and a first
+  sentence ending `Signature: tool(args...)`;
   keep `capabilities.TOOLS` (11 names) in sync; validate transcript ids in
   `identifiers.py` (require the `.N` version); cite Wiel et al. 2019.
 - **Definition of done:** `make ci-local` green (format-check, lint-ci, lint-loc
@@ -42,22 +43,22 @@ make mcp-serve      # stdio MCP server
 make ci-local       # the full gate
 ```
 
-Research use only; not for clinical decision support. MetaDome data is GRCh37/hg19
-(gnomAD r2.0.2, ClinVar 2018-06-03) — historical; use live gnomAD/ClinVar for
-current data.
+Research use only; not for clinical decision support. MetaDome data are historical;
+the configured profile is GRCh37.p13 or GRCh38.p14, using build-specific components from
+the reviewed v2 snapshot (GRCh37: gnomAD r2.0.2; GRCh38: gnomAD v4.1; both: ClinVar
+2025-10-06). Use live gnomAD/ClinVar for current data.
 
 ## Two-plane invariants (non-negotiable)
 
 1. **Data plane returns plain dicts; MCP plane owns `success`/`_meta`.** Services raise typed
    exceptions; `run_mcp_tool` catches and returns structured errors. Never build envelopes in
    the data plane; never raise to the MCP client.
-2. **`_meta.data_versions` is ALWAYS present** in `compact`+ responses. This is the
-   GRCh37/hg19 data-currency caveat surface.
+2. **`_meta.data_versions` is ALWAYS present** in `compact`+ responses and identifies
+   the selected GRCh37.p13 or GRCh38.p14 profile.
 3. **`_meta.next_commands` in every `compact`+ (default) response.** `minimal` explicitly
    opts out.
-4. **7-code error taxonomy** (see `metadome_link/exceptions.py`): `invalid_input`,
-   `not_found`, `ambiguous_query`, `data_unavailable`, `rate_limited`,
-   `upstream_unavailable`, `internal_error`.
+4. **6-code wire error taxonomy** (see `metadome_link/exceptions.py`): `invalid_input`,
+   `not_found`, `ambiguous_query`, `rate_limited`, `upstream_unavailable`, `internal`.
 5. **`status:"processing"` is a first-class success state** (`success:true`), never an error.
    The poll loop never hard-blocks — soft deadline enforced.
 6. **Transcript ids require the `.N` version suffix** (`^ENST\d{11}\.\d+$`). Enforce in

@@ -17,7 +17,7 @@ metadome_link/
   config.py          # pydantic-settings, prefix METADOME_LINK_, nested MetaDomeSettings + CacheSettings
   constants.py       # pinned versions, citations, caveats, limits, ENST_RE
   identifiers.py     # normalize_gene_symbol, validate_transcript_id (requires .N version)
-  exceptions.py      # MetaDomeError + 7 subclasses (7-code taxonomy)
+  exceptions.py      # MetaDomeError + typed subclasses (6-code wire taxonomy)
 
   api/
     client.py        # async MetaDomeClient: 6 endpoints + poll_until_ready loop
@@ -79,14 +79,14 @@ The tool surface implements an explicit **request + poll split**:
 ```
 request_tolerance_landscape(transcript_id)
   → submit (POST /submit_visualization/)
-  → one status check (GET /status/<tid>/)
+  → one status check (GET /status/<genome_build>/<tid>)
   → returns {job_id, status:"ready"|"processing", poll_after_s, eta_hint, cold_build_warning}
 
 get_tolerance_landscape(transcript_id, ...)
   → check disk cache first
-  → on cache miss: poll_until_ready(soft_deadline_s=20)
+  → on cache miss: read-only poll_until_ready(soft_deadline_s=20); never submit
      ├── "ready"      → cache.put_result() → return landscape
-     ├── "processing" → return {success:true, status:"processing", poll_after_s}   ← NOT an error
+     ├── "processing" → return status + next_commands: explicit request, then poll
      └── "failed"     → raise UpstreamUnavailableError (returned as upstream_unavailable)
 ```
 
@@ -102,12 +102,13 @@ backoff (initial→max interval) and a token-bucket politeness limiter.
 | On-disk SQLite | Completed landscapes | `data/metadome_cache.sqlite` | Permanent (per `metadome_data_version`) |
 | In-memory TTL | Transcript lists | RAM | Time-based (default 6 h) |
 
-Cache keys include `metadome_data_version` (`gencode19-gnomad2.0.2-clinvar20180603-pfam30-app1.0.1`)
-so a MetaDome upstream update automatically invalidates stale entries when the constant is bumped.
+Cache keys include the selected profile's `metadome_data_version` (GRCh37.p13 or
+GRCh38.p14), so entries from different builds cannot collide and upstream updates
+automatically invalidate stale entries.
 
 `/status` is **never cached** — always fetched live.
 
-## Error taxonomy (7 codes)
+## Error taxonomy (6 wire codes)
 
 All errors are **returned** (not raised) as a structured envelope:
 
@@ -127,10 +128,9 @@ All errors are **returned** (not raised) as a structured envelope:
 | `invalid_input` | Bad/unversioned transcript id, out-of-range position, field validation failure |
 | `not_found` | Unknown gene symbol, landscape not yet built (recovery: request → get landscape) |
 | `ambiguous_query` | Query matches multiple candidates (returns `candidates` list) |
-| `data_unavailable` | Data source temporarily unreachable or empty |
+| `upstream_unavailable` | Invalid schema/empty upstream data and cached Celery `FAILURE` are terminal (`retryable:false`, use `switch_tool`); transport, HTTP 5xx, or timeout is transient (`retryable:true`) |
 | `rate_limited` | Upstream 429 (retryable) |
-| `upstream_unavailable` | 5xx / timeout / Celery FAILURE (retryable) |
-| `internal_error` | Unexpected server-side error |
+| `internal` | Unexpected server-side error |
 
 ## Response envelope
 
@@ -144,7 +144,7 @@ Every tool response follows the same envelope:
   "_meta": {
     "tool": "...",
     "request_id": "...",
-    "data_versions": { "assembly": "GRCh37", "gnomad": "r2.0.2", ... },
+    "data_versions": { "assembly": "GRCh38.p14", "gnomad": "v4.1", ... },
     "capabilities_version": "...",     ← compact+
     "next_commands": [ ... ],          ← compact+
     "elapsed_ms": 42                   ← standard/full only

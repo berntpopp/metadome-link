@@ -78,5 +78,5 @@ def test_check_bind_safety_warns_loudly_with_optin():
 def test_constants_data_versions():
     from metadome_link.constants import DATA_VERSIONS, RECOMMENDED_CITATION
 
-    assert DATA_VERSIONS["assembly"] == "GRCh37"
+    assert DATA_VERSIONS["assembly"] == "GRCh38.p14"
     assert "humu.23798" in RECOMMENDED_CITATION

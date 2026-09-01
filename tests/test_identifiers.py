@@ -11,7 +11,7 @@ from metadome_link.identifiers import (
 
 
 def test_is_transcript_id_requires_version():
-    assert is_transcript_id("ENST00000269305.4")
+    assert is_transcript_id("ENST00000269305.9")
     assert not is_transcript_id("ENST00000269305")  # no version
     assert not is_transcript_id("TP53")
 
@@ -28,5 +28,5 @@ def test_normalize_gene_symbol():
 
 
 def test_looks_like_transcript_query():
-    assert looks_like_transcript_query("ENST00000269305.4")
+    assert looks_like_transcript_query("ENST00000269305.9")
     assert not looks_like_transcript_query("TP53")

@@ -40,7 +40,29 @@ from metadome_link.services.landscape import (
     variant_evidence_for,
 )
 from metadome_link.services.pagination import paginate
+from metadome_link.services.selectors import (
+    require_position_xor,
+    validate_meta_domain_request,
+    validate_meta_domain_selector,
+)
 from metadome_link.services.shaping import shape_record
+
+_POSITION_VIEW_FIELDS = frozenset(
+    {
+        "cdna_pos",
+        "chr",
+        "chr_positions",
+        "exon_numbers",
+        "protein_pos",
+        "ref_aa",
+        "ref_aa_triplet",
+        "ref_codon",
+        "strand",
+        "sw_coverage",
+        "sw_dn_ds",
+        "sw_size",
+    }
+)
 
 
 def get_position_view(
@@ -48,7 +70,7 @@ def get_position_view(
 ) -> dict[str, Any]:
     """Return one residue's tolerance + explicitly-scoped variant evidence."""
     entry = position_to_entry(landscape, position)
-    payload = dict(entry)
+    payload = {key: entry[key] for key in _POSITION_VIEW_FIELDS if key in entry}
     payload["domains"] = _position_domain_memberships(entry)
     payload.pop("ClinVar", None)
     payload["transcript_id"] = transcript_id
@@ -72,6 +94,7 @@ def get_variant_counts_view(
     response_mode: str,
 ) -> dict[str, Any]:
     """Return explicitly-scoped residue and homolog evidence (filtered by ``source``)."""
+    require_position_xor(position, position_start, position_stop)
     if position is not None:
         entries = [position_to_entry(landscape, position)]
     elif position_start is not None and position_stop is not None:
@@ -169,7 +192,10 @@ def resolve_meta_domain_request(
     the cached residue's ``domains`` map (empty when the residue has no usable
     meta-domain mapping). Validates ``position`` is in range either way.
     """
-    return domains if domains else domains_for_position(landscape, position)
+    position_to_entry(landscape, position)
+    if domains is not None:
+        return validate_meta_domain_selector(landscape, position, domains)
+    return validate_meta_domain_request(position, domains_for_position(landscape, position))
 
 
 def get_meta_domain_view(

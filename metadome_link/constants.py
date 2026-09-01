@@ -1,32 +1,94 @@
-"""Domain constants for metadome-link: schema/data versions, citation, caveats, limits.
-
-MetaDome data is GRCh37/hg19, frozen at gnomAD r2.0.2 and ClinVar 2018-06-03
-(Gencode v19, Pfam 30.0). ``METADOME_DATA_VERSION`` pins the upstream release;
-the on-disk result cache and ``capabilities_version`` derive from it. Bump it
-manually if MetaDome ships a new release.
-"""
+"""Domain constants for metadome-link: schema/data versions, citation, caveats, limits."""
 
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
+from dataclasses import dataclass
+from types import MappingProxyType
 
 #: Bumped whenever the on-disk SQLite result-cache schema changes.
 SCHEMA_VERSION = "1"
 
-#: Pinned MetaDome upstream data release. Cache keys + capabilities_version derive
-#: from this; bump manually if MetaDome updates.
-METADOME_DATA_VERSION = "gencode19-gnomad2.0.2-clinvar20180603-pfam30-app1.0.1"
 
-#: Structured component versions of the pinned MetaDome release. Surfaced in
-#: ``_meta.data_versions`` on EVERY response (the hg19/data-currency caveat surface).
-DATA_VERSIONS: dict[str, str] = {
-    "assembly": "GRCh37",
-    "gencode": "v19",
-    "gnomad": "r2.0.2",
-    "clinvar": "2018-06-03",
-    "pfam": "30.0",
-    "metadome_app": "1.0.1",
-}
+@dataclass(frozen=True)
+class DataProfile:
+    """Immutable provenance identity for one live MetaDome build namespace."""
+
+    genome_build: str
+    data_version: str
+    data_versions: Mapping[str, str]
+    data_currency_caveat: str
+
+
+_PROFILE_37_VERSIONS = MappingProxyType(
+    {
+        "assembly": "GRCh37.p13",
+        "gencode": "v19",
+        "uniprot": "2025_01",
+        "gnomad": "r2.0.2",
+        "clinvar": "2025-10-06",
+        "pfam": "37.4",
+        "metadome_app": "2.0",
+        "data_doi": "10.5281/zenodo.19376150",
+    }
+)
+_PROFILE_38_VERSIONS = MappingProxyType(
+    {
+        "assembly": "GRCh38.p14",
+        "gencode": "v45",
+        "uniprot": "2025_01",
+        "gnomad": "v4.1",
+        "clinvar": "2025-10-06",
+        "pfam": "37.4",
+        "metadome_app": "2.0",
+        "data_doi": "10.5281/zenodo.19376150",
+    }
+)
+
+DATA_PROFILES: Mapping[str, DataProfile] = MappingProxyType(
+    {
+        "GRCh37.p13": DataProfile(
+            genome_build="GRCh37.p13",
+            data_version="metadome2.0-grch37.p13-gencode19-uniprot2025_01-pfam37.4-gnomad2.0.2-clinvar2025-10-06",
+            data_versions=_PROFILE_37_VERSIONS,
+            data_currency_caveat=(
+                "MetaDome 2.0 data use GRCh37.p13/hg19, GENCODE v19, UniProt 2025_01, "
+                "Pfam 37.4, gnomAD r2.0.2, and ClinVar 2025-10-06; MetaDome does not "
+                "provide true per-residue gnomAD counts."
+            ),
+        ),
+        "GRCh38.p14": DataProfile(
+            genome_build="GRCh38.p14",
+            data_version="metadome2.0-grch38.p14-gencode45-uniprot2025_01-pfam37.4-gnomad4.1-clinvar2025-10-06",
+            data_versions=_PROFILE_38_VERSIONS,
+            data_currency_caveat=(
+                "MetaDome 2.0 data use GRCh38.p14, GENCODE v45, UniProt 2025_01, "
+                "Pfam 37.4, gnomAD v4.1, and ClinVar 2025-10-06; MetaDome does not "
+                "provide true per-residue gnomAD counts."
+            ),
+        ),
+    }
+)
+
+SUPPORTED_GENOME_BUILDS = tuple(DATA_PROFILES)
+
+
+def data_profile(genome_build: str) -> DataProfile:
+    """Return the exact profile for a supported API namespace."""
+    try:
+        return DATA_PROFILES[genome_build]
+    except KeyError:
+        raise ValueError(
+            f"Unsupported MetaDome genome build; choose one of {SUPPORTED_GENOME_BUILDS}."
+        ) from None
+
+
+DEFAULT_DATA_PROFILE = DATA_PROFILES["GRCh38.p14"]
+
+# Backwards-compatible default aliases. Runtime consumers must use ``data_profile``.
+METADOME_DATA_VERSION = DEFAULT_DATA_PROFILE.data_version
+DATA_VERSIONS: dict[str, str] = dict(DEFAULT_DATA_PROFILE.data_versions)
 
 #: Canonical citation pasted verbatim into capability/_meta/record payloads.
 RECOMMENDED_CITATION = (
@@ -37,7 +99,10 @@ RECOMMENDED_CITATION = (
 )
 
 #: License attribution for the MetaDome software/data.
-METADOME_LICENSE = "MIT (https://github.com/laurensvdwiel/metadome)"
+METADOME_LICENSE = (
+    "MetaDome 2.0 data: CC BY 4.0 (doi:10.5281/zenodo.19376150); "
+    "software: MIT (https://github.com/laurensvdwiel/metadome)"
+)
 
 #: Research-use disclaimer surfaced in instructions + capabilities + resources.
 RESEARCH_USE_NOTICE = (
@@ -45,12 +110,10 @@ RESEARCH_USE_NOTICE = (
     "or patient management."
 )
 
-#: Prominent data-currency caveat (the hg19 / historical-counts warning).
-DATA_CURRENCY_CAVEAT = (
-    "MetaDome data are GRCh37/hg19 with gnomAD r2.0.2 and ClinVar 2018-06-03; "
-    "per-residue ClinVar annotations are historical and MetaDome does not provide true "
-    "per-residue gnomAD counts. Its Pfam meta-domain aggregates can include other genes; "
-    "use live gnomAD/ClinVar for current evidence."
+#: Prominent data-currency caveat (the pinned-release / aggregate-counts warning).
+DATA_CURRENCY_CAVEAT = DEFAULT_DATA_PROFILE.data_currency_caveat + (
+    " Its Pfam meta-domain aggregates can include other genes; use live gnomAD/ClinVar "
+    "for current evidence."
 )
 
 #: Provenance carried next to every Pfam meta-domain variant aggregate.  The
@@ -70,6 +133,30 @@ RESIDUE_GNOMAD_UNAVAILABLE_REASON = (
 #: Hard cap on positions accepted by a single batch tool call.
 MAX_BATCH_POSITIONS = 50
 
+#: Maximum genomic/consensus coordinate accepted by finite schema validators.
+MAX_GENOMIC_POSITION = 1_000_000_000
+
+#: Maximum 1-based protein coordinate accepted by request and response validators.
+#: One million residues is well above known protein lengths while bounding all
+#: protein-coordinate arithmetic and serialized payloads to a finite domain.
+MAX_PROTEIN_POSITION = 1_000_000
+
+#: Finite ceilings for counts and external numeric identifiers. These are
+#: deliberately above observed human-genome values while bounding arithmetic.
+MAX_VARIANT_COUNT = 1_000_000_000
+MAX_CLINVAR_ID = 1_000_000_000_000
+#: Smith-Waterman scores are normalized near [0, 1]; retain a generous cap.
+MAX_TOLERANCE_SCORE = 1_000_000
+
+#: Bounds on caller-supplied endpoint-6 domain selectors.  These keep both the
+#: selector map and its serialised upstream request finite before any network
+#: operation is attempted.
+MAX_META_DOMAIN_SELECTOR_DOMAINS = 32
+MAX_META_DOMAIN_SELECTOR_POSITIONS_PER_DOMAIN = 256
+MAX_META_DOMAIN_SELECTOR_POSITIONS = 512
+MAX_META_DOMAIN_SELECTOR_REQUEST_BYTES = 16_384
+MAX_META_DOMAIN_SELECTOR_KEY_CHARS = 64
+
 #: Default and maximum page sizes for list-returning tools.
 DEFAULT_PAGE_LIMIT = 200
 MAX_PAGE_LIMIT = 1000
@@ -86,5 +173,5 @@ MAX_RESPONSE_CHARS = 90_000
 RESPONSE_MODES = ["minimal", "compact", "standard", "full"]
 DEFAULT_RESPONSE_MODE = "compact"
 
-#: Ensembl transcript id with a version suffix, e.g. ``ENST00000269305.4``.
+#: Ensembl transcript id with a version suffix, e.g. ``ENST00000269305.9``.
 ENST_RE = re.compile(r"^ENST\d{11}\.\d+$")

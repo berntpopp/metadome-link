@@ -10,7 +10,7 @@ import pytest
 from metadome_link.mcp.envelope import McpErrorContext, run_mcp_tool
 from metadome_link.services.shaping import char_budget_guard
 
-TID = "ENST00000269305.4"
+TID = "ENST00000269305.9"
 
 
 async def test_position_and_comparison_expose_provenanced_variant_evidence(

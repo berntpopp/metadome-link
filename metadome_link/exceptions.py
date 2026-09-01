@@ -1,6 +1,6 @@
 """Custom exceptions for metadome-link.
 
-Each subclass carries a stable ``error_code`` from the fleet's 7-code taxonomy.
+Each subclass carries a stable ``error_code`` from the fleet's 6-code wire taxonomy.
 The data plane (``api/``, ``cache/``, ``services/``) raises these; the MCP plane
 (``mcp/envelope.py::run_mcp_tool``) catches each and converts it into a
 **returned** structured error (it reads ``error_code``, ``retryable``,
@@ -100,6 +100,14 @@ class UpstreamUnavailableError(MetaDomeError):
     error_code = "upstream_unavailable"
 
 
+class UpstreamSchemaError(UpstreamUnavailableError):
+    """MetaDome returned HTTP success with a payload outside its API contract."""
+
+    def __init__(self, message: str, *, field: str) -> None:
+        """Create a non-retryable, typed schema failure naming the invalid field."""
+        super().__init__(message, retryable=False, field=field)
+
+
 class InternalError(MetaDomeError):
     """An unexpected internal error (the catch-all default code)."""
 
@@ -141,8 +149,7 @@ def metadome_build_failure(transcript_id: str, error: object) -> MetaDomeError:
             f"MetaDome cannot analyse transcript {transcript_id}: it has no protein "
             "data in MetaDome (has_protein_data=false), so no tolerance landscape can "
             "be built. Call resolve_transcript and choose a transcript where "
-            "has_protein_data=true. Some genes (e.g. BRCA2) have no protein-coding "
-            "transcript in MetaDome's GRCh37/Gencode-v19 dataset and cannot be analysed.",
+            "has_protein_data=true.",
             field="transcript_id",
             recovery_action="reformulate_input",
             transcript_id=transcript_id,

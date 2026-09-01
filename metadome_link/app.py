@@ -17,7 +17,7 @@ from fastmcp.server.http import HostOriginGuardMiddleware
 from metadome_link import __version__
 from metadome_link.buildinfo import build_info
 from metadome_link.config import settings
-from metadome_link.constants import DATA_VERSIONS
+from metadome_link.constants import data_profile
 from metadome_link.mcp.capabilities import capabilities_version
 
 if TYPE_CHECKING:
@@ -29,7 +29,8 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="metadome-link",
         description=(
-            "Read-only MCP/API server wrapping the MetaDome web service "
+            "MCP/API server with read-only data tools and one explicit idempotent "
+            "landscape-build trigger, wrapping the MetaDome web service "
             "(per-position missense tolerance landscapes, Pfam domains, "
             "meta-domain homolog variant aggregation)."
         ),
@@ -64,8 +65,11 @@ def create_app() -> FastAPI:
             "status": "ok",
             "version": __version__,
             "transport": "streamable-http-stateless",
-            "data_versions": DATA_VERSIONS,
-            "capabilities_version": capabilities_version(),
+            "data_versions": dict(data_profile(settings.metadome.genome_build).data_versions),
+            "capabilities_version": capabilities_version(
+                data_versions=dict(data_profile(settings.metadome.genome_build).data_versions),
+                data_version=data_profile(settings.metadome.genome_build).data_version,
+            ),
         }
 
     @app.get("/")
@@ -74,7 +78,7 @@ def create_app() -> FastAPI:
         return {
             "name": "metadome-link",
             "version": __version__,
-            "data_source": "MetaDome (stuart.radboudumc.nl/metadome)",
+            "data_source": "MetaDome (www.metadome.app/metadome)",
             "mcp_endpoint": settings.mcp_path,
             "docs": "/docs",
             "health": "/health",

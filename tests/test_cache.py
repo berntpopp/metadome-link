@@ -5,10 +5,14 @@ All DB tests use tmp_path, never the real data/ directory.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from metadome_link.cache.store import ResultCache, TTLCache
+from metadome_link.exceptions import UpstreamSchemaError
 
 # ---------------------------------------------------------------------------
 # TTLCache tests
@@ -102,43 +106,88 @@ class TestResultCache:
         """get_result on a fresh DB returns None for any transcript id."""
         db = str(tmp_path / "test.sqlite")
         cache = ResultCache(db_path=db)
-        assert cache.get_result("ENST00000269305.4") is None
+        assert cache.get_result("ENST00000269305.9") is None
         cache.close()
 
     def test_put_and_get_round_trip(self, tmp_path: Path) -> None:
         """A landscape stored with put_result can be retrieved with get_result."""
         db = str(tmp_path / "test.sqlite")
-        landscape = {"transcript_id": "ENST00000269305.4", "gene_name": "TP53"}
+        landscape = {"transcript_id": "ENST00000269305.9", "gene_name": "TP53"}
         cache = ResultCache(db_path=db)
-        cache.put_result("ENST00000269305.4", landscape)
-        result = cache.get_result("ENST00000269305.4")
+        cache.put_result("ENST00000269305.9", landscape)
+        result = cache.get_result("ENST00000269305.9")
         assert result == landscape
         cache.close()
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            '{"status":"\\ud800"}',
+            '{"\\ud800":"ok"}',
+            '{"status":NaN}',
+            '{"status":Infinity}',
+            '{"status":-Infinity}',
+            '{"transcript_id":"ENST00000269305.9","transcript_id":"ENST00000504937.5"}',
+        ],
+    )
+    def test_direct_json_loading_rejects_invalid_unicode_and_numbers(
+        self, tmp_path: Path, payload: str
+    ) -> None:
+        """SQLite cache reads use the same strict JSON contract as HTTP reads."""
+        db = str(tmp_path / "test.sqlite")
+        cache = ResultCache(db_path=db)
+        try:
+            cache._conn.execute(
+                "INSERT INTO results (transcript_id, data_version, fetched_at, json) "
+                "VALUES (?, ?, ?, ?)",
+                ("ENST00000269305.9", cache._data_version, "now", payload),
+            )
+            cache._conn.commit()
+            with pytest.raises(UpstreamSchemaError):
+                cache.get_result("ENST00000269305.9")
+        finally:
+            cache.close()
+
+    def test_direct_json_loading_accepts_supplementary_scalars(self, tmp_path: Path) -> None:
+        """Valid supplementary Unicode scalars remain valid cache values."""
+        db = str(tmp_path / "test.sqlite")
+        cache = ResultCache(db_path=db)
+        payload = json.dumps({"😀": "ok"}, ensure_ascii=False)
+        try:
+            cache._conn.execute(
+                "INSERT INTO results (transcript_id, data_version, fetched_at, json) "
+                "VALUES (?, ?, ?, ?)",
+                ("ENST00000269305.9", cache._data_version, "now", payload),
+            )
+            cache._conn.commit()
+            assert cache.get_result("ENST00000269305.9") == {"😀": "ok"}
+        finally:
+            cache.close()
 
     def test_different_data_version_misses(self, tmp_path: Path) -> None:
         """A cache entry stored with one data_version returns None for a different version."""
         db = str(tmp_path / "test.sqlite")
-        landscape = {"transcript_id": "ENST00000269305.4"}
+        landscape = {"transcript_id": "ENST00000269305.9"}
 
         cache_v1 = ResultCache(db_path=db, data_version="version-A")
-        cache_v1.put_result("ENST00000269305.4", landscape)
+        cache_v1.put_result("ENST00000269305.9", landscape)
         cache_v1.close()
 
         cache_v2 = ResultCache(db_path=db, data_version="version-B")
-        assert cache_v2.get_result("ENST00000269305.4") is None
+        assert cache_v2.get_result("ENST00000269305.9") is None
         cache_v2.close()
 
     def test_same_data_version_hits(self, tmp_path: Path) -> None:
         """The same data_version on a new ResultCache instance finds the stored entry."""
         db = str(tmp_path / "test.sqlite")
-        landscape = {"transcript_id": "ENST00000269305.4"}
+        landscape = {"transcript_id": "ENST00000269305.9"}
 
         cache_a = ResultCache(db_path=db, data_version="version-X")
-        cache_a.put_result("ENST00000269305.4", landscape)
+        cache_a.put_result("ENST00000269305.9", landscape)
         cache_a.close()
 
         cache_b = ResultCache(db_path=db, data_version="version-X")
-        assert cache_b.get_result("ENST00000269305.4") == landscape
+        assert cache_b.get_result("ENST00000269305.9") == landscape
         cache_b.close()
 
     def test_creates_parent_directory(self, tmp_path: Path) -> None:
@@ -246,12 +295,12 @@ class TestResultCache:
         """After put_result, a subsequent get_result is served from the LRU (no SQLite read)."""
         db = str(tmp_path / "test.sqlite")
         cache = ResultCache(db_path=db, lru_maxsize=4)
-        landscape = {"transcript_id": "ENST00000269305.4"}
-        cache.put_result("ENST00000269305.4", landscape)
+        landscape = {"transcript_id": "ENST00000269305.9"}
+        cache.put_result("ENST00000269305.9", landscape)
         # The LRU should hold the result
         s = cache.stats()
         assert s["lru_size"] >= 1
-        assert cache.get_result("ENST00000269305.4") == landscape
+        assert cache.get_result("ENST00000269305.9") == landscape
         cache.close()
 
     def test_persists_across_instances(self, tmp_path: Path) -> None:

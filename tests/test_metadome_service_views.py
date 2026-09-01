@@ -31,12 +31,13 @@ from metadome_link.config import ServerSettings
 from metadome_link.exceptions import (
     InvalidInputError,
     NotFoundError,
+    UpstreamSchemaError,
 )
 from metadome_link.services.metadome_service import MetaDomeService
 
 FX = pathlib.Path(__file__).parent / "fixtures" / "metadome"
-BASE = "https://stuart.radboudumc.nl/metadome/api"
-TID = "ENST00000269305.4"
+BASE = "https://www.metadome.app/metadome/api"
+TID = "ENST00000269305.9"
 
 
 def _load(name: str) -> Any:
@@ -70,6 +71,45 @@ def _make_service(cache: ResultCache, settings: ServerSettings | None = None) ->
     return MetaDomeService(client, cache, settings=cfg)
 
 
+def test_position_view_projects_only_known_upstream_fields() -> None:
+    from metadome_link.services.landscape_views import get_position_view
+
+    landscape = _load("result_TP53.json")
+    entry = landscape["positional_annotation"][0]
+    entry["_meta"] = {"success": False}
+    entry["success"] = False
+    entry["oversized_scalar"] = "x" * 100_000
+    result = get_position_view(landscape, TID, 1, response_mode="full")
+
+    assert "_meta" not in result
+    assert "success" not in result
+    assert "oversized_scalar" not in result
+
+
+@pytest.mark.parametrize("operation", ["landscape", "position"])
+@pytest.mark.parametrize("mutation", ["missing", "nested_control", "wrong_identity"])
+async def test_invalid_cached_landscape_fails_closed(
+    cache: ResultCache, operation: str, mutation: str
+) -> None:
+    """Every service cache path revalidates the complete upstream result contract."""
+    landscape = _load("result_TP53.json")
+    if mutation == "missing":
+        del landscape["gene_name"]
+    elif mutation == "nested_control":
+        landscape["positional_annotation"][0]["success"] = True
+    else:
+        landscape["transcript_id"] = "ENST00000504937.5"
+    cache.put_result(TID, landscape)
+    svc = _make_service(cache)
+    with pytest.raises(UpstreamSchemaError) as exc_info:
+        if operation == "landscape":
+            await svc.get_landscape(TID, limit=5, offset=0, response_mode="compact")
+        else:
+            await svc.get_position(TID, 1, response_mode="compact")
+    assert exc_info.value.retryable is False
+    await svc.aclose()
+
+
 # ---------------------------------------------------------------------------
 # _require_landscape (via the position tools) and not-ready path
 # ---------------------------------------------------------------------------
@@ -79,9 +119,9 @@ def _make_service(cache: ResultCache, settings: ServerSettings | None = None) ->
 async def test_require_landscape_not_ready_raises_not_found(cache: ResultCache) -> None:
     """A position tool on a not-yet-built landscape raises not_found/switch_tool."""
     respx.post(f"{BASE}/submit_visualization/").mock(
-        return_value=httpx.Response(200, json={"transcript_id": TID})
+        return_value=httpx.Response(200, json={"transcript_id": TID, "genome_build": "GRCh38.p14"})
     )
-    respx.get(f"{BASE}/status/{TID}/").mock(
+    respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "PENDING"})
     )
     settings = _fast_settings()
@@ -90,6 +130,28 @@ async def test_require_landscape_not_ready_raises_not_found(cache: ResultCache) 
     with pytest.raises(NotFoundError) as ei:
         await svc.get_position(TID, 175, response_mode="compact")
     assert ei.value.recovery_action == "switch_tool"
+    await svc.aclose()
+
+
+@respx.mock
+async def test_require_landscape_poll_result_must_match_requested_transcript(
+    cache: ResultCache,
+) -> None:
+    """Per-position cache-miss polls cannot return another transcript's result."""
+    svc = _make_service(cache)
+    wrong = _load("result_TP53.json")
+    wrong["transcript_id"] = "ENST00000504937.5"
+
+    async def wrong_result(
+        _transcript_id: str, *, soft_deadline_s: float
+    ) -> tuple[str, dict[str, Any]]:
+        return "ready", wrong
+
+    svc._client.poll_until_ready = wrong_result  # type: ignore[method-assign]
+    with pytest.raises(UpstreamSchemaError) as exc_info:
+        await svc.get_position(TID, 1, response_mode="compact")
+    assert exc_info.value.extra["field"] == "transcript_id"
+    assert cache.get_result(TID) is None
     await svc.aclose()
 
 
@@ -240,6 +302,29 @@ async def test_get_meta_domain_non_metadomain_residue_empty(cache: ResultCache) 
     svc = _make_service(cache)
     out = await svc.get_meta_domain(TID, 35, limit=100, offset=0, response_mode="standard")
     assert out["meta_domains"] == {}
+    await svc.aclose()
+
+
+@respx.mock
+async def test_get_meta_domain_explicit_domains_still_validates_position(
+    cache: ResultCache,
+) -> None:
+    """An explicit domain selector cannot bypass the residue position bounds."""
+    cache.put_result(TID, _load("result_TP53.json"))
+    respx.post(f"{BASE}/get_metadomain_annotation/").mock(
+        return_value=httpx.Response(200, json=_load("metadomain_p175.json"))
+    )
+    svc = _make_service(cache)
+    with pytest.raises(InvalidInputError) as exc_info:
+        await svc.get_meta_domain(
+            TID,
+            9999,
+            domains={"PF00870": [81]},
+            limit=100,
+            offset=0,
+            response_mode="standard",
+        )
+    assert exc_info.value.extra["field"] == "position"
     await svc.aclose()
 
 
