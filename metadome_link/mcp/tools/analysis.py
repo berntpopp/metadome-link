@@ -69,7 +69,11 @@ def register_analysis_tools(mcp: FastMCP) -> None:
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.SUMMARIZE_INTOLERANT_REGIONS_SCHEMA,
         tags={"analysis"},
-        description="Rank contiguous intolerant regions below threshold and annotate domains and evidence.",
+        description=(
+            "Rank contiguous intolerant regions; "
+            "Signature: summarize_intolerant_regions(transcript_id, threshold=, min_run=, top_n=, "
+            "response_mode=)."
+        ),
     )
     async def summarize_intolerant_regions(
         transcript_id: TranscriptIdArg,
@@ -79,10 +83,7 @@ def register_analysis_tools(mcp: FastMCP) -> None:
             Field(
                 ge=1,
                 le=100,
-                description=(
-                    "Minimum number of consecutive residues to form a region (default 3). "
-                    "Shorter stretches are discarded."
-                ),
+                description="Minimum run length; default 3.",
             ),
         ] = 3,
         top_n: Annotated[
@@ -90,10 +91,7 @@ def register_analysis_tools(mcp: FastMCP) -> None:
             Field(
                 ge=1,
                 le=100,
-                description=(
-                    "Maximum number of regions to return, ranked by mean_sw_dn_ds ascending "
-                    "(default 15)."
-                ),
+                description="Maximum ranked regions; default 15.",
             ),
         ] = 15,
         response_mode: ResponseMode = "compact",

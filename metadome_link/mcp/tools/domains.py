@@ -71,13 +71,7 @@ DomainsArg = Annotated[
     _DomainSelectorMap | None,
     Field(
         default=None,
-        description=(
-            "Optional meta-domain selector {PfamID: [consensus_pos, ...]}. Omit to "
-            "derive it from the residue's cached domain mapping. Maximum 32 domains, "
-            f"{MAX_META_DOMAIN_SELECTOR_POSITIONS_PER_DOMAIN} positions per domain, "
-            "512 positions and 16 KiB encoded request; Pfam ids are 1.."
-            f"{MAX_META_DOMAIN_SELECTOR_KEY_CHARS} characters."
-        ),
+        description="Optional Pfam-to-consensus-position selector; omitted derives from residue.",
     ),
 ]
 
@@ -160,7 +154,9 @@ def register_domain_tools(mcp: FastMCP) -> None:
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_PROTEIN_DOMAINS_SCHEMA,
         tags={"domains"},
-        description="List Pfam domains and homologous mapping metadata for a built landscape.",
+        description=(
+            "List protein domains; Signature: get_protein_domains(transcript_id, response_mode=)."
+        ),
     )
     async def get_protein_domains(
         transcript_id: TranscriptIdArg,
@@ -190,7 +186,11 @@ def register_domain_tools(mcp: FastMCP) -> None:
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_META_DOMAIN_SCHEMA,
         tags={"domains"},
-        description="Return paginated homologous meta-domain variants for one built-landscape residue.",
+        description=(
+            "Return paginated meta-domain variants; "
+            "Signature: get_meta_domain(transcript_id, position, domains=, limit=, offset=, "
+            "response_mode=)."
+        ),
     )
     async def get_meta_domain(
         transcript_id: TranscriptIdArg,

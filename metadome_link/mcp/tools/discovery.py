@@ -80,7 +80,10 @@ def register_discovery_tools(mcp: FastMCP) -> None:
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_SERVER_CAPABILITIES_SCHEMA,
         tags={"discovery"},
-        description="Return server identity, pinned data versions, tools, modes, limits, and policy.",
+        description=(
+            "Describe server capabilities; "
+            "Signature: get_server_capabilities(detail=, response_mode=)."
+        ),
     )
     async def get_server_capabilities(
         detail: Annotated[
@@ -109,7 +112,9 @@ def register_discovery_tools(mcp: FastMCP) -> None:
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_DIAGNOSTICS_SCHEMA,
         tags={"discovery"},
-        description="Report local build, cache, metrics, data-version, and capabilities health without egress.",
+        description=(
+            "Report local health without egress; Signature: get_diagnostics(response_mode=)."
+        ),
     )
     async def get_diagnostics(
         response_mode: ResponseMode = "compact",

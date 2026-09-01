@@ -85,7 +85,7 @@ cache-status: ## Print on-disk result cache stats / pinned data version
 cache-clear: ## Clear the on-disk result cache
 	uv run metadome-link-cache clear
 
-cache-warm: ## Warm popular transcripts (e.g. make cache-warm GENES="TP53 BRCA1")
+cache-warm: ## Warm up to 32 genes for the configured profile (nonzero if any fail)
 	uv run metadome-link-cache warm $(GENES)
 
 dev: ## Start unified REST + MCP development server

@@ -13,16 +13,19 @@ Two cache layers are provided:
   misses, allowing safe schema bumps.
 
 CLI entry point ``main()`` (the ``metadome-link-cache`` script) exposes
-``status`` and ``clear`` sub-commands; ``warm`` is a stub for a future task.
+``status``, ``clear``, and an operational, bounded ``warm`` command.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
+import re
 import sqlite3
 import time as _time_module
 from collections import OrderedDict
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -30,9 +33,9 @@ from typing import Any
 import typer
 
 from metadome_link.api.response import parse_json_text
-from metadome_link.config import settings
+from metadome_link.config import ServerSettings, settings
 from metadome_link.constants import METADOME_DATA_VERSION, data_profile
-from metadome_link.exceptions import UpstreamSchemaError
+from metadome_link.exceptions import MetaDomeError, UpstreamSchemaError
 
 # ---------------------------------------------------------------------------
 # TTLCache
@@ -271,6 +274,88 @@ class ResultCache:
 # CLI (metadome-link-cache)
 # ---------------------------------------------------------------------------
 
+MAX_WARM_GENES = 32
+_WARM_GENE_RE = re.compile(r"^[A-Z][A-Z0-9.-]{0,63}$")
+
+
+@dataclass(frozen=True)
+class WarmResult:
+    """Outcome for one normalized gene supplied to the cache warmer."""
+
+    gene: str
+    transcript_id: str | None = None
+    error: str | None = None
+
+
+def _normalize_warm_genes(genes: list[str]) -> list[str]:
+    """Validate, normalize, de-duplicate, and bound a warm request."""
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for raw in genes:
+        gene = raw.strip().upper()
+        if not _WARM_GENE_RE.fullmatch(gene):
+            raise ValueError(
+                "Each gene must be 1-64 letters/digits and may contain only '.' or '-'."
+            )
+        if gene not in seen:
+            normalized.append(gene)
+            seen.add(gene)
+    if len(normalized) > MAX_WARM_GENES:
+        raise ValueError(f"At most {MAX_WARM_GENES} unique genes may be warmed at once.")
+    return normalized
+
+
+async def _warm_cache(genes: list[str], *, config: ServerSettings = settings) -> list[WarmResult]:
+    """Warm transcripts and completed landscapes through the production service path."""
+    # Local imports avoid the api.client -> cache package -> store cycle.
+    from metadome_link.api.client import MetaDomeClient
+    from metadome_link.services.metadome_service import MetaDomeService
+
+    normalized = _normalize_warm_genes(genes)
+    profile = data_profile(config.metadome.genome_build)
+    client = MetaDomeClient(config)
+    cache = ResultCache(
+        db_path=config.cache.db_path,
+        data_version=profile.data_version,
+        lru_maxsize=config.cache.lru_results,
+    )
+    service = MetaDomeService(client, cache, settings=config)
+    outcomes: list[WarmResult] = []
+    try:
+        for gene in normalized:
+            try:
+                resolution = await service.resolve_transcript(gene, response_mode="minimal")
+                transcript_id = resolution.get("canonical_transcript_id")
+                if not isinstance(transcript_id, str):
+                    raise ValueError("No analyzable canonical transcript was resolved.")
+                landscape = await service.get_landscape(
+                    transcript_id,
+                    limit=1,
+                    offset=0,
+                    response_mode="minimal",
+                )
+                if (
+                    landscape.get("status") == "processing"
+                    or cache.get_result(transcript_id) is None
+                ):
+                    raise ValueError("Landscape is still processing and was not cached.")
+                outcomes.append(WarmResult(gene=gene, transcript_id=transcript_id))
+            except MetaDomeError as exc:
+                outcomes.append(WarmResult(gene=gene, error=exc.message))
+            except ValueError as exc:
+                outcomes.append(WarmResult(gene=gene, error=str(exc)))
+            except Exception as exc:  # pragma: no cover - defensive CLI boundary
+                outcomes.append(
+                    WarmResult(
+                        gene=gene, error=f"Unexpected internal error ({type(exc).__name__})."
+                    )
+                )
+    finally:
+        await service.aclose()
+        cache.close()
+    return outcomes
+
+
 app = typer.Typer(
     name="metadome-link-cache",
     help="Manage the MetaDome result cache.",
@@ -312,10 +397,23 @@ def clear(
 def warm(
     genes: list[str] = typer.Argument(..., help="Gene symbol(s) to pre-warm."),
 ) -> None:
-    """Pre-warm the cache for the given gene(s). (Not yet implemented.)"""
-    typer.echo("warm: not yet implemented — full wiring is a later task.")
-    for gene in genes:
-        typer.echo(f"  skipping: {gene}")
+    """Resolve genes and cache their completed landscapes for the configured profile."""
+    try:
+        normalized = _normalize_warm_genes(genes)
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc), param_hint="GENES") from exc
+    profile = data_profile(settings.metadome.genome_build)
+    typer.echo(f"profile: {profile.genome_build} ({profile.data_version})")
+    outcomes = asyncio.run(_warm_cache(normalized, config=settings))
+    failed = False
+    for outcome in outcomes:
+        if outcome.error is None:
+            typer.echo(f"warmed {outcome.gene} -> {outcome.transcript_id}")
+        else:
+            failed = True
+            typer.echo(f"failed {outcome.gene}: {outcome.error}", err=True)
+    if failed:
+        raise typer.Exit(code=1)
 
 
 def main() -> None:

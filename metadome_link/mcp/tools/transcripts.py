@@ -67,8 +67,8 @@ def register_transcript_tools(mcp: FastMCP) -> None:
         output_schema=output_schemas.RESOLVE_TRANSCRIPT_SCHEMA,
         tags={"transcripts"},
         description=(
-            "Resolve a gene symbol or versioned Ensembl transcript id to candidates; "
-            "use canonical_transcript_id to request a landscape build."
+            "Resolve a gene or transcript to a canonical transcript; "
+            "Signature: resolve_transcript(query, response_mode=)."
         ),
     )
     async def resolve_transcript(

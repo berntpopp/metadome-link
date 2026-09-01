@@ -87,7 +87,10 @@ def register_landscape_tools(mcp: FastMCP) -> None:
         annotations=COMPUTE_IDEMPOTENT_OPEN_WORLD,
         output_schema=output_schemas.REQUEST_TOLERANCE_LANDSCAPE_SCHEMA,
         tags={"landscape"},
-        description="Submit or re-confirm an idempotent landscape build and return its poll status.",
+        description=(
+            "Submit a landscape build and return its status; "
+            "Signature: request_tolerance_landscape(transcript_id, response_mode=)."
+        ),
     )
     async def request_tolerance_landscape(
         transcript_id: TranscriptIdArg,
@@ -113,11 +116,14 @@ def register_landscape_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="get_tolerance_landscape",
-        title="Get Tolerance Landscape",
+        title="Landscape",
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_TOLERANCE_LANDSCAPE_SCHEMA,
         tags={"landscape"},
-        description="Return a built landscape with Pfam domains and paginated residue annotations.",
+        description=(
+            "Signature: get_tolerance_landscape(transcript_id, position_start=, position_stop=, "
+            "limit=, offset=, response_mode=)."
+        ),
     )
     async def get_tolerance_landscape(
         transcript_id: TranscriptIdArg,

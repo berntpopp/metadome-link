@@ -1,442 +1,336 @@
-"""Closed JSON output schemas for the MetaDome MCP tools."""
+"""Discriminated, recursively closed output schemas for all MetaDome tools."""
 
 from __future__ import annotations
 
-from typing import Any
+from metadome_link.mcp.schema_defs import (
+    BOOL,
+    BUILD,
+    CLINVAR_VARIANT,
+    DOMAIN,
+    DOMAIN_MEMBERSHIP,
+    EVIDENCE_DEFS,
+    INT,
+    INTOLERANT_REGION,
+    LATENCY,
+    LIMITS,
+    META_DOMAIN,
+    META_VARIANT_COMMON,
+    METRICS,
+    NORMAL_META_VARIANT,
+    NUM,
+    NUM_NULL,
+    PAGINATION,
+    PATHOGENIC_META_VARIANT,
+    POSITION,
+    POSITION_DOMAIN,
+    STR,
+    STR_ARRAY,
+    STR_NULL,
+    TALLY,
+    TOOL_MODES,
+    TRANSCRIPT,
+    closed,
+    output_schema,
+)
 
-_META = {
-    "type": "object",
-    "required": ["tool", "request_id", "data_versions", "unsafe_for_clinical_use"],
-    "properties": {
-        "tool": {"type": "string", "minLength": 1},
-        "request_id": {"type": "string", "minLength": 1},
-        "data_versions": {
+_CITATION = {"recommended_citation": STR}
+_CAVEAT = {"data_currency_caveat": STR}
+
+GET_SERVER_CAPABILITIES_SCHEMA = output_schema(
+    {
+        "server": STR,
+        "server_version": STR,
+        "build": {"$ref": "#/$defs/b"},
+        "capabilities_version": STR,
+        "data_versions": {"$ref": "#/$defs/V"},
+        "tools": STR_ARRAY,
+        "tool_count": INT,
+        "response_modes": STR_ARRAY,
+        "error_codes": STR_ARRAY,
+        "recommended_workflows": STR_ARRAY,
+        "read_only": BOOL,
+        "tool_modes": {"$ref": "#/$defs/tm"},
+        "research_use_only": BOOL,
+        "data_source": STR,
+        "data_version": STR,
+        "genome_build": STR,
+        "data_currency_caveat": STR,
+        "research_use_notice": STR,
+        "recommended_citation": STR,
+        "license": STR,
+        "limits": {"$ref": "#/$defs/l"},
+        "default_response_mode": STR,
+        "detail": STR,
+        "more": STR,
+        "async_model": STR,
+        "score_semantics": STR,
+        "provenance_policy": STR,
+        "per_call_meta": STR_ARRAY,
+        "per_call_meta_semantics": STR,
+    },
+    (
+        "server",
+        "server_version",
+        "build",
+        "capabilities_version",
+        "data_versions",
+        "tools",
+        "tool_count",
+        "response_modes",
+        "error_codes",
+        "read_only",
+        "tool_modes",
+        "research_use_only",
+        "data_source",
+        "data_version",
+        "genome_build",
+        "recommended_citation",
+        "license",
+        "limits",
+        "default_response_mode",
+        "detail",
+    ),
+    defs={"b": BUILD, "l": LIMITS, "tm": TOOL_MODES},
+)
+
+GET_DIAGNOSTICS_SCHEMA = output_schema(
+    {
+        "cache_stats": closed(
+            {"on_disk": INT, "lru_size": INT, "data_version": STR},
+            ("on_disk", "lru_size", "data_version"),
+        ),
+        "build": {"$ref": "#/$defs/b"},
+        "metrics": {"$ref": "#/$defs/x"},
+        "data_versions": {"$ref": "#/$defs/V"},
+        "capabilities_version": STR,
+    },
+    ("cache_stats", "build", "metrics", "data_versions", "capabilities_version"),
+    defs={
+        "b": BUILD,
+        "x": METRICS,
+        "y": LATENCY,
+        "z": TALLY,
+    },
+)
+
+RESOLVE_TRANSCRIPT_SCHEMA = output_schema(
+    {
+        "transcripts": {"type": "array", "items": {"$ref": "#/$defs/t"}},
+        "canonical_transcript_id": STR_NULL,
+        "transcript_id": STR,
+        "resolved_from": {"enum": ["gene", "id"]},
+        "gene_name": STR,
+        "analyzable": BOOL,
+        "note": STR,
+        **_CITATION,
+    },
+    ("resolved_from", "recommended_citation"),
+    constraint={
+        "oneOf": [
+            {"properties": {"resolved_from": {"const": "id"}}, "required": ["transcript_id"]},
+            {
+                "properties": {"resolved_from": {"const": "gene"}},
+                "required": ["gene_name", "analyzable", "transcripts"],
+            },
+        ]
+    },
+    defs={"t": TRANSCRIPT},
+    candidates=True,
+)
+
+REQUEST_TOLERANCE_LANDSCAPE_SCHEMA = output_schema(
+    {
+        "job_id": STR,
+        "transcript_id": STR,
+        "status": {"enum": ["ready", "processing"]},
+        "poll_after_s": NUM,
+        "eta_hint": STR,
+        "cold_build_warning": STR,
+        **_CITATION,
+    },
+    (
+        "job_id",
+        "transcript_id",
+        "status",
+        "poll_after_s",
+        "eta_hint",
+        "cold_build_warning",
+        "recommended_citation",
+    ),
+)
+
+GET_TOLERANCE_LANDSCAPE_SCHEMA = output_schema(
+    {
+        "transcript_id": STR,
+        "gene_name": STR_NULL,
+        "protein_ac": STR_NULL,
+        "refseq_ids": STR_ARRAY,
+        "domains": {"type": "array", "items": {"$ref": "#/$defs/d"}},
+        "positional_annotation": {"type": "array", "items": {"$ref": "#/$defs/o"}},
+        "pagination": {"$ref": "#/$defs/p"},
+        "status": {"const": "processing"},
+        "poll_after_s": NUM,
+        "cold_build_warning": STR,
+        **_CITATION,
+        **_CAVEAT,
+    },
+    ("transcript_id", "recommended_citation"),
+    constraint={
+        "oneOf": [
+            {"required": ["status", "poll_after_s", "cold_build_warning"]},
+            {"required": ["pagination"]},
+        ]
+    },
+    defs={
+        "d": DOMAIN,
+        "p": PAGINATION,
+        "o": POSITION,
+        "q": POSITION_DOMAIN,
+        "c": CLINVAR_VARIANT,
+    },
+)
+
+GET_POSITION_TOLERANCE_SCHEMA = output_schema(
+    {
+        "transcript_id": STR,
+        "cdna_pos": STR,
+        "chr": STR,
+        "chr_positions": STR,
+        "exon_numbers": STR,
+        "protein_pos": INT,
+        "ref_aa": STR,
+        "ref_aa_triplet": STR,
+        "ref_codon": STR,
+        "strand": STR,
+        "sw_dn_ds": NUM_NULL,
+        "sw_coverage": NUM,
+        "sw_size": INT,
+        "domains": {
             "type": "object",
-            "required": ["assembly", "metadome_app"],
-            "additionalProperties": {"type": "string"},
+            "additionalProperties": {"$ref": "#/$defs/dm"},
         },
-        "unsafe_for_clinical_use": {"const": True},
-        "elapsed_ms": {"type": "integer", "minimum": 0},
-        "capabilities_version": {"type": "string", "minLength": 1},
-        "next_commands": {
+        "variant_evidence": {"$ref": "#/$defs/e"},
+        **_CITATION,
+    },
+    ("transcript_id", "protein_pos", "variant_evidence", "recommended_citation"),
+    defs={"dm": DOMAIN_MEMBERSHIP, **EVIDENCE_DEFS},
+)
+
+GET_VARIANT_COUNTS_SCHEMA = output_schema(
+    {
+        "transcript_id": STR,
+        "source": {"enum": ["both", "gnomad", "clinvar"]},
+        "positions": {
+            "type": "array",
+            "items": closed(
+                {
+                    "protein_pos": INT,
+                    "ref_aa": STR,
+                    "sw_dn_ds": NUM_NULL,
+                    "variant_evidence": {"$ref": "#/$defs/e"},
+                    "clinvar_variants": {
+                        "type": "array",
+                        "items": {"$ref": "#/$defs/c"},
+                    },
+                },
+                ("protein_pos", "ref_aa", "sw_dn_ds", "variant_evidence"),
+            ),
+        },
+        "pagination": {"$ref": "#/$defs/p"},
+        **_CITATION,
+        **_CAVEAT,
+    },
+    ("transcript_id", "source", "positions", "pagination", "recommended_citation"),
+    defs={"p": PAGINATION, "c": CLINVAR_VARIANT, **EVIDENCE_DEFS},
+)
+
+COMPARE_POSITIONS_SCHEMA = output_schema(
+    {
+        "transcript_id": STR,
+        "comparison": {
             "type": "array",
             "items": {
-                "type": "object",
-                "required": ["tool", "arguments"],
-                "properties": {
-                    "tool": {"type": "string", "minLength": 1},
-                    "arguments": {"type": "object"},
-                },
-                "additionalProperties": False,
+                "oneOf": [
+                    closed(
+                        {
+                            "protein_pos": INT,
+                            "ref_aa": STR,
+                            "sw_dn_ds": NUM_NULL,
+                            "domain_ids": STR_ARRAY,
+                            "variant_evidence": {"$ref": "#/$defs/e"},
+                        },
+                        (
+                            "protein_pos",
+                            "ref_aa",
+                            "sw_dn_ds",
+                            "domain_ids",
+                            "variant_evidence",
+                        ),
+                    ),
+                    closed({"protein_pos": INT, "error": STR}, ("protein_pos", "error")),
+                ]
             },
         },
+        **_CITATION,
+        **_CAVEAT,
     },
-    "additionalProperties": False,
-}
+    ("transcript_id", "comparison", "recommended_citation"),
+    defs=EVIDENCE_DEFS,
+)
 
-
-def _envelope(**properties: Any) -> dict[str, Any]:
-    """Return a closed success/error envelope discriminated by ``success``."""
-    props: dict[str, Any] = {
-        "success": {"type": "boolean"},
-        "_meta": _META,
-        "error_code": {"type": "string"},
-        "message": {"type": "string"},
-        "retryable": {"type": "boolean"},
-        "recovery_action": {"type": "string"},
-        "recovery": {"type": "string"},
-        "field": {"type": "string"},
-        "hint": {"type": "string"},
-        "allowed_values": {"type": "array", "items": {"type": ["string", "integer"]}},
-        "candidates": {"type": "array", "items": {"type": "object"}},
-        "recommended_citation": {"type": "string"},
-        "data_currency_caveat": {"type": "string"},
-        "dropped_summary": {"type": "string"},
-        **properties,
-    }
-    return {
-        "type": "object",
-        "properties": props,
-        "required": ["success", "_meta"],
-        "additionalProperties": False,
-        "oneOf": [
-            {"properties": {"success": {"const": True}}},
-            {
-                "required": ["success", "error_code", "message", "retryable", "recovery_action"],
-                "properties": {
-                    "success": {"const": False},
-                    "error_code": {
-                        "enum": [
-                            "invalid_input",
-                            "not_found",
-                            "ambiguous_query",
-                            "upstream_unavailable",
-                            "rate_limited",
-                            "internal",
-                        ]
-                    },
-                    "message": {"type": "string", "minLength": 1},
-                    "retryable": {"type": "boolean"},
-                    "recovery_action": {"type": "string", "minLength": 1},
-                },
-            },
-        ],
-    }
-
-
-_STR = {"type": "string"}
-_STR_NULL = {"type": ["string", "null"]}
-_INT = {"type": "integer"}
-_INT_NULL = {"type": ["integer", "null"]}
-_NUM = {"type": "number"}
-_NUM_NULL = {"type": ["number", "null"]}
-_BOOL = {"type": "boolean"}
-_STR_ARRAY = {"type": "array", "items": _STR}
-_DATA_VERSIONS = {
-    "type": "object",
-    "required": ["assembly", "metadome_app"],
-    "additionalProperties": {"type": "string"},
-}
-_BUILD = {
-    "type": "object",
-    "required": ["version", "git_sha", "built_at"],
-    "properties": {"version": _STR, "git_sha": _STR, "built_at": _STR_NULL},
-    "additionalProperties": False,
-}
-_LIMITS = {
-    "type": "object",
-    "properties": {"max_batch_positions": _INT, "default_page_limit": _INT, "max_page_limit": _INT},
-    "additionalProperties": False,
-}
-_TRANSCRIPT = {
-    "type": "object",
-    "properties": {
-        "gencode_id": _STR,
-        "aa_length": _INT,
-        "has_protein_data": _BOOL,
-        "mane_transcript_type": _STR,
-        "refseq_ids": _STR_ARRAY,
-        "canonical": _BOOL,
+GET_PROTEIN_DOMAINS_SCHEMA = output_schema(
+    {
+        "transcript_id": STR,
+        "gene_name": STR_NULL,
+        "domains": {"type": "array", "items": {"$ref": "#/$defs/d"}},
+        **_CITATION,
     },
-    "additionalProperties": False,
-}
-_TOOL_MODES = {
-    "type": "object",
-    "properties": {"read_only": _STR_ARRAY, "compute_orchestration": _STR_ARRAY},
-    "additionalProperties": False,
-}
-_METRICS = {
-    "type": "object",
-    "properties": {
-        "requests": _INT,
-        "errors": _INT,
-        "error_rate": _NUM_NULL,
-        "latency_ms": {
+    ("transcript_id", "domains", "recommended_citation"),
+    defs={"d": DOMAIN},
+)
+
+GET_META_DOMAIN_SCHEMA = output_schema(
+    {
+        "transcript_id": STR,
+        "protein_position": INT,
+        "requested_domains": {
             "type": "object",
-            "properties": dict.fromkeys(("p50", "p95", "p99", "max", "sampled"), _INT),
-            "additionalProperties": False,
+            "additionalProperties": {"type": "array", "items": INT},
         },
-        "per_tool": {
+        "meta_domains": {
             "type": "object",
-            "additionalProperties": {
-                "type": "object",
-                "properties": {"requests": _INT, "errors": _INT},
-                "additionalProperties": False,
-            },
+            "additionalProperties": {"$ref": "#/$defs/m"},
         },
+        **_CITATION,
+        **_CAVEAT,
     },
-    "additionalProperties": False,
-}
-_META_VARIANT = {
-    "type": "object",
-    "propertyNames": {
-        "enum": [
-            "allele_count",
-            "allele_number",
-            "alt",
-            "alt_aa",
-            "alt_aa_triplet",
-            "alt_codon",
-            "cdna_pos",
-            "chr",
-            "chr_positions",
-            "gene_name",
-            "pos",
-            "protein_pos",
-            "ref",
-            "ref_aa",
-            "ref_aa_triplet",
-            "ref_codon",
-            "strand",
-            "type",
-            "clinvar_ID",
-        ]
-    },
-    "additionalProperties": {"type": ["number", "string", "integer"]},
-}
-
-_PAGINATION_BLOCK = {
-    "type": "object",
-    "propertyNames": {"enum": ["total", "returned", "limit", "offset", "truncated", "next_offset"]},
-    "additionalProperties": {"type": ["integer", "boolean", "null"]},
-}
-
-_META_DOMAIN_BLOCK = {
-    "type": "object",
-    "properties": {
-        "alignment_depth": _INT,
-        "normal_variants": {"type": "array", "items": {"$ref": "#/$defs/metaVariant"}},
-        "pathogenic_variants": {"type": "array", "items": {"$ref": "#/$defs/metaVariant"}},
-        "pagination": {
-            "type": "object",
-            "properties": {
-                "normal_variants": {"$ref": "#/$defs/pagination"},
-                "pathogenic_variants": {"$ref": "#/$defs/pagination"},
-            },
-            "additionalProperties": False,
-        },
-    },
-    "additionalProperties": False,
-}
-
-_DOMAIN_ENTRY = {
-    "type": "object",
-    "additionalProperties": False,
-    "properties": {
-        "ID": _STR,
-        "Name": _STR,
-        "start": _INT,
-        "stop": _INT,
-        "metadomain": _BOOL,
-        "meta_domain_alignment_depth": _INT,
-    },
-}
-
-_POSITION_ENTRY = {
-    "type": "object",
-    "additionalProperties": False,
-    "properties": {
-        "cdna_pos": _STR,
-        "chr": _STR,
-        "chr_positions": _STR,
-        "protein_pos": _INT,
-        "ref_aa": _STR_NULL,
-        "ref_aa_triplet": _STR,
-        "ref_codon": _STR,
-        "strand": _STR,
-        "sw_dn_ds": _NUM_NULL,
-        "sw_coverage": _NUM_NULL,
-        "sw_size": _INT,
-        "domains": {"type": "object", "additionalProperties": {"type": ["object", "null"]}},
-        "ClinVar": {"type": "array", "items": {"type": "object"}},
-    },
-}
-
-_VARIANT_EVIDENCE = {
-    "type": "object",
-    "propertyNames": {"enum": ["residue_level", "meta_domain_homolog_aggregate"]},
-    "additionalProperties": {"type": "object"},
-}
-
-_VARIANT_ENTRY = {
-    "type": "object",
-    "additionalProperties": False,
-    "properties": {
-        "protein_pos": _INT,
-        "clinvar_id": _STR_NULL,
-        "clinvar_url": _STR_NULL,
-        "gnomad_ac": _INT,
-        "gnomad_an": _INT,
-        "source": _STR,
-    },
-}
-
-_CLINVAR_ENTRY = {
-    "type": "object",
-    "propertyNames": {
-        "enum": [
-            "alt",
-            "alt_aa",
-            "alt_aa_triplet",
-            "alt_codon",
-            "clinvar_ID",
-            "pos",
-            "ref",
-            "type",
-            "url",
-        ]
-    },
-    "additionalProperties": {"type": ["string", "integer", "number"]},
-}
-
-_INTOLERANT_REGION = {
-    "type": "object",
-    "additionalProperties": False,
-    "properties": {
-        "start": _INT,
-        "stop": _INT,
-        "length": _INT,
-        "mean_sw_dn_ds": _NUM_NULL,
-        "min_sw_dn_ds": _NUM_NULL,
-        "domains": {"type": "array", "items": _STR},
-        "variant_evidence": _VARIANT_EVIDENCE,
-    },
-}
-
-GET_SERVER_CAPABILITIES_SCHEMA = _envelope(
-    server=_STR,
-    server_version=_STR,
-    build=_BUILD,
-    capabilities_version=_STR,
-    data_versions=_DATA_VERSIONS,
-    tools=_STR_ARRAY,
-    tool_count=_INT,
-    response_modes=_STR_ARRAY,
-    error_codes=_STR_ARRAY,
-    recommended_workflows=_STR_ARRAY,
-    read_only=_BOOL,
-    tool_modes=_TOOL_MODES,
-    research_use_only=_BOOL,
-    data_source=_STR,
-    data_version=_STR,
-    genome_build=_STR,
-    data_currency_caveat=_STR,
-    research_use_notice=_STR,
-    recommended_citation=_STR,
-    license=_STR,
-    limits=_LIMITS,
-    default_response_mode=_STR,
-    detail=_STR,
-    more=_STR,
-    async_model=_STR,
-    score_semantics=_STR,
-    provenance_policy=_STR,
-    per_call_meta=_STR_ARRAY,
-    per_call_meta_semantics=_STR,
-)
-
-GET_DIAGNOSTICS_SCHEMA = _envelope(
-    cache_stats={
-        "type": "object",
-        "properties": {"on_disk": _INT, "lru_size": _INT, "data_version": _STR},
-        "additionalProperties": False,
-    },
-    build=_BUILD,
-    metrics=_METRICS,
-    data_versions=_DATA_VERSIONS,
-    capabilities_version=_STR,
-)
-
-RESOLVE_TRANSCRIPT_SCHEMA = _envelope(
-    query=_STR,
-    transcripts={"type": "array", "items": _TRANSCRIPT},
-    canonical_transcript_id=_STR_NULL,
-    transcript_id=_STR,
-    resolved_from=_STR,
-    gene_name=_STR,
-    analyzable=_BOOL,
-    note=_STR,
-)
-
-REQUEST_TOLERANCE_LANDSCAPE_SCHEMA = _envelope(
-    job_id=_STR,
-    transcript_id=_STR,
-    status=_STR,
-    poll_after_s=_NUM_NULL,
-    eta_hint=_STR_NULL,
-    cold_build_warning=_STR_NULL,
-)
-
-GET_TOLERANCE_LANDSCAPE_SCHEMA = _envelope(
-    transcript_id=_STR,
-    gene_name=_STR_NULL,
-    protein_ac=_STR_NULL,
-    refseq_ids=_STR_ARRAY,
-    domains={"type": "array", "items": _DOMAIN_ENTRY},
-    positional_annotation={"type": "array", "items": _POSITION_ENTRY},
-    pagination=_PAGINATION_BLOCK,
-    status=_STR_NULL,
-    poll_after_s=_NUM_NULL,
-    cold_build_warning=_STR,
-)
-
-GET_POSITION_TOLERANCE_SCHEMA = _envelope(
-    transcript_id=_STR,
-    cdna_pos=_STR,
-    chr=_STR,
-    chr_positions=_STR,
-    exon_numbers=_STR,
-    protein_pos=_INT,
-    ref_aa=_STR_NULL,
-    ref_aa_triplet=_STR,
-    ref_codon=_STR,
-    strand=_STR,
-    sw_dn_ds=_NUM_NULL,
-    sw_coverage=_NUM_NULL,
-    sw_size=_INT,
-    domains={"type": "object", "additionalProperties": {"type": "object"}},
-    variant_evidence=_VARIANT_EVIDENCE,
-)
-
-GET_VARIANT_COUNTS_SCHEMA = _envelope(
-    transcript_id=_STR,
-    source=_STR,
-    positions={
-        "type": "array",
-        "items": {
-            "type": "object",
-            "properties": {
-                "protein_pos": _INT_NULL,
-                "ref_aa": _STR_NULL,
-                "sw_dn_ds": _NUM_NULL,
-                "domain_ids": {"type": "array", "items": _STR},
-                "variant_evidence": _VARIANT_EVIDENCE,
-                "clinvar_variants": {"type": "array", "items": _CLINVAR_ENTRY},
-            },
-            "additionalProperties": False,
-        },
-    },
-    pagination=_PAGINATION_BLOCK,
-)
-
-COMPARE_POSITIONS_SCHEMA = _envelope(
-    transcript_id=_STR,
-    comparison={
-        "type": "array",
-        "items": {
-            "type": "object",
-            "properties": {
-                "protein_pos": _INT,
-                "ref_aa": _STR_NULL,
-                "sw_dn_ds": _NUM_NULL,
-                "domain_ids": {"type": "array", "items": _STR},
-                "variant_evidence": _VARIANT_EVIDENCE,
-                "error": _STR,
-            },
-            "additionalProperties": False,
-        },
+    ("transcript_id", "protein_position", "meta_domains", "recommended_citation"),
+    defs={
+        "p": PAGINATION,
+        "v": META_VARIANT_COMMON,
+        "n": NORMAL_META_VARIANT,
+        "a": PATHOGENIC_META_VARIANT,
+        "m": META_DOMAIN,
     },
 )
 
-GET_PROTEIN_DOMAINS_SCHEMA = _envelope(
-    transcript_id=_STR,
-    gene_name=_STR_NULL,
-    domains={"type": "array", "items": _DOMAIN_ENTRY},
-)
-
-GET_META_DOMAIN_SCHEMA = _envelope(
-    transcript_id=_STR,
-    protein_position=_INT,
-    requested_domains={"type": "object", "additionalProperties": {"type": "array", "items": _INT}},
-    meta_domains={"type": "object", "additionalProperties": _META_DOMAIN_BLOCK},
-)
-GET_META_DOMAIN_SCHEMA["$defs"] = {"metaVariant": _META_VARIANT, "pagination": _PAGINATION_BLOCK}
-
-SUMMARIZE_INTOLERANT_REGIONS_SCHEMA = _envelope(
-    transcript_id=_STR,
-    gene_name=_STR_NULL,
-    threshold=_NUM,
-    min_run=_INT,
-    top_n=_INT,
-    regions={"type": "array", "items": _INTOLERANT_REGION},
+SUMMARIZE_INTOLERANT_REGIONS_SCHEMA = output_schema(
+    {
+        "transcript_id": STR,
+        "gene_name": STR_NULL,
+        "threshold": NUM,
+        "min_run": INT,
+        "top_n": INT,
+        "regions": {"type": "array", "items": {"$ref": "#/$defs/i"}},
+        **_CITATION,
+        **_CAVEAT,
+    },
+    (
+        "transcript_id",
+        "threshold",
+        "min_run",
+        "top_n",
+        "recommended_citation",
+    ),
+    defs={"i": INTOLERANT_REGION, **EVIDENCE_DEFS},
 )

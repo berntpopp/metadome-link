@@ -142,7 +142,10 @@ def register_position_tools(mcp: FastMCP) -> None:
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_POSITION_TOLERANCE_SCHEMA,
         tags={"positions"},
-        description="Return one residue's tolerance, domain membership, and scoped variant evidence.",
+        description=(
+            "Return tolerance and evidence for one residue; "
+            "Signature: get_position_tolerance(transcript_id, position, response_mode=)."
+        ),
     )
     async def get_position_tolerance(
         transcript_id: TranscriptIdArg,
@@ -175,7 +178,10 @@ def register_position_tools(mcp: FastMCP) -> None:
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_VARIANT_COUNTS_SCHEMA,
         tags={"positions"},
-        description="Return paginated ClinVar and labelled Pfam homolog aggregates for positions or ranges.",
+        description=(
+            "Signature: get_variant_counts(transcript_id, position=, position_start=, "
+            "position_stop=, source=, limit=, offset=, response_mode=)."
+        ),
     )
     async def get_variant_counts(
         transcript_id: TranscriptIdArg,
@@ -234,7 +240,10 @@ def register_position_tools(mcp: FastMCP) -> None:
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.COMPARE_POSITIONS_SCHEMA,
         tags={"positions"},
-        description="Compare multiple protein positions with tolerance and scoped variant evidence.",
+        description=(
+            "Compare tolerance across residues; "
+            "Signature: compare_positions(transcript_id, positions, response_mode=)."
+        ),
     )
     async def compare_positions(
         transcript_id: TranscriptIdArg,
