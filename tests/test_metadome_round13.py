@@ -120,14 +120,22 @@ def test_docs_describe_tool_modes_and_terminal_cached_failures_truthfully() -> N
     annotations = pathlib.Path("metadome_link/mcp/annotations.py").read_text()
     docker_readme = pathlib.Path("docker/README.md").read_text()
     dockerfile = pathlib.Path("docker/Dockerfile").read_text()
+    best_practices = pathlib.Path("docs/research/04-mcp-best-practices.md").read_text()
     assert "Every tool is annotated `READ_ONLY_OPEN_WORLD`" not in readme
     assert "request_tolerance_landscape" in readme and "idempotent" in readme
     assert "build/poll" not in deployment
     assert "read-only data tools poll/fetch" in deployment.lower()
     assert "only the explicit `request_tolerance_landscape` tool" in deployment
-    for text in (package, app, annotations, docker_readme, dockerfile):
+    for text in (package, app, annotations, docker_readme, dockerfile, best_practices):
         assert "whole server is read-only" not in text.lower()
         assert "read-only data tools" in text
+    normalized_best_practices = " ".join(best_practices.split())
+    assert "https://www.metadome.app/metadome" in best_practices
+    assert "stuart.radboudumc.nl" not in best_practices
+    assert "Mark every tool `readOnlyHint: true`" not in best_practices
+    assert "every tool has `readOnlyHint`" not in best_practices
+    assert "request_tolerance_landscape" in normalized_best_practices
+    assert "readOnlyHint: false" in normalized_best_practices
     assert "_meta = {tool, request_id, data_versions, unsafe_for_clinical_use}" in " ".join(
         agents.split()
     )
