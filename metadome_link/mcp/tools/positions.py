@@ -138,14 +138,10 @@ def register_position_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="get_position_tolerance",
-        title="Get Position Tolerance",
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_POSITION_TOLERANCE_SCHEMA,
         tags={"positions"},
-        description=(
-            "Return tolerance and evidence for one residue; "
-            "Signature: get_position_tolerance(transcript_id, position, response_mode=)."
-        ),
+        description="Signature: get_position_tolerance(transcript_id, position, response_mode=).",
     )
     async def get_position_tolerance(
         transcript_id: TranscriptIdArg,
@@ -174,7 +170,6 @@ def register_position_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="get_variant_counts",
-        title="Get Variant Counts",
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_VARIANT_COUNTS_SCHEMA,
         tags={"positions"},
@@ -236,14 +231,10 @@ def register_position_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="compare_positions",
-        title="Compare Positions",
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.COMPARE_POSITIONS_SCHEMA,
         tags={"positions"},
-        description=(
-            "Compare tolerance across residues; "
-            "Signature: compare_positions(transcript_id, positions, response_mode=)."
-        ),
+        description="Signature: compare_positions(transcript_id, positions, response_mode=).",
     )
     async def compare_positions(
         transcript_id: TranscriptIdArg,

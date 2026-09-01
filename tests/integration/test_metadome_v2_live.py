@@ -21,6 +21,35 @@ pytestmark = pytest.mark.integration
     os.environ.get("METADOME_LINK_LIVE_INTEGRATION") != "1",
     reason="set METADOME_LINK_LIVE_INTEGRATION=1 for live MetaDome evidence",
 )
+async def test_read_only_v2_endpoints_never_submit() -> None:
+    """Exercise transcript/status/result reads without creating upstream work."""
+    settings = ServerSettings(
+        metadome=MetaDomeSettings(
+            base_url=os.environ.get(
+                "METADOME_LINK_LIVE_BASE_URL", "https://www.metadome.app/metadome/api"
+            )
+        ),
+        _env_file=None,
+    )
+    transcript_id = os.environ.get("METADOME_LINK_LIVE_TRANSCRIPT_ID", "ENST00000269305.9")
+    gene = os.environ.get("METADOME_LINK_LIVE_GENE", "TP53")
+    client = MetaDomeClient(settings)
+    try:
+        transcripts = await client.get_transcripts(gene)
+        assert transcripts and any(row["gencode_id"] == transcript_id for row in transcripts)
+        status = await client.get_status(transcript_id)
+        assert status in {"PENDING", "SENT", "STARTED", "RECEIVED", "RETRY", "SUCCESS", "FAILURE"}
+        if status == "SUCCESS":
+            result = await client.get_result(transcript_id)
+            assert result["transcript_id"] == transcript_id
+    finally:
+        await client.aclose()
+
+
+@pytest.mark.skipif(
+    os.environ.get("METADOME_LINK_LIVE_ALLOW_SUBMIT") != "1",
+    reason="set METADOME_LINK_LIVE_ALLOW_SUBMIT=1 to exercise the mutating submit endpoint",
+)
 async def test_six_build_scoped_v2_endpoints() -> None:
     """Exercise transcripts, submit, status, result, error and meta-domain live."""
     base_url = os.environ.get(

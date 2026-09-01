@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
+import json
+import time
 from pathlib import Path
 
 import httpx
@@ -11,7 +14,7 @@ from typer.testing import CliRunner
 
 from metadome_link.api.client import MetaDomeClient
 from metadome_link.cache import store
-from metadome_link.cache.store import MAX_WARM_GENES, ResultCache
+from metadome_link.cache.store import MAX_WARM_CONCURRENCY, MAX_WARM_GENES, ResultCache
 from metadome_link.config import ServerSettings
 from metadome_link.constants import data_profile
 from metadome_link.services.metadome_service import MetaDomeService
@@ -97,6 +100,89 @@ async def test_warm_cache_isolated_by_configured_profile(
         assert other.stats()["on_disk"] == 0
     finally:
         other.close()
+
+
+async def test_warm_cache_uses_bounded_workers_and_keeps_input_order(
+    mocked_metadome: respx.MockRouter, tmp_path: Path
+) -> None:
+    """Warm work overlaps, never exceeds the fixed bound, and reports deterministically."""
+    fixture = json.loads(
+        (Path(__file__).parent / "fixtures/metadome/get_transcripts_TP53.json").read_text()
+    )
+    active = 0
+    peak = 0
+
+    async def delayed_resolution(request: httpx.Request) -> httpx.Response:
+        nonlocal active, peak
+        active += 1
+        peak = max(peak, active)
+        await asyncio.sleep(0.03)
+        active -= 1
+        gene = request.url.path.rsplit("/", maxsplit=1)[-1]
+        return httpx.Response(200, json={**fixture, "gene_name": gene})
+
+    genes = [f"GENE{index}" for index in range(8)]
+    for gene in genes:
+        mocked_metadome.get(f"/get_transcripts/GRCh38.p14/{gene}").mock(
+            side_effect=delayed_resolution
+        )
+
+    config = _settings(tmp_path)
+    config.metadome.politeness_rate_per_s = 1000
+    config.metadome.politeness_burst = 1000
+    started = time.monotonic()
+    outcomes = await store._warm_cache(genes, config=config)
+    elapsed = time.monotonic() - started
+
+    assert [outcome.gene for outcome in outcomes] == genes
+    assert all(outcome.error is None for outcome in outcomes)
+    assert 1 < peak <= MAX_WARM_CONCURRENCY
+    assert elapsed < 0.18
+
+
+async def test_warm_cache_cancellation_closes_workers_client_and_cache(
+    mocked_metadome: respx.MockRouter,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Cancelling the parent tears down fixed workers and both owned resources."""
+    entered = asyncio.Event()
+    request_cancelled = asyncio.Event()
+    service_closed = asyncio.Event()
+    cache_closed = asyncio.Event()
+
+    async def blocked(_: httpx.Request) -> httpx.Response:
+        entered.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            request_cancelled.set()
+        raise AssertionError("unreachable")
+
+    original_aclose = MetaDomeService.aclose
+    original_close = ResultCache.close
+
+    async def tracked_aclose(self: MetaDomeService) -> None:
+        await original_aclose(self)
+        service_closed.set()
+
+    def tracked_close(self: ResultCache) -> None:
+        original_close(self)
+        cache_closed.set()
+
+    monkeypatch.setattr(MetaDomeService, "aclose", tracked_aclose)
+    monkeypatch.setattr(ResultCache, "close", tracked_close)
+    mocked_metadome.get("/get_transcripts/GRCh38.p14/GENE0").mock(side_effect=blocked)
+
+    task = asyncio.create_task(store._warm_cache(["GENE0"], config=_settings(tmp_path)))
+    await entered.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert request_cancelled.is_set()
+    assert service_closed.is_set()
+    assert cache_closed.is_set()
 
 
 def test_warm_cli_reports_partial_failure_and_exits_nonzero(

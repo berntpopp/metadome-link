@@ -391,7 +391,12 @@ class MetaDomeClient:
         *,
         soft_deadline_s: float,
     ) -> tuple[str, dict[str, Any] | None]:
-        """Submit and poll until terminal state or the strict soft deadline."""
+        """Poll status/result without submitting, until terminal state or deadline.
+
+        Submission is deliberately owned by the explicit compute-orchestration
+        tool.  Read-only callers use this method on a cache miss and must never
+        create upstream work as a side effect.
+        """
         tid = validate_transcript_id(transcript_id)
         start = time.monotonic()
         try:
@@ -402,14 +407,6 @@ class MetaDomeClient:
                 field="soft_deadline_s",
             ) from None
         deadline = start + deadline_seconds
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            return "processing", None
-        try:
-            await asyncio.wait_for(self.submit_visualization(tid), timeout=remaining)
-        except TimeoutError:
-            return "processing", None
-
         interval = self._cfg.poll_initial_interval_s
         max_interval = self._cfg.poll_max_interval_s
         while True:

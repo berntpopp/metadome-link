@@ -65,12 +65,10 @@ def register_analysis_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="summarize_intolerant_regions",
-        title="Summarize Intolerant Regions",
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.SUMMARIZE_INTOLERANT_REGIONS_SCHEMA,
         tags={"analysis"},
         description=(
-            "Rank contiguous intolerant regions; "
             "Signature: summarize_intolerant_regions(transcript_id, threshold=, min_run=, top_n=, "
             "response_mode=)."
         ),
@@ -83,7 +81,7 @@ def register_analysis_tools(mcp: FastMCP) -> None:
             Field(
                 ge=1,
                 le=100,
-                description="Minimum run length; default 3.",
+                description="Run length.",
             ),
         ] = 3,
         top_n: Annotated[
@@ -91,7 +89,7 @@ def register_analysis_tools(mcp: FastMCP) -> None:
             Field(
                 ge=1,
                 le=100,
-                description="Maximum ranked regions; default 15.",
+                description="Region count.",
             ),
         ] = 15,
         response_mode: ResponseMode = "compact",

@@ -84,9 +84,9 @@ request_tolerance_landscape(transcript_id)
 
 get_tolerance_landscape(transcript_id, ...)
   → check disk cache first
-  → on cache miss: poll_until_ready(soft_deadline_s=20)
+  → on cache miss: read-only poll_until_ready(soft_deadline_s=20); never submit
      ├── "ready"      → cache.put_result() → return landscape
-     ├── "processing" → return {success:true, status:"processing", poll_after_s}   ← NOT an error
+     ├── "processing" → return status + next_commands: explicit request, then poll
      └── "failed"     → raise UpstreamUnavailableError (returned as upstream_unavailable)
 ```
 

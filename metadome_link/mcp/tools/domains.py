@@ -71,7 +71,7 @@ DomainsArg = Annotated[
     _DomainSelectorMap | None,
     Field(
         default=None,
-        description="Optional Pfam-to-consensus-position selector; omitted derives from residue.",
+        description="Pfam selector.",
     ),
 ]
 
@@ -150,13 +150,10 @@ def register_domain_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="get_protein_domains",
-        title="Get Protein Domains",
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_PROTEIN_DOMAINS_SCHEMA,
         tags={"domains"},
-        description=(
-            "List protein domains; Signature: get_protein_domains(transcript_id, response_mode=)."
-        ),
+        description="Signature: get_protein_domains(transcript_id, response_mode=).",
     )
     async def get_protein_domains(
         transcript_id: TranscriptIdArg,
@@ -182,12 +179,10 @@ def register_domain_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="get_meta_domain",
-        title="Get Meta-Domain Variants",
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_META_DOMAIN_SCHEMA,
         tags={"domains"},
         description=(
-            "Return paginated meta-domain variants; "
             "Signature: get_meta_domain(transcript_id, position, domains=, limit=, offset=, "
             "response_mode=)."
         ),

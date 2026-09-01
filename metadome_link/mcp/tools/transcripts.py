@@ -62,14 +62,10 @@ def register_transcript_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="resolve_transcript",
-        title="Resolve Gene or Transcript ID",
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.RESOLVE_TRANSCRIPT_SCHEMA,
         tags={"transcripts"},
-        description=(
-            "Resolve a gene or transcript to a canonical transcript; "
-            "Signature: resolve_transcript(query, response_mode=)."
-        ),
+        description="Signature: resolve_transcript(query, response_mode=).",
     )
     async def resolve_transcript(
         query: GeneOrIdArg,

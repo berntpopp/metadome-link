@@ -11,9 +11,11 @@ facade builds today with only the two discovery tools live.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import TYPE_CHECKING
 
 from fastmcp import FastMCP
+from fastmcp.server.transforms import GetToolNext, Transform
 
 from metadome_link import __version__
 from metadome_link.mcp.capabilities import register_capability_resources
@@ -35,9 +37,39 @@ from metadome_link.mcp.tools import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Sequence
+
+    from fastmcp.tools.base import Tool
+    from fastmcp.utilities.versions import VersionSpec
 
     from metadome_link.services.metadome_service import MetaDomeService
+
+
+class _CompactToolSchemas(Transform):
+    """Drop redundant JSON-Schema defaults while preserving runtime defaults."""
+
+    @staticmethod
+    def _compact(tool: Tool) -> Tool:
+        parameters = deepcopy(tool.parameters)
+        for name, prop in parameters.get("properties", {}).items():
+            if isinstance(prop, dict) and (
+                tool.name != "get_variant_counts" or name not in {"limit", "offset"}
+            ):
+                prop.pop("default", None)
+        return tool.model_copy(update={"parameters": parameters})
+
+    async def list_tools(self, tools: Sequence[Tool]) -> Sequence[Tool]:
+        return [self._compact(tool) for tool in tools]
+
+    async def get_tool(
+        self,
+        name: str,
+        call_next: GetToolNext,
+        *,
+        version: VersionSpec | None = None,
+    ) -> Tool | None:
+        tool = await call_next(name, version=version)
+        return self._compact(tool) if tool is not None else None
 
 
 def create_metadome_mcp(
@@ -83,6 +115,11 @@ def create_metadome_mcp(
     register_domain_tools(mcp)
     register_analysis_tools(mcp)
     register_capability_resources(mcp)
+
+    # Function defaults remain authoritative at invocation time. Omitting their
+    # duplicate JSON-Schema `default` keywords keeps the canonical router surface
+    # under B1/B2 without removing descriptions, examples, enums, or constraints.
+    mcp.add_transform(_CompactToolSchemas())
 
     mcp.add_middleware(ArgValidationMiddleware())
 

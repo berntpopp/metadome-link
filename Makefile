@@ -1,5 +1,5 @@
 .PHONY: help install lock upgrade sync \
-        format format-check lint lint-ci lint-fix lint-loc lint-readme \
+        format format-check lint lint-ci lint-fix lint-loc lint-readme lint-surface \
         typecheck test test-fast test-unit test-integration test-cov \
         check ci-local precommit clean verify-deploy \
         cache-status cache-clear cache-warm dev mcp-serve \
@@ -48,6 +48,9 @@ lint-loc: ## Enforce per-file line budget
 lint-readme: ## Enforce the GeneFoundry README Standard v1
 	uv run python scripts/check_readme.py
 
+lint-surface: ## Enforce canonical router B1/B2 and schema-doc S1-S3 gates
+	uv run pytest tests/test_tool_surface_budget.py -q
+
 typecheck: ## Type check package
 	uv run mypy metadome_link server.py mcp_server.py
 
@@ -68,7 +71,7 @@ test-cov: ## Run tests with coverage
 
 check: format lint ## Format and lint
 
-ci-local: format-check lint-ci lint-loc lint-readme typecheck test-fast ## Fast local CI-equivalent checks
+ci-local: format-check lint-ci lint-loc lint-readme lint-surface typecheck test-fast ## Fast local CI-equivalent checks
 
 precommit: ci-local ## Run checks expected before commit
 

@@ -76,19 +76,15 @@ def register_discovery_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="get_server_capabilities",
-        title="Get Server Capabilities",
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_SERVER_CAPABILITIES_SCHEMA,
         tags={"discovery"},
-        description=(
-            "Describe server capabilities; "
-            "Signature: get_server_capabilities(detail=, response_mode=)."
-        ),
+        description="Signature: get_server_capabilities(detail=, response_mode=).",
     )
     async def get_server_capabilities(
         detail: Annotated[
             Literal["summary", "full"],
-            Field(description="summary (default, light) or full (adds semantics + notes)."),
+            Field(description="Detail level."),
         ] = "summary",
         response_mode: ResponseMode = "compact",
     ) -> ToolReturn:
@@ -108,13 +104,10 @@ def register_discovery_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="get_diagnostics",
-        title="Get MetaDome Diagnostics",
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_DIAGNOSTICS_SCHEMA,
         tags={"discovery"},
-        description=(
-            "Report local health without egress; Signature: get_diagnostics(response_mode=)."
-        ),
+        description="Signature: get_diagnostics(response_mode=).",
     )
     async def get_diagnostics(
         response_mode: ResponseMode = "compact",

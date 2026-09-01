@@ -275,6 +275,7 @@ class ResultCache:
 # ---------------------------------------------------------------------------
 
 MAX_WARM_GENES = 32
+MAX_WARM_CONCURRENCY = 4
 _WARM_GENE_RE = re.compile(r"^[A-Z][A-Z0-9.-]{0,63}$")
 
 
@@ -306,12 +307,14 @@ def _normalize_warm_genes(genes: list[str]) -> list[str]:
 
 
 async def _warm_cache(genes: list[str], *, config: ServerSettings = settings) -> list[WarmResult]:
-    """Warm transcripts and completed landscapes through the production service path."""
+    """Warm through the production path with a fixed, cancellation-safe worker pool."""
     # Local imports avoid the api.client -> cache package -> store cycle.
     from metadome_link.api.client import MetaDomeClient
     from metadome_link.services.metadome_service import MetaDomeService
 
     normalized = _normalize_warm_genes(genes)
+    if not normalized:
+        return []
     profile = data_profile(config.metadome.genome_build)
     client = MetaDomeClient(config)
     cache = ResultCache(
@@ -320,40 +323,57 @@ async def _warm_cache(genes: list[str], *, config: ServerSettings = settings) ->
         lru_maxsize=config.cache.lru_results,
     )
     service = MetaDomeService(client, cache, settings=config)
-    outcomes: list[WarmResult] = []
-    try:
-        for gene in normalized:
+    outcomes: list[WarmResult | None] = [None] * len(normalized)
+    work: asyncio.Queue[tuple[int, str]] = asyncio.Queue()
+    for item in enumerate(normalized):
+        work.put_nowait(item)
+
+    async def warm_one(gene: str) -> WarmResult:
+        try:
+            resolution = await service.resolve_transcript(gene, response_mode="minimal")
+            transcript_id = resolution.get("canonical_transcript_id")
+            if not isinstance(transcript_id, str):
+                raise ValueError("No analyzable canonical transcript was resolved.")
+            landscape = await service.get_landscape(
+                transcript_id,
+                limit=1,
+                offset=0,
+                response_mode="minimal",
+            )
+            if landscape.get("status") == "processing" or cache.get_result(transcript_id) is None:
+                raise ValueError("Landscape is still processing and was not cached.")
+            return WarmResult(gene=gene, transcript_id=transcript_id)
+        except MetaDomeError as exc:
+            return WarmResult(gene=gene, error=exc.message)
+        except ValueError as exc:
+            return WarmResult(gene=gene, error=str(exc))
+        except Exception as exc:  # pragma: no cover - defensive CLI boundary
+            return WarmResult(gene=gene, error=f"Unexpected internal error ({type(exc).__name__}).")
+
+    async def worker() -> None:
+        while True:
             try:
-                resolution = await service.resolve_transcript(gene, response_mode="minimal")
-                transcript_id = resolution.get("canonical_transcript_id")
-                if not isinstance(transcript_id, str):
-                    raise ValueError("No analyzable canonical transcript was resolved.")
-                landscape = await service.get_landscape(
-                    transcript_id,
-                    limit=1,
-                    offset=0,
-                    response_mode="minimal",
-                )
-                if (
-                    landscape.get("status") == "processing"
-                    or cache.get_result(transcript_id) is None
-                ):
-                    raise ValueError("Landscape is still processing and was not cached.")
-                outcomes.append(WarmResult(gene=gene, transcript_id=transcript_id))
-            except MetaDomeError as exc:
-                outcomes.append(WarmResult(gene=gene, error=exc.message))
-            except ValueError as exc:
-                outcomes.append(WarmResult(gene=gene, error=str(exc)))
-            except Exception as exc:  # pragma: no cover - defensive CLI boundary
-                outcomes.append(
-                    WarmResult(
-                        gene=gene, error=f"Unexpected internal error ({type(exc).__name__})."
-                    )
-                )
+                index, gene = work.get_nowait()
+            except asyncio.QueueEmpty:
+                return
+            try:
+                outcomes[index] = await warm_one(gene)
+            finally:
+                work.task_done()
+
+    try:
+        async with asyncio.TaskGroup() as group:
+            for _ in range(min(MAX_WARM_CONCURRENCY, len(normalized))):
+                group.create_task(worker())
     finally:
         await service.aclose()
         cache.close()
-    return outcomes
+    return [
+        outcome
+        if outcome is not None
+        else WarmResult(gene=normalized[index], error="Unexpected internal worker failure.")
+        for index, outcome in enumerate(outcomes)
+    ]
 
 
 app = typer.Typer(

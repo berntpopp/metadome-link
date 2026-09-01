@@ -266,6 +266,8 @@ def _validate_position_domains(raw: object, path: str) -> None:
                     raise _schema_error(f"{domain_path}.{field}")
                 if not is_nonnegative_integer_number(count):
                     raise _schema_error(f"{domain_path}.{field}.{significance}")
+        for field in _DOMAIN_OPTIONAL_FIELDS:
+            mapping.setdefault(field, {})
         variant_breakdown = mapping.get("pathogenic_variant_count_per_clinsig")
         missense_breakdown = mapping.get("pathogenic_missense_variant_count_per_clinsig")
         if (

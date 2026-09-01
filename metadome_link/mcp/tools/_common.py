@@ -12,7 +12,7 @@ from __future__ import annotations
 import math
 from typing import Annotated, Literal
 
-from pydantic import BeforeValidator, Field, StrictFloat, StrictInt
+from pydantic import BeforeValidator, Field, StrictFloat, StrictInt, WithJsonSchema
 
 from metadome_link.constants import (
     MAX_PAGE_LIMIT,
@@ -22,14 +22,15 @@ from metadome_link.constants import (
 #: Output-verbosity selector shared by every data tool (default ``compact``).
 ResponseMode = Annotated[
     Literal["minimal", "compact", "standard", "full"],
-    Field(description="Output mode."),
+    Field(description="Mode."),
 ]
 
 #: A versioned Ensembl transcript id (the ``.N`` version suffix is required).
 TranscriptIdArg = Annotated[
     str,
     Field(
-        description="Versioned ENST id.",
+        description="ENST.",
+        examples=["ENST00000269305.9"],
     ),
 ]
 
@@ -37,7 +38,8 @@ TranscriptIdArg = Annotated[
 GeneOrIdArg = Annotated[
     str,
     Field(
-        description="Gene symbol or versioned Ensembl transcript id.",
+        description="Query.",
+        examples=["TP53"],
     ),
 ]
 
@@ -47,7 +49,8 @@ PositionArg = Annotated[
     Field(
         ge=1,
         le=MAX_PROTEIN_POSITION,
-        description="1-based protein residue position.",
+        description="Pos.",
+        examples=[175],
     ),
 ]
 
@@ -58,6 +61,14 @@ OptionalPositionArg = Annotated[
         ge=1,
         le=MAX_PROTEIN_POSITION,
         description="Residue.",
+    ),
+    WithJsonSchema(
+        {
+            "type": ["integer", "null"],
+            "minimum": 1,
+            "maximum": MAX_PROTEIN_POSITION,
+            "description": "Pos.",
+        }
     ),
 ]
 
@@ -92,7 +103,7 @@ ThresholdArg = Annotated[
         gt=0.0,
         le=2.0,
         json_schema_extra=_threshold_schema,
-        description="sw_dn_ds cutoff; default 0.5.",
+        description="Cutoff.",
     ),
 ]
 
@@ -105,7 +116,8 @@ PositionsArg = Annotated[
         ]
     ],
     Field(
-        description="1-based protein residue positions to compare.",
+        description="Residues.",
+        examples=[[35, 175]],
     ),
 ]
 
@@ -115,7 +127,7 @@ LimitArg = Annotated[
     Field(
         ge=1,
         le=MAX_PAGE_LIMIT,
-        description="Page size.",
+        description="Limit.",
     ),
 ]
 
@@ -128,5 +140,5 @@ OffsetArg = Annotated[
 #: Variant-source selector for explicitly-scoped residue and homolog evidence.
 SourceArg = Annotated[
     Literal["both", "gnomad", "clinvar"],
-    Field(description="Evidence source."),
+    Field(description="Source."),
 ]

@@ -7,7 +7,7 @@ returns the built landscape (domains + paginated positions) or a first-class
 ``status: "processing"`` success state. Each tool projects the matching plain
 service dict (:meth:`MetaDomeService.request_landscape` /
 :meth:`MetaDomeService.get_landscape`) and steers the ``_meta.next_commands``
-chain: request -> get; get(processing) -> poll itself; get(ready) -> the
+chain: request -> get; get(processing) -> request then poll; get(ready) -> the
 per-position / domain / analysis tools.
 """
 
@@ -51,12 +51,15 @@ def after_get_landscape(
 ) -> list[dict[str, Any]]:
     """Success chain for a landscape poll.
 
-    While the job is still building (``status == "processing"``) re-suggest the
-    poll tool itself; once ready, page forward (if truncated) then fan out to the
-    per-position / domain / analysis tools.
+    ``PENDING`` cannot distinguish a queued job from an absent Celery id, so the
+    actionable read-only response suggests the explicit idempotent request and
+    then another poll. Once ready, page forward (if truncated) then fan out.
     """
     if payload.get("status") == "processing":
-        return [cmd("get_tolerance_landscape", transcript_id=transcript_id)]
+        return [
+            cmd("request_tolerance_landscape", transcript_id=transcript_id),
+            cmd("get_tolerance_landscape", transcript_id=transcript_id),
+        ]
     base: dict[str, Any] = {"transcript_id": transcript_id}
     if position_start is not None:
         base["position_start"] = position_start
@@ -81,16 +84,12 @@ def register_landscape_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="request_tolerance_landscape",
-        title="Request Tolerance Landscape",
         # F-11: this POSTs /submit_visualization/ (starts a Celery build) -> NOT
         # read-only. Non-destructive + idempotent (MetaDome dedupes by transcript_id).
         annotations=COMPUTE_IDEMPOTENT_OPEN_WORLD,
         output_schema=output_schemas.REQUEST_TOLERANCE_LANDSCAPE_SCHEMA,
         tags={"landscape"},
-        description=(
-            "Submit a landscape build and return its status; "
-            "Signature: request_tolerance_landscape(transcript_id, response_mode=)."
-        ),
+        description="Signature: request_tolerance_landscape(transcript_id, response_mode=).",
     )
     async def request_tolerance_landscape(
         transcript_id: TranscriptIdArg,
@@ -116,7 +115,6 @@ def register_landscape_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(
         name="get_tolerance_landscape",
-        title="Landscape",
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_TOLERANCE_LANDSCAPE_SCHEMA,
         tags={"landscape"},

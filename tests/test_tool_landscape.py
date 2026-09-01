@@ -201,12 +201,37 @@ async def test_get_landscape_processing_state(
     assert data["status"] == "processing"
     assert data["poll_after_s"] is not None
     assert data["cold_build_warning"]
-    # next_commands re-suggests this same tool (poll self).
+    # PENDING is ambiguous (queued or absent), so request explicitly then poll.
     steps = data["_meta"]["next_commands"]
+    assert steps[0]["tool"] == "request_tolerance_landscape"
     assert any(
         s["tool"] == "get_tolerance_landscape" and s["arguments"].get("transcript_id") == TID
         for s in steps
     )
+    submit = next(
+        route for route in mocked_metadome.routes if "/submit_visualization/" in str(route.pattern)
+    )
+    assert submit.call_count == 0
+
+
+async def test_get_landscape_absent_is_typed_and_points_to_request_then_poll(
+    facade: Any,
+    call_tool: Any,
+    mocked_metadome: respx.MockRouter,
+) -> None:
+    """An absent upstream task stays read-only and gives an executable recovery chain."""
+    mocked_metadome.get(f"/status/GRCh38.p14/{TID}").mock(return_value=httpx.Response(404))
+    data = await call_tool(facade, "get_tolerance_landscape", {"transcript_id": TID})
+    assert data["success"] is False
+    assert data["error_code"] == "not_found"
+    assert [step["tool"] for step in data["_meta"]["next_commands"][:2]] == [
+        "request_tolerance_landscape",
+        "get_tolerance_landscape",
+    ]
+    submit = next(
+        route for route in mocked_metadome.routes if "/submit_visualization/" in str(route.pattern)
+    )
+    assert submit.call_count == 0
 
 
 async def test_get_landscape_failure_is_non_retryable(

@@ -58,6 +58,10 @@ _PRIMARY_DATA_FIELD = {
     "summarize_intolerant_regions": "threshold",
 }
 
+_READ_ONLY_ARGS = {
+    name: args for name, args in _SUCCESS_ARGS.items() if name != "request_tolerance_landscape"
+}
+
 
 async def _success(facade: Any, call_tool: Any, tool_name: str) -> dict[str, Any]:
     output = await call_tool(
@@ -68,6 +72,29 @@ async def _success(facade: Any, call_tool: Any, tool_name: str) -> dict[str, Any
     assert output["success"] is True
     jsonschema.validate(output, _SCHEMAS[tool_name])
     return output
+
+
+@pytest.mark.parametrize("response_mode", ["minimal", "compact", "standard", "full"])
+@pytest.mark.parametrize(("tool_name", "arguments"), _READ_ONLY_ARGS.items())
+async def test_read_only_tools_never_submit_a_landscape_build(
+    tool_name: str,
+    arguments: dict[str, Any],
+    response_mode: str,
+    facade: Any,
+    call_tool: Any,
+    mocked_metadome: Any,
+) -> None:
+    """A cache miss may poll/fetch, but only the explicit request tool may submit."""
+    submit = next(
+        route for route in mocked_metadome.routes if "/submit_visualization/" in str(route.pattern)
+    )
+    output = await call_tool(
+        facade,
+        tool_name,
+        {**arguments, "response_mode": response_mode},
+    )
+    assert output["success"] is True
+    assert submit.call_count == 0
 
 
 @pytest.mark.parametrize("tool_name", _SCHEMAS)
@@ -146,6 +173,54 @@ async def test_nested_records_are_required_typed_and_closed(facade: Any, call_to
     for output, schema in mutations:
         with pytest.raises(jsonschema.ValidationError):
             jsonschema.validate(output, schema)
+
+
+@pytest.mark.parametrize("tool_name", _SCHEMAS)
+async def test_meta_records_are_recursively_typed_and_closed(
+    tool_name: str, facade: Any, call_tool: Any
+) -> None:
+    """Metadata rejects one isolated unknown/missing/wrong-typed nested field."""
+    output = await _success(facade, call_tool, tool_name)
+    command = output["_meta"]["next_commands"][0]
+    mutations = []
+
+    bad = deepcopy(output)
+    bad["_meta"]["data_versions"]["unknown_release"] = "x"
+    mutations.append(bad)
+    bad = deepcopy(output)
+    bad["_meta"]["data_versions"].pop("pfam")
+    mutations.append(bad)
+    bad = deepcopy(output)
+    bad["_meta"]["next_commands"][0]["unknown"] = True
+    mutations.append(bad)
+    bad = deepcopy(output)
+    bad["_meta"]["next_commands"][0].pop("arguments")
+    mutations.append(bad)
+    bad = deepcopy(output)
+    bad["_meta"]["next_commands"][0]["arguments"] = []
+    mutations.append(bad)
+    bad = deepcopy(output)
+    bad["_meta"]["next_commands"][0]["reason"] = 7
+    mutations.append(bad)
+
+    assert command["tool"] and isinstance(command["arguments"], dict)
+    for mutation in mutations:
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(mutation, _SCHEMAS[tool_name])
+
+
+@pytest.mark.parametrize("tool_name", _SCHEMAS)
+async def test_allowed_values_are_string_items(tool_name: str, facade: Any, call_tool: Any) -> None:
+    """The middleware emits string constraints/names; arbitrary values are invalid."""
+    output = await _success(facade, call_tool, tool_name)
+    error = {
+        "success": False,
+        "_meta": output["_meta"],
+        **_ERROR_FIELDS,
+        "allowed_values": [{}],
+    }
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(error, _SCHEMAS[tool_name])
 
 
 async def test_all_preserved_optional_v2_fields_validate_but_extras_do_not(

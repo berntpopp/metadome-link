@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from copy import deepcopy
 from typing import Any
 
 STR = {"type": "string"}
@@ -37,14 +38,74 @@ def closed(properties: dict[str, Any], required: tuple[str, ...] = ()) -> dict[s
         schema["minProperties"] = len(required)
     elif required:
         schema["required"] = list(required)
+    property_schema: dict[str, Any] = {
+        "type": "object",
+        "properties": properties,
+        "additionalProperties": False,
+    }
+    if "minProperties" in schema:
+        property_schema["minProperties"] = schema["minProperties"]
+    if "required" in schema:
+        property_schema["required"] = schema["required"]
+    return min(
+        (schema, property_schema),
+        key=lambda value: len(json.dumps(value, separators=(",", ":"))),
+    )
+
+
+def _replace_ref(node: Any, reference: str, replacement: dict[str, Any]) -> Any:
+    """Return a deep copy of a schema node with one local reference expanded."""
+    if isinstance(node, dict):
+        if node == {"$ref": reference}:
+            return deepcopy(replacement)
+        return {name: _replace_ref(value, reference, replacement) for name, value in node.items()}
+    if isinstance(node, list):
+        return [_replace_ref(value, reference, replacement) for value in node]
+    return node
+
+
+def _inline_single_use_defs(schema: dict[str, Any]) -> dict[str, Any]:
+    """Inline one-use local definitions to reduce wire size without weakening them."""
+    definitions = schema.get("$defs")
+    if not isinstance(definitions, dict):
+        return schema
+    while True:
+        blob = json.dumps(schema, separators=(",", ":"))
+        key = next(
+            (name for name in definitions if blob.count(f'"$ref":"#/$defs/{name}"') == 1),
+            None,
+        )
+        if key is None:
+            break
+        reference = f"#/$defs/{key}"
+        replacement = deepcopy(definitions[key])
+        schema = _replace_ref(schema, reference, replacement)
+        definitions = schema["$defs"]
+        definitions.pop(key)
+    if not definitions:
+        schema.pop("$defs")
     return schema
 
 
-DATA_VERSIONS = {
-    "type": "object",
-    "required": ["assembly", "metadome_app"],
-    "additionalProperties": {"type": "string"},
-}
+_DATA_VERSION_KEYS = (
+    "assembly",
+    "gencode",
+    "uniprot",
+    "gnomad",
+    "clinvar",
+    "pfam",
+    "metadome_app",
+    "data_doi",
+)
+DATA_VERSIONS = closed(dict.fromkeys(_DATA_VERSION_KEYS, STR), _DATA_VERSION_KEYS)
+
+NEXT_COMMAND = closed(
+    {
+        "tool": STR,
+        "arguments": {"type": "object"},
+    },
+    ("tool", "arguments"),
+)
 
 META = closed(
     {
@@ -54,7 +115,7 @@ META = closed(
         "unsafe_for_clinical_use": {"const": True},
         "elapsed_ms": INT,
         "capabilities_version": STR,
-        "next_commands": {"type": "array", "items": {"type": "object"}},
+        "next_commands": {"type": "array", "items": {"$ref": "#/$defs/N"}},
     },
     ("tool", "request_id", "data_versions", "unsafe_for_clinical_use"),
 )
@@ -132,39 +193,34 @@ COUNT_BY_SIGNIFICANCE = {
     "type": "object",
     "additionalProperties": NUM,
 }
-POSITION_DOMAIN = closed(
-    {
-        "normal_variant_count": NUM,
-        "normal_missense_variant_count": NUM,
-        "pathogenic_variant_count": NUM,
-        "pathogenic_missense_variant_count": NUM,
-        "consensus_pos": {"type": "array", "items": INT},
-        "pathogenic_variant_count_per_clinsig": COUNT_BY_SIGNIFICANCE,
-        "pathogenic_missense_variant_count_per_clinsig": COUNT_BY_SIGNIFICANCE,
+POSITION_DOMAIN = {
+    "type": "object",
+    "patternProperties": {
+        "^(normal|pathogenic)(_missense)?_variant_count$": NUM,
+        "^consensus_pos$": {"type": "array", "items": INT},
+        "^pathogenic(_missense)?_variant_count_per_clinsig$": COUNT_BY_SIGNIFICANCE,
     },
-    (
-        "normal_variant_count",
-        "normal_missense_variant_count",
-        "pathogenic_variant_count",
-        "pathogenic_missense_variant_count",
-        "consensus_pos",
-    ),
-)
-CLINVAR_VARIANT = closed(
-    {
-        "alt": STR,
-        "alt_aa": STR,
-        "alt_aa_triplet": STR,
-        "alt_codon": STR,
-        "clinvar_ID": STR,
-        "clinvar_clinsig": STR,
-        "pos": INT,
-        "ref": STR,
-        "type": STR,
-        "url": STR,
+    "additionalProperties": False,
+    "minProperties": 7,
+}
+CLINVAR_VARIANT = {
+    "type": "object",
+    "patternProperties": {
+        "^(alt(_aa(_triplet)?|_codon)?|clinvar_(ID|clinsig)|ref|type|url)$": STR,
+        "^pos$": INT,
     },
-    ("alt", "alt_aa", "alt_aa_triplet", "alt_codon", "clinvar_ID", "pos", "ref", "type"),
-)
+    "additionalProperties": False,
+    "required": [
+        "alt",
+        "alt_aa",
+        "alt_aa_triplet",
+        "alt_codon",
+        "clinvar_ID",
+        "pos",
+        "ref",
+        "type",
+    ],
+}
 POSITION = closed(
     {
         "cdna_pos": STR,
@@ -200,6 +256,13 @@ POSITION = closed(
         "domains",
     ),
 )
+_POSITION_STRING_PATTERN = (
+    "^(cdna_pos|chr|chr_positions|exon_numbers|ref_aa|ref_aa_triplet|ref_codon|strand)$"
+)
+if "patternProperties" in POSITION:
+    POSITION["patternProperties"][
+        "^(cdna_pos|chr(_positions)?|exon_numbers|ref_(aa(_triplet)?|codon)|strand)$"
+    ] = POSITION["patternProperties"].pop(_POSITION_STRING_PATTERN)
 DOMAIN_MEMBERSHIP = closed(
     {"meta_domain_homolog_aggregate_available": BOOL},
     ("meta_domain_homolog_aggregate_available",),
@@ -349,7 +412,7 @@ ERROR_PROPERTIES = {
     "recovery_action": STR,
     "field": STR,
     "hint": STR,
-    "allowed_values": {"type": "array"},
+    "allowed_values": STR_ARRAY,
     "candidates": {"type": "array", "items": {"$ref": "#/$defs/C"}},
 }
 
@@ -370,6 +433,7 @@ def output_schema(
         **properties,
     }
     success = closed(success_properties, ("success", "_meta", *required))
+    success.pop("type")
     if constraint is not None:
         success.update(constraint)
     error_properties = dict(ERROR_PROPERTIES)
@@ -379,17 +443,21 @@ def output_schema(
         error_properties,
         ("success", "_meta", "error_code", "message", "retryable", "recovery_action"),
     )
+    error.pop("type")
     all_defs = {
         "V": DATA_VERSIONS,
+        "N": NEXT_COMMAND,
         "M": META,
         **(defs or {}),
     }
     if candidates:
         all_defs["C"] = CANDIDATE
-    return {
-        "type": "object",
-        "patternProperties": {".*": {}},
-        "additionalProperties": False,
-        "oneOf": [success, error],
-        "$defs": all_defs,
-    }
+    return _inline_single_use_defs(
+        {
+            "type": "object",
+            "patternProperties": {".*": {}},
+            "additionalProperties": False,
+            "oneOf": [success, error],
+            "$defs": all_defs,
+        }
+    )
