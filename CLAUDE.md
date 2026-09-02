@@ -58,6 +58,11 @@ it there). Guarded by `tests/test_metadome_round15.py`. Release bumps must updat
 `CITATION.cff` `version:` **and** `date-released:` together --
 `tests/test_metadome_round12.py` pins both as literals.
 
+`container-release.json` declares `service.deployed_compose_files:
+["docker/docker-compose.npm.yml"]`; both reusable-workflow pins
+(`container-ci.yml`, `container-release.yml`) must track the same
+`genefoundry-router` revision -- see `docs/deployment.md`.
+
 ## Two-plane invariants (non-negotiable)
 
 1. **Data plane returns plain dicts; MCP plane owns `success`/`_meta`.** Services raise typed
