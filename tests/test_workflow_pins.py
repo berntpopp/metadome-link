@@ -3,7 +3,11 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-ROUTER_SHA = "db47bd3357cebf33e6722615c4f0e7419a64857e"
+# genefoundry-router v0.8.5: added `validate-deployed-overlay` and the
+# ReleaseConfig fields it reads (router #172). Both container-ci.yml and
+# container-release.yml load ReleaseConfig from their pinned commit, so both
+# must track this revision or the older pin rejects the new fields.
+ROUTER_SHA = "31ea81cee5475fc3655c047c63a89739948f99a9"
 SETUP_UV_SHA = "20cfd1bf945f4377ade1205e4dbc17946fc9a30d"
 CODEQL_SHA = "ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd"
 

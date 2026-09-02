@@ -58,6 +58,16 @@ or `docker/docker-compose.prod.yml` -- those are the Compose files listed in
 validate-compose`) forbids `user` on them. `tests/test_metadome_round15.py` guards
 both halves of this contract.
 
+`container-release.json` also declares `service.deployed_compose_files:
+["docker/docker-compose.npm.yml"]` -- the exact file the controller deploys.
+Both reusable-workflow pins (`.github/workflows/container-ci.yml`,
+`.github/workflows/container-release.yml`) must track the same
+`genefoundry-router` revision (`tests/test_workflow_pins.py`): the shared
+`_container-release.yml` workflow runs `container_release.py
+validate-deployed-overlay` against the declared file before every release,
+and `_container-ci.yml` loads the same `ReleaseConfig` schema from its own
+pin to validate this JSON, so an older pin there rejects new fields.
+
 Release checklist: bump `pyproject.toml` `version`, run `uv lock`, add a
 `CHANGELOG.md` heading `## [x.y.z] - YYYY-MM-DD`, bump `CITATION.cff` `version:`
 **and** `date-released:` together --
