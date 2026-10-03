@@ -79,7 +79,14 @@ COPY --chown=app:app ./docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 
 RUN /opt/venv/bin/pip install . --no-deps && chmod +x /usr/local/bin/entrypoint.sh
 
-RUN rm -rf /root/.cache/pip /usr/local/lib/python*/ensurepip/_bundled/*.whl \
+RUN rm -rf /root/.cache/pip \
+           /usr/local/lib/python*/ensurepip \
+           /usr/local/lib/python*/site-packages/pip \
+           /usr/local/lib/python*/site-packages/pip-*.dist-info \
+           /usr/local/bin/pip /usr/local/bin/pip3 /usr/local/bin/pip3.* \
+           /opt/venv/lib/python*/site-packages/pip \
+           /opt/venv/lib/python*/site-packages/pip-*.dist-info \
+           /opt/venv/bin/pip /opt/venv/bin/pip3 /opt/venv/bin/pip3.* \
     && find / -xdev -type d -name __pycache__ -prune -exec rm -rf '{}' + \
     && find / -xdev -type f \( -name '*.pyc' -o -name '*.pyo' \) -delete
 

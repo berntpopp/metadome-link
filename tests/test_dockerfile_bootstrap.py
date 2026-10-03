@@ -32,3 +32,12 @@ def test_prepared_stage_applies_current_debian_security_upgrades() -> None:
         .split(" AS prepared", maxsplit=1)[1]
     )
     assert "apt-get upgrade -y --no-install-recommends" in prepared_stage
+
+
+def test_final_image_removes_pip_vendor_packages_after_install() -> None:
+    text = (ROOT / "docker" / "Dockerfile").read_text(encoding="utf-8")
+    prepared_stage = text.split(" AS prepared", maxsplit=1)[1]
+
+    assert "pip install . --no-deps" in prepared_stage
+    assert "/usr/local/lib/python*/site-packages/pip" in prepared_stage
+    assert "/opt/venv/lib/python*/site-packages/pip" in prepared_stage
