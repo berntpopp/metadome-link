@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 # must track this revision or the older pin rejects the new fields.
 ROUTER_SHA = "88b565f1b6047f47fd58138cbf041994bb137c03"
 SETUP_UV_SHA = "1c37ad07a6a961277cf70c0d37d6f313000f5884"
-CODEQL_SHA = "24c54180a607b1449ed407dd24f251e4e9147c8d"
+CODEQL_SHA = "6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee"
 
 
 def test_release_workflows_pin_the_trusted_router_and_actions() -> None:
