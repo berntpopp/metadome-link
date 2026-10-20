@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "metadome-link"
-version = "0.3.10"
+version = "0.3.11"
 description = "MCP/API server wrapping the MetaDome web service for missense tolerance landscapes, Pfam domains, and meta-domain variant aggregation"
 readme = "README.md"
 license = { text = "MIT" }
@@ -41,7 +41,7 @@ dependencies = [
     "orjson>=3.12.0,<4.0.0",
     "rich>=13.0.0,<16.0.0",
     "typer>=0.27.2,<1.0.0",
-    "mcp[cli]>=1.27.0,<2.0.0",
+    "mcp[cli]>=1.30.0,<2.0.0",
     "fastmcp>=3.4.7,<4.0.0",
     "async-lru>=2.0.0,<3.0.0",
 ]
