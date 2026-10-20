@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[1]
 # ReleaseConfig fields it reads (router #172). Both container-ci.yml and
 # container-release.yml load ReleaseConfig from their pinned commit, so both
 # must track this revision or the older pin rejects the new fields.
-ROUTER_SHA = "e8931f0114bba3568517d1c7b1f990bea2be31af"
+ROUTER_SHA = "bab3fb6bc9a9b2a9c87bd3d5aa9883a42bae039b"
 SETUP_UV_SHA = "1c37ad07a6a961277cf70c0d37d6f313000f5884"
 CODEQL_SHA = "6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee"
 
