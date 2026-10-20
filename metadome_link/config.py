@@ -46,7 +46,7 @@ def validate_finite_seconds(value: object, *, maximum: float) -> float:
         valid = not isinstance(value, bool) and isinstance(value, (int, float))
         numeric = cast(int | float, value)
         valid = valid and math.isfinite(numeric) and 0 < numeric <= maximum
-    except (OverflowError, TypeError, ValueError):
+    except OverflowError, TypeError, ValueError:
         valid = False
     if not valid:
         raise ValueError(f"must be a finite value in (0, {maximum}]")

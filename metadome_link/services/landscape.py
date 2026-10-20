@@ -272,7 +272,7 @@ def intolerant_runs(
             and math.isfinite(threshold)
             and 0 < threshold <= 2
         )
-    except (OverflowError, TypeError, ValueError):
+    except OverflowError, TypeError, ValueError:
         finite_threshold = False
     if not finite_threshold:
         raise InvalidInputError("threshold must be a finite number in (0, 2].", field="threshold")

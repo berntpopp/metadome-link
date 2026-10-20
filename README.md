@@ -1,6 +1,6 @@
 # metadome-link
 
-[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Python 3.14+](https://img.shields.io/badge/python-3.14%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![CI](https://github.com/berntpopp/metadome-link/actions/workflows/ci.yml/badge.svg)](https://github.com/berntpopp/metadome-link/actions/workflows/ci.yml)
 [![Conformance](https://github.com/berntpopp/metadome-link/actions/workflows/conformance.yml/badge.svg)](https://github.com/berntpopp/metadome-link/actions/workflows/conformance.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
@@ -43,7 +43,7 @@ Hosted — no install:
 claude mcp add --transport http metadome https://metadome-link.genefoundry.org/mcp
 ```
 
-Run it locally (Python 3.12+, [uv](https://github.com/astral-sh/uv)). There is **no data-build
+Run it locally (Python 3.14+, [uv](https://github.com/astral-sh/uv)). There is **no data-build
 step**: the server proxies MetaDome live and warms its cache lazily.
 
 ```bash

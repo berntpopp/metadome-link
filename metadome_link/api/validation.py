@@ -13,7 +13,7 @@ def is_finite_number(value: object) -> bool:
         return False
     try:
         return math.isfinite(value)
-    except (OverflowError, TypeError, ValueError):
+    except OverflowError, TypeError, ValueError:
         return False
 
 

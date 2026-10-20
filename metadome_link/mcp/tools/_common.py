@@ -79,7 +79,7 @@ def _require_finite_real(value: object) -> object:
         raise ValueError("threshold must be a finite real number")
     try:
         finite = math.isfinite(value)
-    except (OverflowError, TypeError, ValueError):
+    except OverflowError, TypeError, ValueError:
         finite = False
     if not finite:
         raise ValueError("threshold must be a finite real number")
