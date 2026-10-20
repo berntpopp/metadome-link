@@ -21,16 +21,13 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
     "Typing :: Typed",
 ]
-# 3.12 is the supported FLOOR, not the shipped interpreter. The container ships
-# CPython 3.14 (docker/Dockerfile) and CI tests both ends of the range, so the
-# interpreter that ships is always one CI has exercised.
-requires-python = ">=3.12"
+# Unified fleet interpreter: CPython 3.14 is what the container ships
+# (docker/Dockerfile) and what CI tests. Minor upgrades are a fleet migration.
+requires-python = ">=3.14"
 dependencies = [
     "fastapi>=0.115.0,<1.0.0",
     "uvicorn[standard]>=0.52.3,<1.0.0",
@@ -75,10 +72,9 @@ include = ["server.py", "mcp_server.py"]
 
 [tool.ruff]
 line-length = 100
-# Tracks the `requires-python` FLOOR (3.12), not the shipped interpreter (3.14):
-# targeting py314 here would let the `UP` rules rewrite code into 3.14-only
-# syntax that the declared 3.12 floor could not run.
-target-version = "py312"
+target-version = "py314"
+# Vendored byte-identical from genefoundry-router docs/conformance/ (never reformatted).
+extend-exclude = ["tests/conformance/behaviour.py"]
 
 [tool.ruff.lint]
 # `select` (not `extend-select`): ruff 0.16 grows the implicit default rule set
@@ -109,10 +105,8 @@ line-ending = "lf"
 convention = "google"
 
 [tool.mypy]
-# Deliberately UNPINNED. A pinned `python_version` would type-check one end of the
-# supported range on every job; without it mypy checks whatever interpreter runs
-# it, so the CI matrix checks the 3.12 floor as 3.12 and the shipped 3.14
-# container interpreter as 3.14 -- including symbols removed in 3.13/3.14.
+# Deliberately UNPINNED: mypy checks whatever interpreter runs it (CPython 3.14 in CI
+# and the container), so symbols removed in 3.14 are still caught.
 strict = true
 warn_return_any = true
 warn_unused_configs = true

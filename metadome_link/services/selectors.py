@@ -65,7 +65,7 @@ def validate_meta_domain_request(position: object, domains: object) -> dict[str,
         raise InvalidInputError("Too many domain selectors.", field="domains")
     try:
         encoded = json.dumps(domains, separators=(",", ":"), ensure_ascii=False).encode()
-    except (TypeError, ValueError, OverflowError):
+    except TypeError, ValueError, OverflowError:
         raise InvalidInputError(
             "domains must contain finite JSON values.", field="domains"
         ) from None
