@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.13] - 2026-11-11
+
+### Security
+
+- Fleet dependency sweep: authlib 1.9.5 (critical + high), joserfc 1.8.0, dnspython 2.9.2, fastmcp/fastmcp-slim 3.4.11, opentelemetry-api 1.45.2, filelock 4.2.10, virtualenv 21.15.6 (Dependabot alerts #21-#59).
+
+### Changed
+
+- GitHub Actions SHA bumps; router reusable workflows re-pinned to v0.10.10 (fresh release-control ledger).
+
 ## [0.3.12] - 2026-10-20
 
 ### Security
