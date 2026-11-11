@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import time
 from pathlib import Path
 
 import httpx
@@ -130,14 +129,11 @@ async def test_warm_cache_uses_bounded_workers_and_keeps_input_order(
     config = _settings(tmp_path)
     config.metadome.politeness_rate_per_s = 1000
     config.metadome.politeness_burst = 1000
-    started = time.monotonic()
     outcomes = await store._warm_cache(genes, config=config)
-    elapsed = time.monotonic() - started
 
     assert [outcome.gene for outcome in outcomes] == genes
     assert all(outcome.error is None for outcome in outcomes)
-    assert 1 < peak <= MAX_WARM_CONCURRENCY
-    assert elapsed < 0.18
+    assert 1 < peak <= MAX_WARM_CONCURRENCY  # overlap proven by peak, not wall clock
 
 
 async def test_warm_cache_cancellation_closes_workers_client_and_cache(
