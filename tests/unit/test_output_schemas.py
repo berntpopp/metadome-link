@@ -125,7 +125,8 @@ async def test_output_schema_success_path(
 ) -> None:
     """Every tool in every response_mode produces a schema-valid dict on the success path."""
     args = dict(_SUCCESS_ARGS[tool_name])
-    args["response_mode"] = mode
+    if tool_name != "get_diagnostics":  # zero-arg tool (router#158)
+        args["response_mode"] = mode
     output = await call_tool(facade, tool_name, args)
     _assert_valid(tool_name, output)
     # Success path must return success=True
@@ -149,7 +150,8 @@ async def test_output_schema_error_path(
 ) -> None:
     """Every tool in every response_mode produces a schema-valid dict on an error/forced path."""
     args = dict(_ERROR_ARGS[tool_name])
-    args["response_mode"] = mode
+    if tool_name != "get_diagnostics":  # zero-arg tool (router#158)
+        args["response_mode"] = mode
     output = await call_tool(facade, tool_name, args)
     _assert_valid(tool_name, output)
     # For tools with no forced error, both paths produce success=True — that's fine

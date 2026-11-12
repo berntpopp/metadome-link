@@ -84,11 +84,16 @@ def test_next_command_arguments_are_recursive_and_closed() -> None:
         jsonschema.validate(injected, NEXT_COMMAND)
 
 
+def _mode(tool_name: str, mode: str) -> dict[str, str]:
+    # get_diagnostics is zero-arg (router#158): it takes no response_mode.
+    return {} if tool_name == "get_diagnostics" else {"response_mode": mode}
+
+
 async def _success(facade: Any, call_tool: Any, tool_name: str) -> dict[str, Any]:
     output = await call_tool(
         facade,
         tool_name,
-        {**_SUCCESS_ARGS[tool_name], "response_mode": "standard"},
+        {**_SUCCESS_ARGS[tool_name], **_mode(tool_name, "standard")},
     )
     assert output["success"] is True
     jsonschema.validate(output, _SCHEMAS[tool_name])
@@ -112,7 +117,7 @@ async def test_read_only_tools_never_submit_a_landscape_build(
     output = await call_tool(
         facade,
         tool_name,
-        {**arguments, "response_mode": response_mode},
+        {**arguments, **_mode(tool_name, response_mode)},
     )
     assert output["success"] is True
     assert submit.call_count == 0
