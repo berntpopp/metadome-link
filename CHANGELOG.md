@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.15] - 2026-11-12
+
+### Fixed
+
+- `get_tolerance_landscape` / `get_position_tolerance` failed with `upstream_unavailable` (`field: domains[1]`) for transcripts with a repeated Pfam domain (AVIL `ENST00000549994.2`, `ENST00000257861.7`): MetaDome sends `meta_domain_alignment_depth` only on the first entry of a repeated Pfam id. The field is now optional in the validator and the advertised output schema; every other domain field stays required and checked.
+- Error envelopes can no longer say `retryable: false` with `recovery_action: retry_backoff`: the recovery action is derived from `retryable` (`retry_backoff` if and only if retryable), for every error code. Upstream schema mismatches now report `switch_tool`.
 ## [0.3.14] - 2026-11-12
 
 ### Fixed
