@@ -122,7 +122,7 @@ async def test_require_landscape_not_ready_raises_not_found(cache: ResultCache) 
         return_value=httpx.Response(200, json={"transcript_id": TID, "genome_build": "GRCh38.p14"})
     )
     respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
-        return_value=httpx.Response(200, json={"status": "PENDING"})
+        return_value=httpx.Response(200, json={"status": "STARTED"})
     )
     settings = _fast_settings()
     settings.metadome.poll_soft_deadline_s = 0.05

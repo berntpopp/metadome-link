@@ -195,7 +195,7 @@ async def test_get_landscape_processing_state(
     """A still-building job is a first-class success:true,status='processing'."""
     # No cached result + status never reaches SUCCESS -> processing state.
     mocked_metadome.get(f"/status/GRCh38.p14/{TID}").mock(
-        return_value=httpx.Response(200, json={"status": "PENDING"})
+        return_value=httpx.Response(200, json={"status": "STARTED"})
     )
     mocked_metadome.get(f"/result/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(404, json={"detail": "not ready"})
@@ -205,7 +205,7 @@ async def test_get_landscape_processing_state(
     assert data["status"] == "processing"
     assert data["poll_after_s"] is not None
     assert data["cold_build_warning"]
-    # PENDING is ambiguous (queued or absent), so request explicitly then poll.
+    # Still building: request (idempotent) then poll again.
     steps = data["_meta"]["next_commands"]
     assert steps[0]["tool"] == "request_tolerance_landscape"
     assert any(
@@ -358,3 +358,79 @@ def test_result_domain_alignment_depth_is_the_only_optional_field(mutate: Any, o
     else:
         with pytest.raises(UpstreamSchemaError):
             validate_result_document(doc)
+
+
+#: Acceptance 2026-11-12 E4: an ENST id that exists nowhere (live upstream answers PENDING
+#: forever on status, 404 on result, and a generic stub on error until a build is submitted).
+UNKNOWN_TID = "ENST00000000000.1"
+
+
+async def test_get_landscape_unknown_transcript_is_not_found_not_processing(
+    facade: Any,
+    call_tool: Any,
+    mocked_metadome: respx.MockRouter,
+) -> None:
+    """A transcript MetaDome has no job/result/error for is not_found, not processing."""
+    mocked_metadome.get(f"/status/GRCh38.p14/{UNKNOWN_TID}").mock(
+        return_value=httpx.Response(200, json={"status": "PENDING"})
+    )
+    mocked_metadome.get(f"/result/GRCh38.p14/{UNKNOWN_TID}").mock(
+        return_value=httpx.Response(404, json={"error": "file not found"})
+    )
+    data = await call_tool(facade, "get_tolerance_landscape", {"transcript_id": UNKNOWN_TID})
+    assert data["success"] is False
+    assert data["error_code"] == "not_found"
+    assert data["retryable"] is False
+    assert data["field"] == "transcript_id"
+    assert "resolve_transcript" in data["message"]
+    assert "1 hour" not in data["message"]
+    # request_tolerance_landscape disambiguates: it starts a build for a real id and
+    # reports not_found for an id MetaDome does not know.
+    assert [step["tool"] for step in data["_meta"]["next_commands"][:2]] == [
+        "request_tolerance_landscape",
+        "get_tolerance_landscape",
+    ]
+    submit = next(
+        route for route in mocked_metadome.routes if "/submit_visualization/" in str(route.pattern)
+    )
+    assert submit.call_count == 0
+
+
+async def test_unknown_transcript_build_failure_is_not_found_with_resolve_hint(
+    facade: Any,
+    call_tool: Any,
+    mocked_metadome: respx.MockRouter,
+) -> None:
+    """MetaDome's 'no gene region' build FAILURE names an unknown id: not_found, no retry loop."""
+    mocked_metadome.post("/submit_visualization/").mock(
+        return_value=httpx.Response(
+            200, json={"transcript_id": UNKNOWN_TID, "genome_build": "GRCh38.p14"}
+        )
+    )
+    mocked_metadome.get(f"/status/GRCh38.p14/{UNKNOWN_TID}").mock(
+        return_value=httpx.Response(200, json={"status": "FAILURE"})
+    )
+    mocked_metadome.get(f"/error/GRCh38.p14/{UNKNOWN_TID}").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "error": "error running visualization job",
+                "stacktrace": (
+                    "RuntimeError: No gene region could be build for transcript "
+                    f"{UNKNOWN_TID}, genome_build GRCh38.p14, reason: "
+                    "GeneRepository.retrieve_gene(transcription_id, genome_build): Expected "
+                    f"results but found none for transcription_id '{UNKNOWN_TID}'"
+                ),
+            },
+        )
+    )
+    for tool in ("request_tolerance_landscape", "get_tolerance_landscape"):
+        data = await call_tool(facade, tool, {"transcript_id": UNKNOWN_TID})
+        assert data["success"] is False, tool
+        assert data["error_code"] == "not_found", tool
+        assert data["retryable"] is False
+        assert data["field"] == "transcript_id"
+        assert "resolve_transcript" in data["message"]
+        assert "Traceback" not in data["message"] and "GeneRepository" not in data["message"]
+        tools = [step["tool"] for step in data["_meta"]["next_commands"]]
+        assert "request_tolerance_landscape" not in tools, tool

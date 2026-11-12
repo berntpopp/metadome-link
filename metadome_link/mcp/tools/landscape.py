@@ -51,9 +51,9 @@ def after_get_landscape(
 ) -> list[dict[str, Any]]:
     """Success chain for a landscape poll.
 
-    ``PENDING`` cannot distinguish a queued job from an absent Celery id, so the
-    actionable read-only response suggests the explicit idempotent request and
-    then another poll. Once ready, page forward (if truncated) then fan out.
+    ``processing`` means a build is running upstream (SENT/STARTED); request
+    (idempotent) and poll again. A persistent ``PENDING`` (no job at all) is a
+    ``not_found`` error, not ``processing``. Once ready, page forward (if truncated) then fan out.
     """
     if payload.get("status") == "processing":
         return [

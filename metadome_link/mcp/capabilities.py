@@ -199,7 +199,8 @@ def build_capabilities(
             "transcripts (e.g. TP53) are pre-built and return status='ready' immediately; "
             "a cold build can take up to ~1 hour. Use request_tolerance_landscape to "
             "submit (idempotent), then poll get_tolerance_landscape. "
-            "status:'processing' is a first-class success state, not an error."
+            "status:'processing' is a first-class success state, not an error. An id with "
+            "no MetaDome landscape or build job (unknown, or never requested) is not_found."
         ),
         "score_semantics": (
             "sw_dn_ds is a background-corrected missense/synonymous ratio over a "

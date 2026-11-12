@@ -75,6 +75,9 @@ Cache-first fetch of the built landscape.
 
 - **Cache hit**: returns the landscape immediately.
 - **Cache miss + build ready**: fetches from MetaDome, caches on disk, returns the landscape.
+- **Cache miss + no job upstream** (unknown id, or never requested): `not_found` (non-retryable);
+  `request_tolerance_landscape` starts a build; for an id MetaDome does not know, that build fails
+  within seconds and the next poll returns `not_found` with a `resolve_transcript` hint.
 - **Cache miss + still building**: returns `{success:true, status:"processing", poll_after_s}`
   — **not an error**. Re-poll after `poll_after_s`.
 - **Build failed**: returns `upstream_unavailable` with the stored error summary.

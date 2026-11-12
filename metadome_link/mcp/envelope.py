@@ -270,7 +270,9 @@ def _error_envelope(exc: BaseException, context: McpErrorContext) -> dict[str, A
         envelope["_meta"]["next_commands"] = steps or [cmd("get_server_capabilities")]
         return envelope
 
-    if context.fallback is not None:
+    if isinstance(extra.get("next_commands"), list) and extra["next_commands"]:
+        envelope["_meta"]["next_commands"] = extra["next_commands"]
+    elif context.fallback is not None:
         envelope["_meta"]["next_commands"] = [context.fallback]
     else:
         envelope["_meta"]["next_commands"] = default_error_next_commands(

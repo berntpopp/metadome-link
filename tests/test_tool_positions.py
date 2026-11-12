@@ -199,7 +199,7 @@ async def test_position_tool_not_ready_not_found(
     # Collapse the poll deadline so the still-building path returns fast.
     metadome_service._settings.metadome.poll_soft_deadline_s = 0.05
     mocked_metadome.get(f"/status/GRCh38.p14/{TID}").mock(
-        return_value=httpx.Response(200, json={"status": "PENDING"})
+        return_value=httpx.Response(200, json={"status": "STARTED"})
     )
     data = await call_tool(
         facade,

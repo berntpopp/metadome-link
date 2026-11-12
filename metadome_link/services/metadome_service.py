@@ -11,6 +11,7 @@ from metadome_link.exceptions import (
     NotFoundError,
     UpstreamSchemaError,
     metadome_build_failure,
+    poll_failure,
 )
 from metadome_link.identifiers import (
     looks_like_transcript_query,
@@ -256,8 +257,8 @@ class MetaDomeService:
                     "cold_build_warning": _COLD_BUILD_WARNING,
                     "recommended_citation": recommended_citation(transcript_id=tid),
                 }
-            if state == "failed":
-                raise metadome_build_failure(tid, result)
+            if state in ("failed", "absent"):
+                raise poll_failure(tid, state, result)
             # state == "ready"
             landscape = validate_polled_landscape(result, tid)
             self._cache.put_result(tid, landscape)
@@ -477,8 +478,8 @@ class MetaDomeService:
             landscape = validate_polled_landscape(result, transcript_id)
             self._cache.put_result(transcript_id, landscape)
             return landscape
-        if state == "failed":
-            raise metadome_build_failure(transcript_id, result)
+        if state in ("failed", "absent"):
+            raise poll_failure(transcript_id, state, result)
         raise NotFoundError(
             f"Tolerance landscape for {transcript_id} is not built yet.",
             recovery_action="switch_tool",
