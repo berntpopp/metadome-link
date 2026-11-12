@@ -145,7 +145,7 @@ DOMAIN = closed(
         "metadomain": BOOL,
         "meta_domain_alignment_depth": INT,
     },
-    ("ID", "Name", "start", "stop", "metadomain", "meta_domain_alignment_depth"),
+    ("ID", "Name", "start", "stop", "metadomain"),
 )
 COUNT_BY_SIGNIFICANCE = {
     "type": "object",

@@ -1,0 +1,577 @@
+{
+ "domains": [
+  {
+   "ID": "PF00626",
+   "Name": "Gelsolin",
+   "meta_domain_alignment_depth": 45,
+   "metadomain": true,
+   "start": 28,
+   "stop": 104
+  },
+  {
+   "ID": "PF00626",
+   "Name": "Gelsolin",
+   "metadomain": true,
+   "start": 144,
+   "stop": 214
+  },
+  {
+   "ID": "PF00626",
+   "Name": "Gelsolin",
+   "metadomain": true,
+   "start": 265,
+   "stop": 339
+  },
+  {
+   "ID": "PF00626",
+   "Name": "Gelsolin",
+   "metadomain": true,
+   "start": 408,
+   "stop": 485
+  },
+  {
+   "ID": "PF00626",
+   "Name": "Gelsolin",
+   "metadomain": true,
+   "start": 525,
+   "stop": 591
+  },
+  {
+   "ID": "PF00626",
+   "Name": "Gelsolin",
+   "metadomain": true,
+   "start": 628,
+   "stop": 703
+  },
+  {
+   "ID": "PF02209",
+   "Name": "VHP",
+   "meta_domain_alignment_depth": 8,
+   "metadomain": true,
+   "start": 784,
+   "stop": 818
+  }
+ ],
+ "gene_name": "AVIL",
+ "positional_annotation": [
+  {
+   "cdna_pos": "c.1243-1245",
+   "chr": "chr12",
+   "chr_positions": "g.57807677-57807679",
+   "domains": {
+    "PF00626": {
+     "consensus_pos": [
+      12
+     ],
+     "normal_missense_variant_count": 46,
+     "normal_variant_count": 75,
+     "pathogenic_missense_variant_count": 0,
+     "pathogenic_variant_count": 0
+    }
+   },
+   "exon_numbers": "12, 12, 12",
+   "protein_pos": 415,
+   "ref_aa": "Y",
+   "ref_aa_triplet": "Tyr",
+   "ref_codon": "TAT",
+   "strand": "-",
+   "sw_coverage": 1.0,
+   "sw_dn_ds": 0.40298507462686567,
+   "sw_size": 10
+  },
+  {
+   "cdna_pos": "c.1246-1248",
+   "chr": "chr12",
+   "chr_positions": "g.57807674-57807676",
+   "domains": {
+    "PF00626": {
+     "consensus_pos": [
+      13
+     ],
+     "normal_missense_variant_count": 62,
+     "normal_variant_count": 91,
+     "pathogenic_missense_variant_count": 0,
+     "pathogenic_variant_count": 0
+    }
+   },
+   "exon_numbers": "12, 12, 12",
+   "protein_pos": 416,
+   "ref_aa": "G",
+   "ref_aa_triplet": "Gly",
+   "ref_codon": "GGC",
+   "strand": "-",
+   "sw_coverage": 1.0,
+   "sw_dn_ds": 0.36444444444444446,
+   "sw_size": 10
+  },
+  {
+   "cdna_pos": "c.1249-1251",
+   "chr": "chr12",
+   "chr_positions": "g.57807671-57807673",
+   "domains": {
+    "PF00626": {
+     "consensus_pos": [
+      14
+     ],
+     "normal_missense_variant_count": 52,
+     "normal_variant_count": 76,
+     "pathogenic_missense_variant_count": 0,
+     "pathogenic_variant_count": 0
+    }
+   },
+   "exon_numbers": "12, 12, 12",
+   "protein_pos": 417,
+   "ref_aa": "F",
+   "ref_aa_triplet": "Phe",
+   "ref_codon": "TTC",
+   "strand": "-",
+   "sw_coverage": 1.0,
+   "sw_dn_ds": 0.4125799573560767,
+   "sw_size": 10
+  },
+  {
+   "cdna_pos": "c.1252-1254",
+   "chr": "chr12",
+   "chr_positions": "g.57807668-57807670",
+   "domains": {
+    "PF00626": {
+     "consensus_pos": [
+      15
+     ],
+     "normal_missense_variant_count": 33,
+     "normal_variant_count": 60,
+     "pathogenic_missense_variant_count": 0,
+     "pathogenic_variant_count": 0
+    }
+   },
+   "exon_numbers": "12, 12, 12",
+   "protein_pos": 418,
+   "ref_aa": "F",
+   "ref_aa_triplet": "Phe",
+   "ref_codon": "TTT",
+   "strand": "-",
+   "sw_coverage": 1.0,
+   "sw_dn_ds": 0.40211640211640215,
+   "sw_size": 10
+  },
+  {
+   "cdna_pos": "c.1255-1257",
+   "chr": "chr12",
+   "chr_positions": "g.57807665-57807667",
+   "domains": {
+    "PF00626": {
+     "consensus_pos": [
+      16
+     ],
+     "normal_missense_variant_count": 59,
+     "normal_variant_count": 81,
+     "pathogenic_missense_variant_count": 1,
+     "pathogenic_missense_variant_count_per_clinsig": {
+      "Pathogenic": 1
+     },
+     "pathogenic_variant_count": 1,
+     "pathogenic_variant_count_per_clinsig": {
+      "Pathogenic": 1
+     }
+    }
+   },
+   "exon_numbers": "12, 12, 12",
+   "protein_pos": 419,
+   "ref_aa": "Y",
+   "ref_aa_triplet": "Tyr",
+   "ref_codon": "TAT",
+   "strand": "-",
+   "sw_coverage": 1.0,
+   "sw_dn_ds": 0.3160493827160494,
+   "sw_size": 10
+  },
+  {
+   "cdna_pos": "c.1258-1260",
+   "chr": "chr12",
+   "chr_positions": "g.57807662-57807664",
+   "domains": {
+    "PF00626": {
+     "consensus_pos": [
+      17
+     ],
+     "normal_missense_variant_count": 49,
+     "normal_variant_count": 78,
+     "pathogenic_missense_variant_count": 0,
+     "pathogenic_variant_count": 0
+    }
+   },
+   "exon_numbers": "12, 12, 12",
+   "protein_pos": 420,
+   "ref_aa": "G",
+   "ref_aa_triplet": "Gly",
+   "ref_codon": "GGG",
+   "strand": "-",
+   "sw_coverage": 1.0,
+   "sw_dn_ds": 0.2814814814814815,
+   "sw_size": 10
+  },
+  {
+   "cdna_pos": "c.1261-1263",
+   "chr": "chr12",
+   "chr_positions": "g.57807659-57807661",
+   "domains": {
+    "PF00626": {
+     "consensus_pos": [
+      18
+     ],
+     "normal_missense_variant_count": 60,
+     "normal_variant_count": 89,
+     "pathogenic_missense_variant_count": 0,
+     "pathogenic_variant_count": 0
+    }
+   },
+   "exon_numbers": "12, 12, 12",
+   "protein_pos": 421,
+   "ref_aa": "G",
+   "ref_aa_triplet": "Gly",
+   "ref_codon": "GGA",
+   "strand": "-",
+   "sw_coverage": 1.0,
+   "sw_dn_ds": 0.2647058823529412,
+   "sw_size": 10
+  },
+  {
+   "cdna_pos": "c.1264-1266",
+   "chr": "chr12",
+   "chr_positions": "g.57807656-57807658",
+   "domains": {
+    "PF00626": {
+     "consensus_pos": [
+      19
+     ],
+     "normal_missense_variant_count": 59,
+     "normal_variant_count": 84,
+     "pathogenic_missense_variant_count": 0,
+     "pathogenic_variant_count": 0
+    }
+   },
+   "exon_numbers": "12, 12, 12",
+   "protein_pos": 422,
+   "ref_aa": "D",
+   "ref_aa_triplet": "Asp",
+   "ref_codon": "GAC",
+   "strand": "-",
+   "sw_coverage": 1.0,
+   "sw_dn_ds": 0.3002469135802469,
+   "sw_size": 10
+  },
+  {
+   "cdna_pos": "c.1267-1269",
+   "chr": "chr12",
+   "chr_positions": "g.57807653-57807655",
+   "domains": {
+    "PF00626": {
+     "consensus_pos": [
+      20
+     ],
+     "normal_missense_variant_count": 60,
+     "normal_variant_count": 80,
+     "pathogenic_missense_variant_count": 0,
+     "pathogenic_variant_count": 0
+    }
+   },
+   "exon_numbers": "12, 12, 12",
+   "protein_pos": 423,
+   "ref_aa": "C",
+   "ref_aa_triplet": "Cys",
+   "ref_codon": "TGT",
+   "strand": "-",
+   "sw_coverage": 1.0,
+   "sw_dn_ds": 0.29586374695863743,
+   "sw_size": 10
+  },
+  {
+   "cdna_pos": "c.1270-1272",
+   "chr": "chr12",
+   "chr_positions": "g.57807650-57807652",
+   "domains": {
+    "PF00626": {
+     "consensus_pos": [
+      21
+     ],
+     "normal_missense_variant_count": 40,
+     "normal_variant_count": 58,
+     "pathogenic_missense_variant_count": 1,
+     "pathogenic_missense_variant_count_per_clinsig": {
+      "Pathogenic": 1
+     },
+     "pathogenic_variant_count": 1,
+     "pathogenic_variant_count_per_clinsig": {
+      "Pathogenic": 1
+     }
+    }
+   },
+   "exon_numbers": "12, 12, 12",
+   "protein_pos": 424,
+   "ref_aa": "Y",
+   "ref_aa_triplet": "Tyr",
+   "ref_codon": "TAT",
+   "strand": "-",
+   "sw_coverage": 1.0,
+   "sw_dn_ds": 0.29411764705882354,
+   "sw_size": 10
+  },
+  {
+   "ClinVar": [
+    {
+     "alt": "A",
+     "alt_aa": "M",
+     "alt_aa_triplet": "Met",
+     "alt_codon": "ATG",
+     "clinvar_ID": "684648",
+     "clinvar_clinsig": "Pathogenic",
+     "pos": 57807649,
+     "ref": "C",
+     "type": "missense"
+    }
+   ],
+   "cdna_pos": "c.1273-1275",
+   "chr": "chr12",
+   "chr_positions": "g.57807647-57807649",
+   "domains": {
+    "PF00626": {
+     "consensus_pos": [
+      22
+     ],
+     "normal_missense_variant_count": 42,
+     "normal_variant_count": 61,
+     "pathogenic_missense_variant_count": 0,
+     "pathogenic_variant_count": 0
+    }
+   },
+   "exon_numbers": "12, 12, 12",
+   "protein_pos": 425,
+   "ref_aa": "L",
+   "ref_aa_triplet": "Leu",
+   "ref_codon": "CTG",
+   "strand": "-",
+   "sw_coverage": 1.0,
+   "sw_dn_ds": 0.2826286764705882,
+   "sw_size": 10
+  },
+  {
+   "cdna_pos": "c.1276-1278",
+   "chr": "chr12",
+   "chr_positions": "g.57807644-57807646",
+   "domains": {
+    "PF00626": {
+     "consensus_pos": [
+      23
+     ],
+     "normal_missense_variant_count": 37,
+     "normal_variant_count": 70,
+     "pathogenic_missense_variant_count": 0,
+     "pathogenic_variant_count": 0
+    }
+   },
+   "exon_numbers": "12, 12, 12",
+   "protein_pos": 426,
+   "ref_aa": "V",
+   "ref_aa_triplet": "Val",
+   "ref_codon": "GTC",
+   "strand": "-",
+   "sw_coverage": 1.0,
+   "sw_dn_ds": 0.2950980392156862,
+   "sw_size": 10
+  },
+  {
+   "cdna_pos": "c.1279-1281",
+   "chr": "chr12",
+   "chr_positions": "g.57807641-57807643",
+   "domains": {
+    "PF00626": {
+     "consensus_pos": [
+      24
+     ],
+     "normal_missense_variant_count": 55,
+     "normal_variant_count": 74,
+     "pathogenic_missense_variant_count": 0,
+     "pathogenic_variant_count": 0
+    }
+   },
+   "exon_numbers": "12, 12, 12",
+   "protein_pos": 427,
+   "ref_aa": "L",
+   "ref_aa_triplet": "Leu",
+   "ref_codon": "CTC",
+   "strand": "-",
+   "sw_coverage": 1.0,
+   "sw_dn_ds": 0.2971014492753623,
+   "sw_size": 10
+  },
+  {
+   "cdna_pos": "c.1282-1284",
+   "chr": "chr12",
+   "chr_positions": "g.57807638-57807640",
+   "domains": {
+    "PF00626": {
+     "consensus_pos": [
+      25
+     ],
+     "normal_missense_variant_count": 55,
+     "normal_variant_count": 82,
+     "pathogenic_missense_variant_count": 0,
+     "pathogenic_variant_count": 0
+    }
+   },
+   "exon_numbers": "12, 12, 12",
+   "protein_pos": 428,
+   "ref_aa": "Y",
+   "ref_aa_triplet": "Tyr",
+   "ref_codon": "TAC",
+   "strand": "-",
+   "sw_coverage": 1.0,
+   "sw_dn_ds": 0.2971014492753623,
+   "sw_size": 10
+  },
+  {
+   "cdna_pos": "c.1285-1287",
+   "chr": "chr12",
+   "chr_positions": "g.57807635-57807637",
+   "domains": {
+    "PF00626": {
+     "consensus_pos": [
+      26
+     ],
+     "normal_missense_variant_count": 56,
+     "normal_variant_count": 82,
+     "pathogenic_missense_variant_count": 0,
+     "pathogenic_variant_count": 0
+    }
+   },
+   "exon_numbers": "12, 12, 12",
+   "protein_pos": 429,
+   "ref_aa": "T",
+   "ref_aa_triplet": "Thr",
+   "ref_codon": "ACA",
+   "strand": "-",
+   "sw_coverage": 1.0,
+   "sw_dn_ds": 0.327007299270073,
+   "sw_size": 10
+  },
+  {
+   "cdna_pos": "c.1288-1290",
+   "chr": "chr12",
+   "chr_positions": "g.57807632-57807634",
+   "domains": {
+    "PF00626": {
+     "consensus_pos": [
+      27
+     ],
+     "normal_missense_variant_count": 63,
+     "normal_variant_count": 92,
+     "pathogenic_missense_variant_count": 1,
+     "pathogenic_missense_variant_count_per_clinsig": {
+      "Likely_pathogenic": 1
+     },
+     "pathogenic_variant_count": 1,
+     "pathogenic_variant_count_per_clinsig": {
+      "Likely_pathogenic": 1
+     }
+    }
+   },
+   "exon_numbers": "12, 12, 12",
+   "protein_pos": 430,
+   "ref_aa": "Y",
+   "ref_aa_triplet": "Tyr",
+   "ref_codon": "TAC",
+   "strand": "-",
+   "sw_coverage": 1.0,
+   "sw_dn_ds": 0.31386861313868614,
+   "sw_size": 10
+  },
+  {
+   "cdna_pos": "c.1291-1293",
+   "chr": "chr12",
+   "chr_positions": "g.57807629-57807631",
+   "domains": {
+    "PF00626": null
+   },
+   "exon_numbers": "12, 12, 12",
+   "protein_pos": 431,
+   "ref_aa": "E",
+   "ref_aa_triplet": "Glu",
+   "ref_codon": "GAG",
+   "strand": "-",
+   "sw_coverage": 1.0,
+   "sw_dn_ds": 0.3420229405630865,
+   "sw_size": 10
+  },
+  {
+   "cdna_pos": "c.1294-1296",
+   "chr": "chr12",
+   "chr_positions": "g.57807626-57807628",
+   "domains": {
+    "PF00626": null
+   },
+   "exon_numbers": "12, 12, 12",
+   "protein_pos": 432,
+   "ref_aa": "V",
+   "ref_aa_triplet": "Val",
+   "ref_codon": "GTA",
+   "strand": "-",
+   "sw_coverage": 1.0,
+   "sw_dn_ds": 0.3494347379239466,
+   "sw_size": 10
+  },
+  {
+   "cdna_pos": "c.1297-1299",
+   "chr": "chr12",
+   "chr_positions": "g.57807623-57807625",
+   "domains": {
+    "PF00626": null
+   },
+   "exon_numbers": "12, 12, 12",
+   "protein_pos": 433,
+   "ref_aa": "N",
+   "ref_aa_triplet": "Asn",
+   "ref_codon": "AAT",
+   "strand": "-",
+   "sw_coverage": 1.0,
+   "sw_dn_ds": 0.3695652173913044,
+   "sw_size": 10
+  },
+  {
+   "cdna_pos": "c.1300-1302",
+   "chr": "chr12",
+   "chr_positions": "g.57807620-57807622",
+   "domains": {
+    "PF00626": null
+   },
+   "exon_numbers": "12, 12, 12",
+   "protein_pos": 434,
+   "ref_aa": "G",
+   "ref_aa_triplet": "Gly",
+   "ref_codon": "GGG",
+   "strand": "-",
+   "sw_coverage": 1.0,
+   "sw_dn_ds": 0.391304347826087,
+   "sw_size": 10
+  },
+  {
+   "cdna_pos": "c.1303-1305",
+   "chr": "chr12",
+   "chr_positions": "g.57807617-57807619",
+   "domains": {
+    "PF00626": null
+   },
+   "exon_numbers": "12, 12, 12",
+   "protein_pos": 435,
+   "ref_aa": "K",
+   "ref_aa_triplet": "Lys",
+   "ref_codon": "AAG",
+   "strand": "-",
+   "sw_coverage": 1.0,
+   "sw_dn_ds": 0.411371237458194,
+   "sw_size": 10
+  }
+ ],
+ "protein_ac": "O75366",
+ "refseq_ids": "NM_006576.4",
+ "transcript_id": "ENST00000549994.2"
+}

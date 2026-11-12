@@ -389,7 +389,7 @@ Confirmed live for `TP53` (already cached ⇒ poll returned `SUCCESS` on first c
 | `Name` | string | Pfam domain name |
 | `start`, `stop` | int | 1-based protein residue span (inclusive) of the domain |
 | `metadomain` | bool | true if a usable meta-domain exists (≥2 homologous instances) |
-| `meta_domain_alignment_depth` | int | present only when `metadomain=true`; max alignment depth (number of homologous instances aligned) |
+| `meta_domain_alignment_depth` | int | present only when `metadomain=true`, and only on the first entry of a repeated Pfam id (e.g. AVIL PF00626); max alignment depth (number of homologous instances aligned) |
 
 ### 5.5 `positional_annotation[i]` fields (per residue)
 | field | type | meaning |
