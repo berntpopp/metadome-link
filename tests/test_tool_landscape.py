@@ -15,7 +15,11 @@ import pathlib
 from typing import Any
 
 import httpx
+import pytest
 import respx
+
+from metadome_link.api.models import validate_result_document
+from metadome_link.exceptions import UpstreamSchemaError
 
 FX = pathlib.Path(__file__).parent / "fixtures" / "metadome"
 BASE = "https://www.metadome.app/metadome/api"
@@ -283,3 +287,74 @@ async def test_get_landscape_minimal_mode_drops_next_commands(facade: Any, call_
     assert data["success"] is True
     assert "next_commands" not in data["_meta"]
     assert data["_meta"]["data_versions"]["assembly"] == "GRCh38.p14"
+
+
+# ---------------------------------------------------------------------------
+# D5 (acceptance 2026-11-12): AVIL repeats Pfam PF00626; upstream sends
+# meta_domain_alignment_depth only on the first occurrence (domains[1..5] lack it).
+# ---------------------------------------------------------------------------
+
+AVIL_TID = "ENST00000549994.2"
+
+
+async def test_get_landscape_avil_repeated_pfam_without_alignment_depth(
+    facade: Any, call_tool: Any, mocked_metadome: respx.MockRouter
+) -> None:
+    """The acceptance call (AVIL, positions 415-435) succeeds on real upstream data."""
+    mocked_metadome.get(f"/status/GRCh38.p14/{AVIL_TID}").mock(
+        return_value=httpx.Response(200, json={"status": "SUCCESS"})
+    )
+    mocked_metadome.get(f"/result/GRCh38.p14/{AVIL_TID}").mock(
+        return_value=httpx.Response(200, json=_load("result_AVIL.json"))
+    )
+    data = await call_tool(
+        facade,
+        "get_tolerance_landscape",
+        {"transcript_id": AVIL_TID, "position_start": 415, "position_stop": 435},
+    )
+    assert data["success"] is True, data
+    assert data["gene_name"] == "AVIL"
+    domains = data["domains"]
+    assert len(domains) == 7
+    assert domains[0]["meta_domain_alignment_depth"] == 45
+    # Absent upstream stays absent -- never fabricated.
+    assert "meta_domain_alignment_depth" not in domains[1]
+    assert [p["protein_pos"] for p in data["positional_annotation"]] == list(range(415, 436))
+
+
+async def test_get_position_tolerance_avil_425(
+    facade: Any, call_tool: Any, mocked_metadome: respx.MockRouter
+) -> None:
+    """The acceptance recovery call (AVIL position 425) succeeds too."""
+    mocked_metadome.get(f"/status/GRCh38.p14/{AVIL_TID}").mock(
+        return_value=httpx.Response(200, json={"status": "SUCCESS"})
+    )
+    mocked_metadome.get(f"/result/GRCh38.p14/{AVIL_TID}").mock(
+        return_value=httpx.Response(200, json=_load("result_AVIL.json"))
+    )
+    data = await call_tool(
+        facade, "get_position_tolerance", {"transcript_id": AVIL_TID, "position": 425}
+    )
+    assert data["success"] is True, data
+
+
+@pytest.mark.parametrize(
+    ("mutate", "ok"),
+    [
+        (lambda d: d.pop("meta_domain_alignment_depth"), True),
+        (lambda d: d.pop("ID"), False),
+        (lambda d: d.update({"extra": 1}), False),
+        (lambda d: d.update({"meta_domain_alignment_depth": -1}), False),
+        (lambda d: d.update({"meta_domain_alignment_depth": None}), False),
+        (lambda d: d.update({"meta_domain_alignment_depth": True}), False),
+    ],
+)
+def test_result_domain_alignment_depth_is_the_only_optional_field(mutate: Any, ok: bool) -> None:
+    """D5: AVIL omits the depth on repeated Pfam ids; nothing else is loosened."""
+    doc = json.loads((FX / "result_AVIL.json").read_text())
+    mutate(doc["domains"][0])
+    if ok:
+        validate_result_document(doc)
+    else:
+        with pytest.raises(UpstreamSchemaError):
+            validate_result_document(doc)

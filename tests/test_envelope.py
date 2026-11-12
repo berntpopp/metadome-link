@@ -306,3 +306,50 @@ async def test_normal_payload_unaffected_by_budget_guard() -> None:
     out = await _run("get_position_tolerance", call)
     assert "dropped_summary" not in out
     assert out["positions"] == [1, 2, 3]
+
+
+def _error_cases() -> list[Any]:
+    from metadome_link import exceptions as exc
+
+    def ambiguous(message: str, **kw: Any) -> Any:
+        return exc.AmbiguousQueryError(message, candidates=[], **kw)
+
+    return [
+        exc.InvalidInputError,
+        exc.NotFoundError,
+        ambiguous,
+        exc.RateLimitedError,
+        exc.UpstreamUnavailableError,
+        exc.DataUnavailableError,
+        exc.InternalError,
+    ]
+
+
+@pytest.mark.parametrize("make", _error_cases())
+@pytest.mark.parametrize("retryable", [True, False])
+@pytest.mark.parametrize("explicit", [None, "retry_backoff", "switch_tool"])
+async def test_recovery_action_never_contradicts_retryable(
+    make: Any, retryable: bool, explicit: str | None
+) -> None:
+    """D5: every error code -- retry_backoff iff retryable, whatever the raiser set."""
+
+    async def call() -> dict[str, Any]:
+        raise make("boom", retryable=retryable, recovery_action=explicit)
+
+    out = await _run("get_tolerance_landscape", call)
+    assert out["retryable"] is retryable
+    assert (out["recovery_action"] == "retry_backoff") is retryable
+
+
+async def test_upstream_schema_error_is_not_retry_backoff() -> None:
+    """D5 exact: the AVIL schema error said retryable=false + retry_backoff."""
+    from metadome_link.exceptions import UpstreamSchemaError
+
+    async def call() -> dict[str, Any]:
+        raise UpstreamSchemaError("bad", field="domains[1]")
+
+    out = await _run("get_tolerance_landscape", call)
+    assert out["error_code"] == "upstream_unavailable"
+    assert out["retryable"] is False
+    assert out["recovery_action"] == "switch_tool"
+    assert out["field"] == "domains[1]"

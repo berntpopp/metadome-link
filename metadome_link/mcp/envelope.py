@@ -206,9 +206,15 @@ def classify_exception(exc: BaseException) -> tuple[str, str]:
     return _classify(exc)
 
 
-def _default_recovery_action(error_code: str) -> str:
-    if error_code in _RETRYABLE:
+def _recovery_action(error_code: str, retryable: bool, explicit: str | None) -> str:
+    """Derive the hint from ``retryable`` so the two can never contradict.
+
+    ``retry_backoff`` iff retryable; otherwise the raiser's hint, else a per-code default.
+    """
+    if retryable:
         return "retry_backoff"
+    if explicit and explicit != "retry_backoff":
+        return explicit
     if error_code in {"invalid_input", "not_found", "ambiguous_query"}:
         return "reformulate_input"
     return "switch_tool"
@@ -235,7 +241,7 @@ def _error_envelope(exc: BaseException, context: McpErrorContext) -> dict[str, A
     # Pull retryable / recovery_action / extra straight off a MetaDomeError; fall
     # back to per-code defaults for non-typed (or McpToolError) failures.
     retryable = bool(getattr(exc, "retryable", error_code in _RETRYABLE))
-    recovery_action = getattr(exc, "recovery_action", None) or _default_recovery_action(error_code)
+    recovery_action = _recovery_action(error_code, retryable, getattr(exc, "recovery_action", None))
     extra: dict[str, Any] = dict(getattr(exc, "extra", {}) or {})
 
     envelope: dict[str, Any] = {

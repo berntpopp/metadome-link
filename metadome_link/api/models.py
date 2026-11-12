@@ -53,7 +53,7 @@ class Domain(TypedDict, total=False):
     start: int
     stop: int
     metadomain: bool
-    meta_domain_alignment_depth: int
+    meta_domain_alignment_depth: int  # absent on repeats of a Pfam id
 
 
 class LandscapePosition(TypedDict, total=False):
@@ -302,22 +302,22 @@ def _validate_result_domains(raw: object, path: str) -> list[dict[str, Any]]:
         "start": (int,),
         "stop": (int,),
     }
+    required = set(fields) - {"meta_domain_alignment_depth"}  # absent on repeated Pfam ids
     validated: list[dict[str, Any]] = []
     for index, domain in enumerate(raw):
         domain_path = f"{path}[{index}]"
-        if not isinstance(domain, dict) or set(domain) != set(fields):
+        if not isinstance(domain, dict) or not required <= set(domain) <= set(fields):
             raise _schema_error(domain_path)
-        for field, types in fields.items():
-            value = domain[field]
+        for field, value in domain.items():
+            types = fields[field]
             if not isinstance(value, types) or (field != "metadomain" and isinstance(value, bool)):
                 raise _schema_error(f"{domain_path}.{field}")
-        if not is_integer_at_least(domain["meta_domain_alignment_depth"], 0, MAX_ALIGNMENT_DEPTH):
+        depth = domain.get("meta_domain_alignment_depth", 0)
+        if not is_integer_at_least(depth, 0, MAX_ALIGNMENT_DEPTH):
             raise _schema_error(f"{domain_path}.meta_domain_alignment_depth")
         if not is_integer_at_least(domain["start"], 1, MAX_PROTEIN_POSITION):
             raise _schema_error(f"{domain_path}.start")
-        if not is_integer_at_least(domain["stop"], 1, MAX_PROTEIN_POSITION):
-            raise _schema_error(f"{domain_path}.stop")
-        if domain["stop"] < domain["start"]:
+        if not is_integer_at_least(domain["stop"], domain["start"], MAX_PROTEIN_POSITION):
             raise _schema_error(f"{domain_path}.stop")
         validated.append(domain)
     return validated
