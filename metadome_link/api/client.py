@@ -409,6 +409,7 @@ class MetaDomeClient:
         deadline = start + deadline_seconds
         interval = self._cfg.poll_initial_interval_s
         max_interval = self._cfg.poll_max_interval_s
+        seen_pending = False
         while True:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
@@ -435,6 +436,12 @@ class MetaDomeClient:
                 except TimeoutError:
                     return "processing", None
                 return "failed", error
+            if status == "PENDING":
+                # PENDING = no job, result or error upstream (a submitted job reports SENT).
+                # Seen twice across a poll interval, nothing is building: report it absent.
+                if seen_pending:
+                    return "absent", None
+                seen_pending = True
             # status is PENDING/SENT/STARTED/RECEIVED/RETRY (or unknown) -> keep waiting.
             remaining = deadline - time.monotonic()
             if remaining <= 0:

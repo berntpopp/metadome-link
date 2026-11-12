@@ -484,3 +484,16 @@ async def test_injected_client_not_closed_by_aclose() -> None:
     await client.aclose()
     assert not injected.is_closed
     await injected.aclose()
+
+
+@respx.mock
+async def test_poll_reports_absent_when_pending_persists() -> None:
+    respx.get(f"{BASE}/status/GRCh38.p14/{TID}").mock(
+        return_value=httpx.Response(200, json={"status": "PENDING"})
+    )
+    settings = ServerSettings()  # PENDING twice = no job upstream: absent, not processing
+    settings.metadome.poll_initial_interval_s = settings.metadome.poll_max_interval_s = 0.001
+    client = MetaDomeClient(settings)
+    state, result = await client.poll_until_ready(TID, soft_deadline_s=5.0)
+    assert (state, result) == ("absent", None)
+    await client.aclose()

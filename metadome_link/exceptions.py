@@ -127,6 +127,37 @@ _NO_PROTEIN_DATA_SIGNATURES = (
     "self.protein_id = _protein",
 )
 
+#: Stacktrace fragments of the build crash for a transcript id MetaDome does not know
+#: (verified live 2026-11-12 with ENST00000000000.1).
+_UNKNOWN_TRANSCRIPT_SIGNATURES = (
+    "Expected results but found none for transcription_id",
+    "No gene region could be build for transcript",
+)
+
+
+def unknown_transcript_error(transcript_id: str, *, build_failed: bool) -> NotFoundError:
+    """A transcript with no MetaDome landscape and (unless ``build_failed``) no build job."""
+    if build_failed:
+        cause = "MetaDome does not know this id (its build failed for that reason)"
+        steps = [{"tool": "get_server_capabilities", "arguments": {}}]
+    else:
+        cause = (
+            "MetaDome has no landscape or build job for it (unknown id, or never requested; "
+            "request_tolerance_landscape tells them apart)"
+        )
+        steps = [
+            {"tool": "request_tolerance_landscape", "arguments": {"transcript_id": transcript_id}},
+            {"tool": "get_tolerance_landscape", "arguments": {"transcript_id": transcript_id}},
+        ]
+    return NotFoundError(
+        f"Transcript {transcript_id} not found: {cause}. Use resolve_transcript(gene symbol) "
+        "for valid ids.",
+        recovery_action="reformulate_input",
+        field="transcript_id",
+        transcript_id=transcript_id,
+        next_commands=steps,
+    )
+
 
 def metadome_build_failure(transcript_id: str, error: object) -> MetaDomeError:
     """Classify a MetaDome job ``FAILURE`` into a NON-retryable, actionable error.
@@ -144,6 +175,8 @@ def metadome_build_failure(transcript_id: str, error: object) -> MetaDomeError:
     stacktrace = ""
     if isinstance(error, dict):
         stacktrace = str(error.get("stacktrace") or "")
+    if any(sig in stacktrace for sig in _UNKNOWN_TRANSCRIPT_SIGNATURES):
+        return unknown_transcript_error(transcript_id, build_failed=True)
     if any(sig in stacktrace for sig in _NO_PROTEIN_DATA_SIGNATURES):
         return InvalidInputError(
             f"MetaDome cannot analyse transcript {transcript_id}: it has no protein "
@@ -162,3 +195,10 @@ def metadome_build_failure(transcript_id: str, error: object) -> MetaDomeError:
         recovery_action="switch_tool",
         transcript_id=transcript_id,
     )
+
+
+def poll_failure(transcript_id: str, state: str, result: object) -> MetaDomeError:
+    """Map a terminal non-ready poll state (``failed`` | ``absent``) to its typed error."""
+    if state == "absent":
+        return unknown_transcript_error(transcript_id, build_failed=False)
+    return metadome_build_failure(transcript_id, result)

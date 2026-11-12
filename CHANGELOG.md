@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.16] - 2026-11-12
+
+### Fixed
+
+- `get_tolerance_landscape` on a transcript id MetaDome does not know (`ENST00000000000.1`) polled for the full 20 s soft deadline and returned `success:true`, `status:"processing"` with an "up to ~1 hour" hint. Upstream `PENDING` means no job, result or error exists (a submitted build reports `SENT`), so a `PENDING` seen twice is now `not_found` (non-retryable, `field: transcript_id`, a `resolve_transcript` hint, request-then-poll next commands), in about 2 s. The build `FAILURE` MetaDome records for an unknown id ("Expected results but found none for transcription_id") is now `not_found` as well, on both `request_tolerance_landscape` and the read tools, and its next commands no longer loop back into a re-request. Builds in flight (`SENT`/`STARTED`) still return `processing`.
+- `CITATION.cff` `date-released` was left at 2026-10-20 by the last releases; it now matches this release.
+
 ## [0.3.15] - 2026-11-12
 
 ### Fixed
