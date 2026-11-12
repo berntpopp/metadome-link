@@ -39,3 +39,10 @@ async def test_get_diagnostics_reports_cache_stats(facade: Any, call_tool: Any) 
     assert "metrics" in data
     assert data["data_versions"]["assembly"] == "GRCh38.p14"
     assert data["_meta"]["capabilities_version"]
+
+
+async def test_get_diagnostics_takes_no_parameters(facade: Any) -> None:
+    """Contract-Truth: get_diagnostics is zero-arg fleet-wide; no dead response_mode (router#158)."""
+    tool = next(t for t in await facade.list_tools() if t.name == "get_diagnostics")
+    assert tool.parameters.get("properties", {}) == {}
+    assert "response_mode" not in (tool.description or "")

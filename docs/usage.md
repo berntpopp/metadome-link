@@ -20,7 +20,7 @@ caveats). `detail="full"` adds score semantics and provenance policy prose.
 
 Call this first in a cold session, or read `metadome://capabilities`.
 
-#### `get_diagnostics(response_mode="compact")`
+#### `get_diagnostics()`
 
 Returns local build, cache, metrics, and pinned data-version diagnostics only; it
 does not probe or claim MetaDome upstream reachability.

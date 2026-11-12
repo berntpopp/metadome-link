@@ -107,11 +107,9 @@ def register_discovery_tools(mcp: FastMCP) -> None:
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_DIAGNOSTICS_SCHEMA,
         tags={"discovery"},
-        description="Signature: get_diagnostics(response_mode=).",
+        description="Signature: get_diagnostics().",
     )
-    async def get_diagnostics(
-        response_mode: ResponseMode = "compact",
-    ) -> ToolReturn:
+    async def get_diagnostics() -> ToolReturn:
         async def call() -> dict[str, Any]:
             service = get_metadome_service()
             payload: dict[str, Any] = {
@@ -130,5 +128,5 @@ def register_discovery_tools(mcp: FastMCP) -> None:
         return await run_mcp_tool(
             "get_diagnostics",
             call,
-            context=McpErrorContext("get_diagnostics", response_mode=response_mode),
+            context=McpErrorContext("get_diagnostics"),
         )
