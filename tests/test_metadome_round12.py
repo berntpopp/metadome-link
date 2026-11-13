@@ -89,7 +89,7 @@ async def test_meta_domain_schema_advertises_selector_shape(facade: Any) -> None
 
 def test_citation_release_date_matches_current_release() -> None:
     citation = pathlib.Path("CITATION.cff").read_text()
-    assert "version: 0.3.17" in citation
+    assert "version: 0.3.18" in citation
     assert "date-released: '2026-11-13'" in citation
 
 
