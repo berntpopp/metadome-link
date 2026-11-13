@@ -85,8 +85,9 @@ def test_next_command_arguments_are_recursive_and_closed() -> None:
 
 
 def _mode(tool_name: str, mode: str) -> dict[str, str]:
-    # get_diagnostics is zero-arg (router#158): it takes no response_mode.
-    return {} if tool_name == "get_diagnostics" else {"response_mode": mode}
+    # Discovery tools take no response_mode (router#158): it never shaped their body.
+    no_mode = {"get_diagnostics", "get_server_capabilities"}
+    return {} if tool_name in no_mode else {"response_mode": mode}
 
 
 async def _success(facade: Any, call_tool: Any, tool_name: str) -> dict[str, Any]:
