@@ -98,6 +98,9 @@ _ERROR_ARGS: dict[str, dict[str, Any]] = {
 # (no external-error mechanism available without complicated route overriding)
 _NO_FORCED_ERROR = frozenset({"get_server_capabilities", "get_diagnostics"})
 
+# ── Discovery tools take no response_mode (router#158): it never shaped their body ──
+_NO_RESPONSE_MODE = frozenset({"get_server_capabilities", "get_diagnostics"})
+
 
 def _assert_valid(tool: str, output: Any) -> None:
     """Assert ``output`` is a dict with a boolean ``success`` key; optionally schema-validate."""
@@ -125,7 +128,7 @@ async def test_output_schema_success_path(
 ) -> None:
     """Every tool in every response_mode produces a schema-valid dict on the success path."""
     args = dict(_SUCCESS_ARGS[tool_name])
-    if tool_name != "get_diagnostics":  # zero-arg tool (router#158)
+    if tool_name not in _NO_RESPONSE_MODE:
         args["response_mode"] = mode
     output = await call_tool(facade, tool_name, args)
     _assert_valid(tool_name, output)
@@ -150,7 +153,7 @@ async def test_output_schema_error_path(
 ) -> None:
     """Every tool in every response_mode produces a schema-valid dict on an error/forced path."""
     args = dict(_ERROR_ARGS[tool_name])
-    if tool_name != "get_diagnostics":  # zero-arg tool (router#158)
+    if tool_name not in _NO_RESPONSE_MODE:
         args["response_mode"] = mode
     output = await call_tool(facade, tool_name, args)
     _assert_valid(tool_name, output)
@@ -160,3 +163,42 @@ async def test_output_schema_error_path(
             f"{tool_name} mode={mode}: expected forced error (success=False), "
             f"got output keys={list(output.keys())}"
         )
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# Contract-Truth guard: an advertised response_mode must reach the shaper
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+async def test_every_advertised_response_mode_reaches_shape_record(
+    facade: Any, call_tool: Any, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every tool whose live schema offers response_mode must shape its payload with it.
+
+    Only ``_meta`` tiering does not count (the envelope does that for every tool), and a
+    body diff is fixture-dependent (shape_record only drops empty values), so spy on the
+    single payload shaper in every module that imported it.
+    """
+    import sys
+
+    from metadome_link.services import shaping
+
+    real = shaping.shape_record
+    seen: list[str] = []
+
+    def spy(record: dict[str, Any], mode: str) -> dict[str, Any]:
+        seen.append(mode)
+        return real(record, mode)
+
+    for name, mod in list(sys.modules.items()):
+        if name.startswith("metadome_link") and getattr(mod, "shape_record", None) is real:
+            monkeypatch.setattr(mod, "shape_record", spy)
+    tools = [t for t in await facade.list_tools() if "response_mode" in t.parameters["properties"]]
+    assert tools
+    caps = await call_tool(facade, "get_server_capabilities", {})
+    assert sorted(caps["response_mode_tools"]) == sorted(t.name for t in tools)
+    for tool in tools:
+        seen.clear()
+        args = {**_SUCCESS_ARGS[tool.name], "response_mode": "minimal"}
+        assert (await call_tool(facade, tool.name, args))["success"] is True
+        assert "minimal" in seen, f"{tool.name} advertises response_mode but never shapes with it"

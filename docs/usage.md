@@ -2,7 +2,8 @@
 
 ## Overview
 
-`metadome-link` exposes 11 MCP tools across 5 functional groups. All tools accept
+`metadome-link` exposes 11 MCP tools across 5 functional groups. Every data tool (all but
+`get_server_capabilities` and `get_diagnostics`) accepts
 `response_mode ∈ {minimal, compact, standard, full}` (default `compact`). Errors are returned
 as a typed envelope — never raised. Every `compact`+ response carries `_meta.next_commands`
 with ready-to-call follow-up tools.
@@ -11,11 +12,11 @@ with ready-to-call follow-up tools.
 
 ### 1. Discovery (`mcp/tools/discovery.py`)
 
-#### `get_server_capabilities(detail="summary"|"full", response_mode="compact")`
+#### `get_server_capabilities(detail="summary"|"full")`
 
 Cold-start orientation. Returns the server identity, the configured `data_versions`
 (MetaDome 2.0 GRCh37.p13 or GRCh38.p14 profile), the frozen 11-tool list, response
-modes, recommended workflows, error codes, limits, and policy notes (research-use + data-currency
+modes and `response_mode_tools` (the tools that accept `response_mode`), recommended workflows, error codes, limits, and policy notes (research-use + data-currency
 caveats). `detail="full"` adds score semantics and provenance policy prose.
 
 Call this first in a cold session, or read `metadome://capabilities`.

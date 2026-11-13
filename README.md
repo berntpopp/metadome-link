@@ -83,11 +83,11 @@ the namespace token `metadome`, so `resolve_transcript` surfaces as
 `metadome_resolve_transcript`.
 
 Data-reading tools are annotated `READ_ONLY_OPEN_WORLD`; the idempotent
-`request_tolerance_landscape` build trigger is annotated as a compute operation. All tools accept
-`response_mode ∈ {minimal, compact, standard, full}` (default `compact`). Errors are *returned*
-as a typed envelope with a 6-code wire taxonomy, never raised, and every `compact`-or-richer response
-carries `_meta.next_commands` with ready-to-call follow-ups. Full reference, limits and the
-worked TP53 example: [docs/usage.md](docs/usage.md).
+`request_tolerance_landscape` build trigger is annotated as a compute operation. Every data tool
+(all but the two discovery tools) accepts `response_mode ∈ {minimal, compact, standard, full}`
+(default `compact`). Errors are *returned* as a typed envelope with a 6-code wire taxonomy, never
+raised, and every `compact`-or-richer response carries `_meta.next_commands` with ready-to-call
+follow-ups. Full reference, limits and the worked TP53 example: [docs/usage.md](docs/usage.md).
 
 ## Data & provenance
 

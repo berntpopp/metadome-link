@@ -72,6 +72,7 @@ _SUMMARY_KEYS: tuple[str, ...] = (
     "tool_count",
     "response_modes",
     "default_response_mode",
+    "response_mode_tools",
     "recommended_workflows",
     "error_codes",
     "limits",
@@ -165,6 +166,10 @@ def build_capabilities(
         "tool_count": len(TOOLS),
         "response_modes": list(RESPONSE_MODES),
         "default_response_mode": DEFAULT_RESPONSE_MODE,
+        # Discovery tools take no response_mode: it never shaped their payload (router#158).
+        "response_mode_tools": [
+            tool for tool in TOOLS if tool not in ("get_server_capabilities", "get_diagnostics")
+        ],
         "recommended_workflows": [
             (
                 "resolve_transcript(query) → request_tolerance_landscape(transcript_id) "

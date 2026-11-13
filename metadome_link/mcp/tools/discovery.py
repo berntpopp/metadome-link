@@ -25,7 +25,6 @@ from metadome_link.mcp.capabilities import (
 from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
 from metadome_link.mcp.next_commands import cmd
 from metadome_link.mcp.service_adapters import get_metadome_service
-from metadome_link.mcp.tools._common import ResponseMode
 
 if TYPE_CHECKING:
     from fastmcp import FastMCP
@@ -49,6 +48,7 @@ _SUMMARY_KEYS: tuple[str, ...] = (
     "tool_count",
     "response_modes",
     "default_response_mode",
+    "response_mode_tools",
     "error_codes",
     "limits",
     "read_only",
@@ -79,14 +79,13 @@ def register_discovery_tools(mcp: FastMCP) -> None:
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=output_schemas.GET_SERVER_CAPABILITIES_SCHEMA,
         tags={"discovery"},
-        description="Signature: get_server_capabilities(detail=, response_mode=).",
+        description="Signature: get_server_capabilities(detail=).",
     )
     async def get_server_capabilities(
         detail: Annotated[
             Literal["summary", "full"],
             Field(description="Detail level."),
         ] = "summary",
-        response_mode: ResponseMode = "compact",
     ) -> ToolReturn:
         async def call() -> dict[str, Any]:
             payload = _project_capabilities(detail)
@@ -99,7 +98,7 @@ def register_discovery_tools(mcp: FastMCP) -> None:
         return await run_mcp_tool(
             "get_server_capabilities",
             call,
-            context=McpErrorContext("get_server_capabilities", response_mode=response_mode),
+            context=McpErrorContext("get_server_capabilities"),
         )
 
     @mcp.tool(

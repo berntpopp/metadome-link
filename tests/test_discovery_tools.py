@@ -46,3 +46,20 @@ async def test_get_diagnostics_takes_no_parameters(facade: Any) -> None:
     tool = next(t for t in await facade.list_tools() if t.name == "get_diagnostics")
     assert tool.parameters.get("properties", {}) == {}
     assert "response_mode" not in (tool.description or "")
+
+
+async def test_get_server_capabilities_takes_only_detail(facade: Any) -> None:
+    """Contract-Truth: response_mode never shaped the capabilities body, so it is not advertised."""
+    tool = next(t for t in await facade.list_tools() if t.name == "get_server_capabilities")
+    assert set(tool.parameters.get("properties", {})) == {"detail"}
+    assert "response_mode" not in (tool.description or "")
+
+
+async def test_get_server_capabilities_rejects_response_mode_by_name(
+    facade: Any, call_tool: Any
+) -> None:
+    """A legacy caller still sending response_mode gets invalid_input naming the parameter."""
+    data = await call_tool(facade, "get_server_capabilities", {"response_mode": "minimal"})
+    assert data["success"] is False
+    assert data["error_code"] == "invalid_input"
+    assert data["field"] == "response_mode"

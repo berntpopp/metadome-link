@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.17] - 2026-11-13
+
+### Fixed
+
+- `get_server_capabilities` no longer advertises `response_mode`. It never shaped the capabilities payload (only `detail` does), so an agent asking for `minimal` got the same body: the schema promised behaviour that did not exist. It now takes only `detail`, matching `get_diagnostics` (0.3.14) and the fleet's other discovery tools (router#158). A caller that still sends `response_mode` gets a structured `invalid_input` with `field: "response_mode"` and `allowed_values: ["detail"]`.
+- README and `docs/usage.md` no longer claim that all tools accept `response_mode`. The data tools do; the two discovery tools do not.
+- The capabilities payload now names the tools that accept `response_mode` in a new `response_mode_tools` list. Before, it advertised `response_modes` globally, which implied every tool accepted them; a live agent run flagged this as its top friction point.
+- New guard: every tool whose live schema offers `response_mode` must pass it to the payload shaper, and `response_mode_tools` must equal that live set, or the test suite fails.
+
 ## [0.3.16] - 2026-11-12
 
 ### Fixed
