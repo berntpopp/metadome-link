@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 import pathlib
-from copy import deepcopy
 from typing import Any
 
 import httpx
@@ -81,7 +80,8 @@ def test_capabilities_reject_mixed_immutable_profile_components() -> None:
         capabilities_version(data_versions=versions, data_version=profile.data_version)
 
 
-async def test_all_live_tools_advertise_their_output_schemas(facade: Any) -> None:
+async def test_output_schemas_stay_internal_contracts(facade: Any) -> None:
+    """Schemas are closed CI contracts, never advertised (Tool-Surface Budget v1 rule 3, #123)."""
     from fastmcp import Client
 
     expected = {
@@ -103,10 +103,7 @@ async def test_all_live_tools_advertise_their_output_schemas(facade: Any) -> Non
     for name, schema in expected.items():
         assert schema["additionalProperties"] is False
         assert all(branch["additionalProperties"] is False for branch in schema["oneOf"])
-        wire_schema = deepcopy(schema)
-        wire_schema.pop("patternProperties")
-        wire_schema.pop("additionalProperties")
-        assert tools[name].output_schema == wire_schema
+        assert tools[name].output_schema is None
 
 
 def test_docs_describe_tool_modes_and_terminal_cached_failures_truthfully() -> None:

@@ -58,11 +58,14 @@ is a **first-class success state** (not an error), carrying `poll_after_s` /
   `standard`/`full` add `elapsed_ms`.
 - **`_meta.data_versions` is ALWAYS present** and identifies the selected live build
   (`GRCh37.p13` or `GRCh38.p14`) plus its component snapshot.
-- Every tool declares an output schema plus the appropriate read-only or compute annotation, and its
-  first description sentence is a discovery summary ending with
-  `Signature: tool(args...)`.
+- Every tool carries the appropriate read-only or compute annotation and a model-facing
+  description: what it returns, when to use it, and the tool to call before/after it.
+  Every argument description states format or unit (no placeholders, no `Signature:`);
+  guarded by `test_tool_and_argument_descriptions_are_not_placeholders`.
 - **Every tool's real output (success + error, all response modes) must validate
-  against its own `output_schema`** — enforced by `tests/unit/test_output_schemas.py`.
+  against its closed schema in `mcp/schemas.py`** — enforced by
+  `tests/unit/test_output_schemas.py`. The schemas are NOT advertised as `outputSchema`
+  (`output_schema=None`; Tool-Surface Budget v1 rule 3: the model never reads it).
 - `response_mode` ∈ `minimal | compact | standard | full` (default `compact`). List
   tools also carry a pagination block (`total`/`returned`/`limit`/`offset`/
   `truncated`/`next_offset`); when truncated, `_meta.next_commands` offers a
@@ -121,8 +124,8 @@ test-fast      pytest -n auto, coverage ≥ 80%
 ```
 
 `tests/unit/test_output_schemas.py` runs inside `test-fast` (every tool's real
-output — success and error, all response modes — must validate against its own
-`output_schema`). `tests/unit/test_readme_tools.py` asserts the README's `## Tools`
+output — success and error, all response modes — must validate against its closed
+schema in `mcp/schemas.py`). `tests/unit/test_readme_tools.py` asserts the README's `## Tools`
 table matches the registered tool set exactly — **add a tool, update the table**, or
 CI fails.
 

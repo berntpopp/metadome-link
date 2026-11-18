@@ -15,7 +15,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from metadome_link.mcp import schemas as output_schemas
 from metadome_link.mcp.annotations import COMPUTE_IDEMPOTENT_OPEN_WORLD, READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
 from metadome_link.mcp.next_commands import _more_steps, cmd
@@ -87,9 +86,13 @@ def register_landscape_tools(mcp: FastMCP) -> None:
         # F-11: this POSTs /submit_visualization/ (starts a Celery build) -> NOT
         # read-only. Non-destructive + idempotent (MetaDome dedupes by transcript_id).
         annotations=COMPUTE_IDEMPOTENT_OPEN_WORLD,
-        output_schema=output_schemas.REQUEST_TOLERANCE_LANDSCAPE_SCHEMA,
+        output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"landscape"},
-        description="Signature: request_tolerance_landscape(transcript_id, response_mode=).",
+        description=(
+            "Start the MetaDome tolerance-landscape build for a transcript (async, "
+            "idempotent). Returns status ready or processing; cold builds can take up to ~1 "
+            "h. Every read tool needs this first; then poll get_tolerance_landscape."
+        ),
     )
     async def request_tolerance_landscape(
         transcript_id: TranscriptIdArg,
@@ -116,11 +119,13 @@ def register_landscape_tools(mcp: FastMCP) -> None:
     @mcp.tool(
         name="get_tolerance_landscape",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=output_schemas.GET_TOLERANCE_LANDSCAPE_SCHEMA,
+        output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"landscape"},
         description=(
-            "Signature: get_tolerance_landscape(transcript_id, position_start=, position_stop=, "
-            "limit=, offset=, response_mode=)."
+            "Per-residue missense tolerance (sw_dn_ds, lower = more intolerant) and Pfam "
+            "domains for a transcript, paginated. Call request_tolerance_landscape first. "
+            "status processing with poll_after_s is not an error: wait and poll again. "
+            "not_found = MetaDome has no landscape or build job for the id."
         ),
     )
     async def get_tolerance_landscape(

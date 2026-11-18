@@ -16,7 +16,6 @@ from pydantic import Field
 
 from metadome_link.buildinfo import build_info
 from metadome_link.mcp import metrics
-from metadome_link.mcp import schemas as output_schemas
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.capabilities import (
     build_capabilities,
@@ -77,14 +76,18 @@ def register_discovery_tools(mcp: FastMCP) -> None:
     @mcp.tool(
         name="get_server_capabilities",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=output_schemas.GET_SERVER_CAPABILITIES_SCHEMA,
+        output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"discovery"},
-        description="Signature: get_server_capabilities(detail=).",
+        description=(
+            "Server version, MetaDome build (GRCh37/GRCh38), tools, limits, error codes and "
+            "the canonical workflow. Returns no gene data; for a gene start with "
+            "resolve_transcript."
+        ),
     )
     async def get_server_capabilities(
         detail: Annotated[
             Literal["summary", "full"],
-            Field(description="Detail level."),
+            Field(description="summary (default) or full capability listing."),
         ] = "summary",
     ) -> ToolReturn:
         async def call() -> dict[str, Any]:
@@ -104,9 +107,12 @@ def register_discovery_tools(mcp: FastMCP) -> None:
     @mcp.tool(
         name="get_diagnostics",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=output_schemas.GET_DIAGNOSTICS_SCHEMA,
+        output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"discovery"},
-        description="Signature: get_diagnostics().",
+        description=(
+            "Cache, request metrics and data versions of this server. Use to debug failing "
+            "calls; returns no gene data (server scope: get_server_capabilities)."
+        ),
     )
     async def get_diagnostics() -> ToolReturn:
         async def call() -> dict[str, Any]:

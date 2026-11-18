@@ -3,7 +3,8 @@
 The wire tool definitions sit in the model's prompt prefix and are re-sent on every
 request. This asserts metadome-link's own advertised surface stays under budget:
 
-* every tool advertises its permissive, envelope-compatible ``outputSchema``, and
+* no tool advertises ``outputSchema`` (rule 3: the model never reads it; the closed
+  schemas stay CI-enforced in ``tests/unit/test_output_schemas.py``), and
 * each tool definition stays under the per-tool ceiling and the whole surface under
   the per-server ceiling.
 
@@ -32,12 +33,12 @@ from surface import (
 )
 
 
-async def test_every_tool_advertises_output_schema(facade: Any) -> None:
+async def test_no_tool_advertises_output_schema(facade: Any) -> None:
     async with Client(facade) as client:
         tools = await client.list_tools()
     assert tools, "expected the facade to advertise tools"
-    missing = [t.name for t in tools if t.output_schema is None]
-    assert not missing, f"tools missing outputSchema: {missing}"
+    advertised = [t.name for t in tools if t.output_schema is not None]
+    assert not advertised, f"tools advertising outputSchema: {advertised}"
 
 
 async def test_tool_surface_within_budget(facade: Any) -> None:
