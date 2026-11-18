@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-18
+
+### Changed
+
+- Every tool now has a model-facing description (what it returns, when to use it, the tool before/after it) in place of a bare `Signature: …`, and every argument a format/unit phrase in place of placeholders (`ENST.`, `Pos.`, `Mode.`). `get_tolerance_landscape` states the `request_tolerance_landscape` prerequisite, that `processing` + `poll_after_s` is not an error and what `not_found` means; `get_variant_counts` / `get_meta_domain` state that Pfam homolog aggregates span other genes (#123).
+- A new test fails on a signature-only or one-word description.
+
+### Removed
+
+- **`outputSchema` is no longer advertised** (`output_schema=None` on all 11 tools; Tool-Surface Budget v1 rule 3 — the model never reads it). The closed schemas in `mcp/schemas.py` stay the CI contract: `tests/unit/test_output_schemas.py` now validates every real output against them unconditionally. `structuredContent` is unchanged. Tool surface **9,997 → 2,770 tokens** (largest tool 1,199 → 417).
+
 ## [0.4.0] - 2026-11-18
 
 ### Changed

@@ -27,7 +27,6 @@ from metadome_link.constants import (
     MAX_META_DOMAIN_SELECTOR_KEY_CHARS,
     MAX_META_DOMAIN_SELECTOR_POSITIONS_PER_DOMAIN,
 )
-from metadome_link.mcp import schemas as output_schemas
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
 from metadome_link.mcp.next_commands import cmd
@@ -71,7 +70,7 @@ DomainsArg = Annotated[
     _DomainSelectorMap | None,
     Field(
         default=None,
-        description="Pfam selector.",
+        description="Optional {Pfam id: [consensus positions]} selector; omit to use the residue's own domains.",
     ),
 ]
 
@@ -151,9 +150,12 @@ def register_domain_tools(mcp: FastMCP) -> None:
     @mcp.tool(
         name="get_protein_domains",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=output_schemas.GET_PROTEIN_DOMAINS_SCHEMA,
+        output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"domains"},
-        description="Signature: get_protein_domains(transcript_id, response_mode=).",
+        description=(
+            "Pfam domains (id, name, residue range) of a transcript. Needs a built landscape "
+            "(request_tolerance_landscape). Then get_meta_domain for homolog variants."
+        ),
     )
     async def get_protein_domains(
         transcript_id: TranscriptIdArg,
@@ -180,11 +182,12 @@ def register_domain_tools(mcp: FastMCP) -> None:
     @mcp.tool(
         name="get_meta_domain",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=output_schemas.GET_META_DOMAIN_SCHEMA,
+        output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"domains"},
         description=(
-            "Signature: get_meta_domain(transcript_id, position, domains=, limit=, offset=, "
-            "response_mode=)."
+            "Variants at the aligned position of homologous Pfam domains (meta-domain) for "
+            "one residue; these span other genes, not this gene alone. Needs a built "
+            "landscape (request_tolerance_landscape). Paginated."
         ),
     )
     async def get_meta_domain(

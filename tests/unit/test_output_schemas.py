@@ -3,14 +3,12 @@
 For every tool, call it in ALL 4 response modes (minimal/compact/standard/full)
 on BOTH a success path and a forced-error path, and assert:
   1. The result is a dict with a boolean ``success`` key — no exception raised.
-  2. If ``jsonschema`` is importable, explicitly validate the output against the
-     tool's ``*_SCHEMA`` constant from ``metadome_link.mcp.schemas``.
+  2. The output validates against the tool's ``*_SCHEMA`` constant from
+     ``metadome_link.mcp.schemas``.
 
-The FastMCP in-memory client already validates structured output against the
-tool's ``output_schema`` on each call; a returned dict is therefore itself the
-primary schema signal. The explicit ``jsonschema.validate`` call is an
-additional belt-and-suspenders check that catches regressions in the schema
-constants themselves.
+The schemas are not advertised as ``outputSchema`` (Tool-Surface Budget v1
+rule 3), so FastMCP does not validate them; this explicit ``jsonschema.validate``
+is the contract gate.
 
 Fixtures consumed from ``tests/conftest.py``:
   ``facade``        — FastMCP instance wired to the respx-mocked service.
@@ -26,15 +24,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import jsonschema as _jsonschema  # type: ignore[import-untyped]
 import pytest
-
-# ── Optional jsonschema ────────────────────────────────────────────────────
-try:
-    import jsonschema as _jsonschema  # type: ignore[import-untyped]
-
-    _HAS_JSONSCHEMA = True
-except ImportError:
-    _HAS_JSONSCHEMA = False
 
 # ── Schema constants ───────────────────────────────────────────────────────
 from metadome_link.mcp import schemas as _s
@@ -103,14 +94,12 @@ _NO_RESPONSE_MODE = frozenset({"get_server_capabilities", "get_diagnostics"})
 
 
 def _assert_valid(tool: str, output: Any) -> None:
-    """Assert ``output`` is a dict with a boolean ``success`` key; optionally schema-validate."""
+    """Assert ``output`` is a dict with a boolean ``success`` key; schema-validate it."""
     assert isinstance(output, dict), f"{tool}: expected dict, got {type(output).__name__}"
     assert isinstance(output.get("success"), bool), (
         f"{tool}: 'success' key missing or not bool; got {output.get('success')!r}"
     )
-    if _HAS_JSONSCHEMA:
-        schema = _TOOL_SCHEMAS[tool]
-        _jsonschema.validate(output, schema)
+    _jsonschema.validate(output, _TOOL_SCHEMAS[tool])
 
 
 # ═══════════════════════════════════════════════════════════════════════════

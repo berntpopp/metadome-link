@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from metadome_link.mcp import schemas as output_schemas
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
 from metadome_link.mcp.next_commands import _more_steps, cmd
@@ -139,9 +138,13 @@ def register_position_tools(mcp: FastMCP) -> None:
     @mcp.tool(
         name="get_position_tolerance",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=output_schemas.GET_POSITION_TOLERANCE_SCHEMA,
+        output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"positions"},
-        description="Signature: get_position_tolerance(transcript_id, position, response_mode=).",
+        description=(
+            "Tolerance score, Pfam domain and ClinVar variants at one protein residue. Needs "
+            "a built landscape (request_tolerance_landscape). For several residues use "
+            "compare_positions."
+        ),
     )
     async def get_position_tolerance(
         transcript_id: TranscriptIdArg,
@@ -171,11 +174,12 @@ def register_position_tools(mcp: FastMCP) -> None:
     @mcp.tool(
         name="get_variant_counts",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=output_schemas.GET_VARIANT_COUNTS_SCHEMA,
+        output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"positions"},
         description=(
-            "Signature: get_variant_counts(transcript_id, position=, position_start=, "
-            "position_stop=, source=, limit=, offset=, response_mode=)."
+            "Residue ClinVar variants plus Pfam meta-domain homolog aggregates for one "
+            "residue or a range. Aggregates can include other genes; MetaDome has no per-"
+            "residue gnomAD counts. Needs a built landscape (request_tolerance_landscape)."
         ),
     )
     async def get_variant_counts(
@@ -232,9 +236,13 @@ def register_position_tools(mcp: FastMCP) -> None:
     @mcp.tool(
         name="compare_positions",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=output_schemas.COMPARE_POSITIONS_SCHEMA,
+        output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"positions"},
-        description="Signature: compare_positions(transcript_id, positions, response_mode=).",
+        description=(
+            "Side-by-side tolerance, domain and ClinVar table for several residues of one "
+            "transcript. Needs a built landscape (request_tolerance_landscape). For one "
+            "residue use get_position_tolerance."
+        ),
     )
     async def compare_positions(
         transcript_id: TranscriptIdArg,

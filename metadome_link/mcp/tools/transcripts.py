@@ -14,7 +14,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from metadome_link.mcp import schemas as output_schemas
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
 from metadome_link.mcp.next_commands import cmd
@@ -63,9 +62,13 @@ def register_transcript_tools(mcp: FastMCP) -> None:
     @mcp.tool(
         name="resolve_transcript",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=output_schemas.RESOLVE_TRANSCRIPT_SCHEMA,
+        output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"transcripts"},
-        description="Signature: resolve_transcript(query, response_mode=).",
+        description=(
+            "Resolve a gene symbol or versioned ENST id to MetaDome transcripts; flags the "
+            "canonical one (MANE Select, else longest analyzable). Use first, then "
+            "request_tolerance_landscape."
+        ),
     )
     async def resolve_transcript(
         query: GeneOrIdArg,

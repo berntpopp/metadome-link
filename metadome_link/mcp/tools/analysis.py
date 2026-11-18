@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Annotated, Any
 
 from pydantic import Field, StrictInt
 
-from metadome_link.mcp import schemas as output_schemas
 from metadome_link.mcp.annotations import READ_ONLY_OPEN_WORLD
 from metadome_link.mcp.envelope import McpErrorContext, ToolReturn, run_mcp_tool
 from metadome_link.mcp.next_commands import cmd
@@ -66,11 +65,13 @@ def register_analysis_tools(mcp: FastMCP) -> None:
     @mcp.tool(
         name="summarize_intolerant_regions",
         annotations=READ_ONLY_OPEN_WORLD,
-        output_schema=output_schemas.SUMMARIZE_INTOLERANT_REGIONS_SCHEMA,
+        output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"analysis"},
         description=(
-            "Signature: summarize_intolerant_regions(transcript_id, threshold=, min_run=, top_n=, "
-            "response_mode=)."
+            "Ranked runs of missense-intolerant residues (sw_dn_ds below threshold) with Pfam"
+            " overlap and scoped variant evidence. Needs a built landscape "
+            "(request_tolerance_landscape). For raw per-residue scores use "
+            "get_tolerance_landscape."
         ),
     )
     async def summarize_intolerant_regions(
@@ -81,7 +82,7 @@ def register_analysis_tools(mcp: FastMCP) -> None:
             Field(
                 ge=1,
                 le=100,
-                description="Run length.",
+                description="Minimum consecutive intolerant residues per region.",
             ),
         ] = 3,
         top_n: Annotated[
@@ -89,7 +90,7 @@ def register_analysis_tools(mcp: FastMCP) -> None:
             Field(
                 ge=1,
                 le=100,
-                description="Region count.",
+                description="Maximum regions returned, most intolerant first.",
             ),
         ] = 15,
         response_mode: ResponseMode = "compact",

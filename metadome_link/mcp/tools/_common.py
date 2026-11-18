@@ -22,14 +22,14 @@ from metadome_link.constants import (
 #: Output-verbosity selector shared by every data tool (default ``compact``).
 ResponseMode = Annotated[
     Literal["minimal", "compact", "standard", "full"],
-    Field(description="Mode."),
+    Field(description="Output verbosity; default compact, minimal = essentials only."),
 ]
 
 #: A versioned Ensembl transcript id (the ``.N`` version suffix is required).
 TranscriptIdArg = Annotated[
     str,
     Field(
-        description="ENST.",
+        description="Versioned Ensembl transcript id (with .N suffix), from resolve_transcript.",
         examples=["ENST00000269305.9"],
     ),
 ]
@@ -38,7 +38,7 @@ TranscriptIdArg = Annotated[
 GeneOrIdArg = Annotated[
     str,
     Field(
-        description="Query.",
+        description="HGNC gene symbol (e.g. TP53) or versioned ENST id.",
         examples=["TP53"],
     ),
 ]
@@ -49,7 +49,7 @@ PositionArg = Annotated[
     Field(
         ge=1,
         le=MAX_PROTEIN_POSITION,
-        description="Pos.",
+        description="1-based protein residue position.",
         examples=[175],
     ),
 ]
@@ -60,14 +60,14 @@ OptionalPositionArg = Annotated[
     Field(
         ge=1,
         le=MAX_PROTEIN_POSITION,
-        description="Residue.",
+        description="1-based protein residue position; range bounds are inclusive.",
     ),
     WithJsonSchema(
         {
             "type": ["integer", "null"],
             "minimum": 1,
             "maximum": MAX_PROTEIN_POSITION,
-            "description": "Pos.",
+            "description": "1-based protein residue position; range bounds are inclusive.",
         }
     ),
 ]
@@ -103,7 +103,7 @@ ThresholdArg = Annotated[
         gt=0.0,
         le=2.0,
         json_schema_extra=_threshold_schema,
-        description="Cutoff.",
+        description="sw_dn_ds cutoff in (0, 2]; residues below it count as intolerant.",
     ),
 ]
 
@@ -116,7 +116,7 @@ PositionsArg = Annotated[
         ]
     ],
     Field(
-        description="Residues.",
+        description="1-based protein residue positions to compare.",
         examples=[[35, 175]],
     ),
 ]
@@ -127,18 +127,18 @@ LimitArg = Annotated[
     Field(
         ge=1,
         le=MAX_PAGE_LIMIT,
-        description="Limit.",
+        description="Rows per page.",
     ),
 ]
 
 #: Zero-based row offset into a paginated list result.
 OffsetArg = Annotated[
     StrictInt,
-    Field(ge=0, description="Offset."),
+    Field(ge=0, description="Rows to skip; pass the previous pagination.next_offset."),
 ]
 
 #: Variant-source selector for explicitly-scoped residue and homolog evidence.
 SourceArg = Annotated[
     Literal["both", "gnomad", "clinvar"],
-    Field(description="Source."),
+    Field(description="Variant evidence to include: gnomad, clinvar or both."),
 ]

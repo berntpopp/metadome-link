@@ -303,18 +303,19 @@ async def test_all_preserved_optional_v2_fields_validate_but_extras_do_not(
             jsonschema.validate(bad, schema)
 
 
-async def test_tool_description_signatures_are_generated_from_advertised_inputs(
-    facade: Any,
-) -> None:
-    """Every first sentence ends with the exact current list_tools signature."""
+async def test_tool_and_argument_descriptions_are_not_placeholders(facade: Any) -> None:
+    """Issue #123: a signature or one-word description satisfies S1 but tells the model nothing.
+
+    Every tool names its purpose and a neighbouring tool; every argument gets a phrase.
+    """
     async with Client(facade) as client:
         tools = await client.list_tools()
     assert len(tools) == 11
+    names = {tool.name for tool in tools}
     for tool in tools:
-        properties = tool.input_schema.get("properties", {})
-        required = set(tool.input_schema.get("required", []))
-        arguments = ", ".join(name if name in required else f"{name}=" for name in properties)
-        signature = f"Signature: {tool.name}({arguments})."
-        first_sentence = (tool.description or "").split("\n", maxsplit=1)[0]
-        assert first_sentence.endswith(signature), (tool.name, first_sentence, signature)
-        assert ". Signature:" not in first_sentence, (tool.name, first_sentence)
+        text = tool.description or ""
+        assert "Signature:" not in text, tool.name
+        assert len(text.split()) >= 12, (tool.name, text)
+        assert any(other in text for other in names - {tool.name}), (tool.name, text)
+        for arg, prop in tool.input_schema.get("properties", {}).items():
+            assert len(prop.get("description", "").split()) >= 3, (tool.name, arg, prop)
