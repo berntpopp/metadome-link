@@ -6,7 +6,7 @@ import json
 from typing import Any
 
 import pytest
-from fastmcp.tools.tool import ToolResult
+from fastmcp.tools import ToolResult
 
 from metadome_link.constants import DATA_VERSIONS, MAX_RESPONSE_CHARS
 from metadome_link.exceptions import (

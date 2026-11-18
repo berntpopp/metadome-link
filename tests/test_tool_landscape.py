@@ -48,9 +48,9 @@ async def test_request_landscape_annotation_marks_compute_side_effect(facade: An
         tools = await client.list_tools()
     ann = next(t for t in tools if t.name == "request_tolerance_landscape").annotations
     assert ann is not None
-    assert ann.readOnlyHint is False
-    assert ann.destructiveHint is False
-    assert ann.idempotentHint is True
+    assert ann.read_only_hint is False
+    assert ann.destructive_hint is False
+    assert ann.idempotent_hint is True
 
 
 async def test_get_landscape_annotation_stays_read_only(facade: Any) -> None:
@@ -61,7 +61,7 @@ async def test_get_landscape_annotation_stays_read_only(facade: Any) -> None:
         tools = await client.list_tools()
     ann = next(t for t in tools if t.name == "get_tolerance_landscape").annotations
     assert ann is not None
-    assert ann.readOnlyHint is True
+    assert ann.read_only_hint is True
 
 
 # ---------------------------------------------------------------------------

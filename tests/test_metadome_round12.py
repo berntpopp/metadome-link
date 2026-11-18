@@ -81,7 +81,7 @@ async def test_meta_domain_schema_advertises_selector_shape(facade: Any) -> None
 
     async with Client(facade) as client:
         tool = next(item for item in await client.list_tools() if item.name == "get_meta_domain")
-    schema = tool.inputSchema["properties"]["domains"]["anyOf"][0]
+    schema = tool.input_schema["properties"]["domains"]["anyOf"][0]
     assert schema["maxProperties"] == 32
     assert schema["propertyNames"]["maxLength"] == 64
     assert schema["additionalProperties"]["maxItems"] == 256
@@ -89,8 +89,8 @@ async def test_meta_domain_schema_advertises_selector_shape(facade: Any) -> None
 
 def test_citation_release_date_matches_current_release() -> None:
     citation = pathlib.Path("CITATION.cff").read_text()
-    assert "version: 0.3.18" in citation
-    assert "date-released: '2026-11-13'" in citation
+    assert "version: 0.4.0" in citation
+    assert "date-released: '2026-11-18'" in citation
 
 
 def test_error_taxonomy_docs_have_one_unambiguous_upstream_row() -> None:

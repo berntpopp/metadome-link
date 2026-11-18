@@ -5,7 +5,7 @@ from __future__ import annotations
 from mcp.types import ToolAnnotations
 
 READ_ONLY_OPEN_WORLD = ToolAnnotations(
-    readOnlyHint=True,
+    read_only_hint=True,
 )
 
 #: A compute-STARTING tool: it mutates upstream state (POSTs a build job) so it is
@@ -13,8 +13,8 @@ READ_ONLY_OPEN_WORLD = ToolAnnotations(
 #: submission by transcript_id, so re-submitting a built/running transcript is a
 #: safe no-op. Used by ``request_tolerance_landscape`` (F-11).
 COMPUTE_IDEMPOTENT_OPEN_WORLD = ToolAnnotations(
-    readOnlyHint=False,
-    destructiveHint=False,
-    idempotentHint=True,
-    openWorldHint=True,
+    read_only_hint=False,
+    destructive_hint=False,
+    idempotent_hint=True,
+    open_world_hint=True,
 )

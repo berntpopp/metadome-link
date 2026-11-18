@@ -106,7 +106,7 @@ async def test_all_live_tools_advertise_their_output_schemas(facade: Any) -> Non
         wire_schema = deepcopy(schema)
         wire_schema.pop("patternProperties")
         wire_schema.pop("additionalProperties")
-        assert tools[name].outputSchema == wire_schema
+        assert tools[name].output_schema == wire_schema
 
 
 def test_docs_describe_tool_modes_and_terminal_cached_failures_truthfully() -> None:
