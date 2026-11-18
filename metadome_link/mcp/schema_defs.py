@@ -7,7 +7,7 @@ from copy import deepcopy
 from typing import Any
 
 from metadome_link.mcp.schema_command_defs import NEXT_COMMAND
-from metadome_link.mcp.schema_utils import closed
+from metadome_link.mcp.schema_utils import closed, refactor_pattern
 
 STR = {"type": "string"}
 STR_NULL = {"type": ["string", "null"]}
@@ -240,6 +240,13 @@ AVAILABLE_CLINVAR = closed(
     },
     ("available", "variant_count", "missense_variant_count", "provenance"),
 )
+# Hand-tightened count alternation (same key set, fewer tokens; see POSITION above).
+for _counts in (COUNTS, AVAILABLE_CLINVAR):
+    refactor_pattern(
+        _counts["patternProperties"],
+        ("variant_count", "missense_variant_count"),
+        "^(missense_)?variant_count$",
+    )
 RESIDUE_EVIDENCE = closed(
     {
         "gnomad": {"$ref": "#/$defs/u"},

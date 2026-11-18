@@ -75,7 +75,11 @@ class _CompactToolSchemas(Transform):
             # validation-redundant in the advertised schema.
             output_schema.pop("patternProperties", None)
             output_schema.pop("additionalProperties", None)
-        return tool.model_copy(update={"parameters": parameters, "output_schema": output_schema})
+        # FastMCP 4 always emits a title ("Get Variant Counts"); drop the verb to stay in budget.
+        title = tool.title or tool.name.removeprefix("get_").replace("_", " ").title()
+        return tool.model_copy(
+            update={"parameters": parameters, "output_schema": output_schema, "title": title}
+        )
 
     async def list_tools(self, tools: Sequence[Tool]) -> Sequence[Tool]:
         return [self._compact(tool) for tool in tools]

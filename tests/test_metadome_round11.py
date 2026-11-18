@@ -234,7 +234,7 @@ async def test_threshold_schema_uses_standard_json_schema_keywords(facade: Any) 
             for item in await client.list_tools()
             if item.name == "summarize_intolerant_regions"
         )
-    threshold = tool.inputSchema["properties"]["threshold"]
+    threshold = tool.input_schema["properties"]["threshold"]
     assert threshold["exclusiveMinimum"] == 0.0
     assert threshold["maximum"] == 2.0
     assert "gt" not in threshold and "le" not in threshold

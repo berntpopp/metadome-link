@@ -33,7 +33,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastmcp.tools.tool import ToolResult
+from fastmcp.tools import ToolResult
 
 from metadome_link.constants import DATA_VERSIONS
 from metadome_link.exceptions import NotFoundError

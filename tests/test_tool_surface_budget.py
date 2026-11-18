@@ -36,7 +36,7 @@ async def test_every_tool_advertises_output_schema(facade: Any) -> None:
     async with Client(facade) as client:
         tools = await client.list_tools()
     assert tools, "expected the facade to advertise tools"
-    missing = [t.name for t in tools if t.outputSchema is None]
+    missing = [t.name for t in tools if t.output_schema is None]
     assert not missing, f"tools missing outputSchema: {missing}"
 
 

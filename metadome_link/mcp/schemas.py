@@ -44,7 +44,7 @@ from metadome_link.mcp.schema_defs import (
     TRANSCRIPT,
     output_schema,
 )
-from metadome_link.mcp.schema_utils import closed
+from metadome_link.mcp.schema_utils import closed, refactor_pattern
 
 _CITATION = {"recommended_citation": STR}
 _CAVEAT = {"data_currency_caveat": STR}
@@ -107,6 +107,47 @@ GET_SERVER_CAPABILITIES_SCHEMA = output_schema(
     ),
     defs={"b": BUILD, "l": LIMITS, "tm": TOOL_MODES},
     next_command=CAPABILITIES_NEXT_COMMAND,
+)
+
+# Same key sets, fewer tokens (Tool-Surface Budget B2 after FastMCP 4 added titles).
+_CAPS = GET_SERVER_CAPABILITIES_SCHEMA["oneOf"][0]["patternProperties"]
+refactor_pattern(
+    _CAPS,
+    (
+        "dropped_summary",
+        "server",
+        "server_version",
+        "capabilities_version",
+        "data_source",
+        "data_version",
+        "genome_build",
+        "data_currency_caveat",
+        "research_use_notice",
+        "recommended_citation",
+        "license",
+        "default_response_mode",
+        "detail",
+        "more",
+        "async_model",
+        "score_semantics",
+        "provenance_policy",
+        "per_call_meta_semantics",
+    ),
+    "^(dropped_summary|server(_version)?|capabilities_version|data_(source|version|currency_caveat)"
+    "|genome_build|research_use_notice|recommended_citation|license|default_response_mode|detail"
+    "|more|async_model|(score|per_call_meta)_semantics|provenance_policy)$",
+)
+refactor_pattern(
+    _CAPS,
+    (
+        "tools",
+        "response_modes",
+        "error_codes",
+        "recommended_workflows",
+        "response_mode_tools",
+        "per_call_meta",
+    ),
+    "^(tools|response_mode(s|_tools)|error_codes|recommended_workflows|per_call_meta)$",
 )
 
 GET_DIAGNOSTICS_SCHEMA = output_schema(

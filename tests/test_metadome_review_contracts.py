@@ -311,8 +311,8 @@ async def test_tool_description_signatures_are_generated_from_advertised_inputs(
         tools = await client.list_tools()
     assert len(tools) == 11
     for tool in tools:
-        properties = tool.inputSchema.get("properties", {})
-        required = set(tool.inputSchema.get("required", []))
+        properties = tool.input_schema.get("properties", {})
+        required = set(tool.input_schema.get("required", []))
         arguments = ", ".join(name if name in required else f"{name}=" for name in properties)
         signature = f"Signature: {tool.name}({arguments})."
         first_sentence = (tool.description or "").split("\n", maxsplit=1)[0]

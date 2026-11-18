@@ -39,3 +39,12 @@ def closed(properties: dict[str, Any], required: tuple[str, ...] = ()) -> dict[s
         (schema, property_schema),
         key=lambda value: len(json.dumps(value, separators=(",", ":"))),
     )
+
+
+def refactor_pattern(patterns: dict[str, Any], names: tuple[str, ...], pattern: str) -> None:
+    """Swap ``closed()``'s alternation for ``names`` with an equivalent, shorter regex."""
+    original = f"^({'|'.join(re.escape(name) for name in names)})$"
+    # Guard: every original key still matches; the regex is hand-checked to add no others.
+    assert all(re.fullmatch(pattern, name) for name in names), pattern
+    assert original in patterns, original
+    patterns[pattern] = patterns.pop(original)

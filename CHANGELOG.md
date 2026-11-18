@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-18
+
+### Changed
+
+- Upgrade FastMCP 3.4 → 4.2.2 and MCP SDK 1.x → 2.x; supports the 2026-07-28 sessionless protocol era alongside the legacy handshake (new test drives `server/discover` → `tools/list` → `tools/call` over the modern era).
+- Not-found guard Layer 3 ported to the SDK 2 `get_request_handler`/`add_request_handler` API; the resource/prompt backstop raises `MCPError(INVALID_PARAMS)` so callers keep `-32602`.
+- FastMCP 4 now emits a tool `title`; titles drop the leading "Get" and two schema alternations were factored (same key sets) to keep the advertised surface under the 10,000-token B2 budget.
+
+### Security
+
+- SDK 2 echoes an unknown JSON-RPC method verbatim in the METHOD_NOT_FOUND error `data`; a low-level middleware now re-raises a fixed `-32601` without `data` (both eras). The log scrub gains the SDK 2 `mcp.server.runner` logger and its `dropped …` / `no handler for notification` markers.
+
 ## [0.3.18] - 2026-11-13
 
 ### Changed
