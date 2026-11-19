@@ -68,7 +68,7 @@ def register_analysis_tools(mcp: FastMCP) -> None:
         output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"analysis"},
         description=(
-            "Ranked runs of missense-intolerant residues (sw_dn_ds below threshold) with Pfam"
+            "Find ranked runs of missense-intolerant residues (sw_dn_ds below threshold) with Pfam"
             " overlap and scoped variant evidence. Needs a built landscape "
             "(request_tolerance_landscape). For raw per-residue scores use "
             "get_tolerance_landscape."

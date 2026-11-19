@@ -90,8 +90,8 @@ def register_landscape_tools(mcp: FastMCP) -> None:
         tags={"landscape"},
         description=(
             "Start the MetaDome tolerance-landscape build for a transcript (async, "
-            "idempotent). Returns status ready or processing; cold builds can take up to ~1 "
-            "h. Every read tool needs this first; then poll get_tolerance_landscape."
+            "idempotent); returns job_id and status ready or processing. Cold builds can take "
+            "up to ~1 h. Every read tool needs this first; then poll get_tolerance_landscape."
         ),
     )
     async def request_tolerance_landscape(
@@ -122,7 +122,7 @@ def register_landscape_tools(mcp: FastMCP) -> None:
         output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"landscape"},
         description=(
-            "Per-residue missense tolerance (sw_dn_ds, lower = more intolerant) and Pfam "
+            "Get per-residue missense tolerance (sw_dn_ds, lower = more intolerant) and Pfam "
             "domains for a transcript, paginated. Call request_tolerance_landscape first. "
             "status processing with poll_after_s is not an error: wait and poll again. "
             "not_found = MetaDome has no landscape or build job for the id."

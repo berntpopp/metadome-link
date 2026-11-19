@@ -141,8 +141,8 @@ def register_position_tools(mcp: FastMCP) -> None:
         output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"positions"},
         description=(
-            "Tolerance score, Pfam domain and ClinVar variants at one protein residue. Needs "
-            "a built landscape (request_tolerance_landscape). For several residues use "
+            "Get the tolerance score, Pfam domain and ClinVar variants at one protein residue. "
+            "Needs a built landscape (request_tolerance_landscape). For several residues use "
             "compare_positions."
         ),
     )
@@ -177,7 +177,7 @@ def register_position_tools(mcp: FastMCP) -> None:
         output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"positions"},
         description=(
-            "Residue ClinVar variants plus Pfam meta-domain homolog aggregates for one "
+            "Get residue ClinVar variants plus Pfam meta-domain homolog aggregates for one "
             "residue or a range. Aggregates can include other genes; MetaDome has no per-"
             "residue gnomAD counts. Needs a built landscape (request_tolerance_landscape)."
         ),
@@ -239,8 +239,8 @@ def register_position_tools(mcp: FastMCP) -> None:
         output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"positions"},
         description=(
-            "Side-by-side tolerance, domain and ClinVar table for several residues of one "
-            "transcript. Needs a built landscape (request_tolerance_landscape). For one "
+            "Compare several residues of one transcript; returns a side-by-side tolerance, "
+            "domain and ClinVar table. Needs a built landscape (request_tolerance_landscape). For one "
             "residue use get_position_tolerance."
         ),
     )

@@ -153,7 +153,7 @@ def register_domain_tools(mcp: FastMCP) -> None:
         output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"domains"},
         description=(
-            "Pfam domains (id, name, residue range) of a transcript. Needs a built landscape "
+            "List Pfam domains (id, name, residue range) of a transcript. Needs a built landscape "
             "(request_tolerance_landscape). Then get_meta_domain for homolog variants."
         ),
     )
@@ -185,7 +185,7 @@ def register_domain_tools(mcp: FastMCP) -> None:
         output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"domains"},
         description=(
-            "Variants at the aligned position of homologous Pfam domains (meta-domain) for "
+            "Get variants at the aligned position of homologous Pfam domains (meta-domain) for "
             "one residue; these span other genes, not this gene alone. Needs a built "
             "landscape (request_tolerance_landscape). Paginated."
         ),
