@@ -65,7 +65,8 @@ def register_transcript_tools(mcp: FastMCP) -> None:
         output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"transcripts"},
         description=(
-            "Resolve a gene symbol or versioned ENST id; for a gene returns its MetaDome "
+            "Resolve a gene symbol or versioned ENST id to the MetaDome transcript (GRCh37 or "
+            "GRCh38 build) to use for its missense tolerance landscape; for a gene returns its "
             "transcripts and canonical_transcript_id (MANE Select, else longest analyzable). "
             "Use first, then request_tolerance_landscape."
         ),
