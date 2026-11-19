@@ -142,6 +142,8 @@ async def test_get_landscape_ready_returns_domains_and_positions(
     positions = data["positional_annotation"]
     assert isinstance(positions, list) and positions
     assert all("protein_pos" in p for p in positions)
+    # D1 contract truth: the pinned lead names sw_dn_ds.
+    assert all("sw_dn_ds" in p for p in positions)
     pg = data["pagination"]
     assert pg["total"] == 20
     assert pg["returned"] == len(positions)

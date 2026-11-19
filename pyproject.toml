@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "metadome-link"
-version = "0.5.0"
+version = "0.5.1"
 description = "MCP/API server wrapping the MetaDome web service for missense tolerance landscapes, Pfam domains, and meta-domain variant aggregation"
 readme = "README.md"
 license = { text = "MIT" }
@@ -100,6 +100,7 @@ line-ending = "lf"
 "tests/**/*" = ["S101", "S104", "S110", "T20", "B011", "SIM105", "SIM108"]
 "mcp_server.py" = ["T20"]
 "scripts/**/*" = ["T20"]
+"scripts/surface.py" = ["T20", "SIM905"]  # vendored byte-identical from genefoundry-router
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

@@ -79,7 +79,7 @@ def register_discovery_tools(mcp: FastMCP) -> None:
         output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"discovery"},
         description=(
-            "Server version, MetaDome build (GRCh37/GRCh38), tools, limits, error codes and "
+            "Get server version, MetaDome build (GRCh37/GRCh38), tools, limits, error codes and "
             "the canonical workflow. Returns no gene data; for a gene start with "
             "resolve_transcript."
         ),
@@ -110,7 +110,7 @@ def register_discovery_tools(mcp: FastMCP) -> None:
         output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"discovery"},
         description=(
-            "Cache, request metrics and data versions of this server. Use to debug failing "
+            "Get cache stats, request metrics and data versions of this server. Use to debug failing "
             "calls; returns no gene data (server scope: get_server_capabilities)."
         ),
     )
