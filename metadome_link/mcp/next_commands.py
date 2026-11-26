@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from metadome_link.identifiers import looks_like_transcript_query
+from metadome_link.identifiers import is_transcript_id
 
 
 def cmd(tool: str, **arguments: Any) -> dict[str, Any]:
@@ -47,9 +47,6 @@ def _more_steps(
     return steps
 
 
-#: Tools whose first positional argument is a free-text gene/transcript query.
-_QUERY_TOOLS = {"resolve_transcript"}
-
 #: Tools keyed on a built transcript id (recovery routes through request+poll).
 _LANDSCAPE_TOOLS = {
     "get_tolerance_landscape",
@@ -66,13 +63,11 @@ def default_error_next_commands(
     tool: str, error_code: str, arguments: dict[str, Any]
 ) -> list[dict[str, Any]]:
     """A sensible recovery step for any error lacking an explicit fallback."""
-    if tool in _QUERY_TOOLS:
-        value = str(arguments.get("query", "") or arguments.get("gene", ""))
-        if value and not looks_like_transcript_query(value):
-            return [cmd("resolve_transcript", query=value), cmd("get_server_capabilities")]
+    # The caller's free-text query is never forwarded (GTS-CORE-TXT-04); retrying the same
+    # failed resolve_transcript call would not help anyway.
     if tool in _LANDSCAPE_TOOLS:
-        transcript_id = str(arguments.get("transcript_id", ""))
-        if transcript_id and error_code == "not_found":
+        transcript_id = str(arguments.get("transcript_id", "")).strip()
+        if is_transcript_id(transcript_id) and error_code == "not_found":
             # The landscape is not built yet: request a build, then poll for it.
             return [
                 cmd("submit_tolerance_landscape", transcript_id=transcript_id),

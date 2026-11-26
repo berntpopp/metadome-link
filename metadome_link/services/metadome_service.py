@@ -156,7 +156,7 @@ class MetaDomeService:
         transcripts = await self._client.get_transcripts(gene)
         if not transcripts:
             raise NotFoundError(
-                f"No {self.genome_build} transcripts for gene '{gene}'.",
+                f"No {self.genome_build} transcripts for the gene symbol in query.",
                 recovery_action="check_input",
                 field="query",
             )

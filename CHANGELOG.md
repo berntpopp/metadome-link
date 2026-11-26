@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-26
+
+### Fixed
+
+- Caller-visible messages and `_meta.next_commands` no longer carry the caller's unvalidated input (GTS-CORE-TXT-04): the invalid-`transcript_id` error and the `resolve_transcript` not-found error use fixed text naming the parameter and the expected form, and a failed `resolve_transcript` no longer suggests re-running itself with the raw query (the recovery step is `get_server_capabilities`); the not-found build/poll steps carry a `transcript_id` only after it passed the versioned ENST validation.
+
 ## [1.0.0] - 2026-11-26
 
 ### Changed (BREAKING)
