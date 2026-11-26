@@ -200,7 +200,7 @@ async def test_ranged_landscape_page_and_continuation_preserve_slice(
             "offset": 2,
         },
     )
-    assert [row["protein_pos"] for row in data["positional_annotation"]] == [175, 176]
+    assert [row["protein_pos"] for row in data["result"]["positional_annotation"]] == [175, 176]
     assert data["pagination"]["total"] == 5
     assert data["pagination"]["next_offset"] == 4
     next_command = next(

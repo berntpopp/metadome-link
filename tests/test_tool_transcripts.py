@@ -34,8 +34,8 @@ async def test_resolve_tp53_returns_success(facade: object, call_tool: object) -
 async def test_resolve_tp53_canonical_flagged(facade: object, call_tool: object) -> None:
     """The analyzable MANE Select transcript is flagged canonical."""
     data = await call_tool(facade, "resolve_transcript", {"query": "TP53"})  # type: ignore[operator]
-    assert data.get("canonical_transcript_id") == TID
-    transcripts = data.get("transcripts", [])
+    assert data["result"].get("canonical_transcript_id") == TID
+    transcripts = data["result"].get("transcripts", [])
     assert any(t for t in transcripts if t.get("canonical") is True and t.get("gencode_id") == TID)
 
 
@@ -70,7 +70,7 @@ async def test_resolve_tp53_has_recommended_citation(facade: object, call_tool: 
 async def test_resolve_tp53_transcripts_sorted_by_length(facade: object, call_tool: object) -> None:
     """Transcripts are sorted by aa_length descending."""
     data = await call_tool(facade, "resolve_transcript", {"query": "TP53"})  # type: ignore[operator]
-    lengths = [t["aa_length"] for t in data.get("transcripts", [])]
+    lengths = [t["aa_length"] for t in data["result"].get("transcripts", [])]
     assert lengths == sorted(lengths, reverse=True)
 
 
@@ -90,8 +90,8 @@ async def test_resolve_enst_passthrough(facade: object, call_tool: object) -> No
     """A bare ENST id is validated and echoed (resolved_from="id")."""
     data = await call_tool(facade, "resolve_transcript", {"query": TID})  # type: ignore[operator]
     assert data["success"] is True
-    assert data.get("transcript_id") == TID
-    assert data.get("resolved_from") == "id"
+    assert data["result"].get("transcript_id") == TID
+    assert data["result"].get("resolved_from") == "id"
 
 
 async def test_resolve_enst_passthrough_next_commands(facade: object, call_tool: object) -> None:

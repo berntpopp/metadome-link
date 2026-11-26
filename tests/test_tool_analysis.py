@@ -35,9 +35,9 @@ async def test_summarize_intolerant_regions_success(facade: Any, call_tool: Any)
         {"transcript_id": TID},
     )
     assert data["success"] is True
-    assert data["transcript_id"] == TID
-    assert isinstance(data["regions"], list)
-    assert len(data["regions"]) >= 1
+    assert data["result"]["transcript_id"] == TID
+    assert isinstance(data["result"]["regions"], list)
+    assert len(data["result"]["regions"]) >= 1
 
 
 async def test_summarize_intolerant_regions_contains_173_177(facade: Any, call_tool: Any) -> None:
@@ -49,7 +49,7 @@ async def test_summarize_intolerant_regions_contains_173_177(facade: Any, call_t
     )
     assert data["success"] is True
     covered: set[int] = set()
-    for region in data["regions"]:
+    for region in data["result"]["regions"]:
         covered.update(range(region["start"], region["stop"] + 1))
     assert {173, 174, 175, 176, 177} <= covered, (
         f"Expected p.173-177 to be covered; covered={sorted(covered)}"
@@ -66,7 +66,7 @@ async def test_summarize_intolerant_regions_mean_below_threshold(
         {"transcript_id": TID, "threshold": 0.5},
     )
     assert data["success"] is True
-    for region in data["regions"]:
+    for region in data["result"]["regions"]:
         assert region["mean_sw_dn_ds"] < 0.5, (
             f"Region {region['start']}-{region['stop']} has "
             f"mean_sw_dn_ds={region['mean_sw_dn_ds']} which is not below 0.5"
@@ -81,7 +81,7 @@ async def test_summarize_intolerant_regions_domain_overlap(facade: Any, call_too
         {"transcript_id": TID},
     )
     assert data["success"] is True
-    annotated = any("PF00870" in r.get("domains", []) for r in data["regions"])
+    annotated = any("PF00870" in r.get("domains", []) for r in data["result"]["regions"])
     assert annotated, (
         "Expected at least one region to have PF00870 domain overlap; "
         f"regions={[r.get('domains') for r in data['regions']]}"
@@ -96,7 +96,7 @@ async def test_summarize_intolerant_regions_counts_present(facade: Any, call_too
         {"transcript_id": TID},
     )
     assert data["success"] is True
-    for region in data["regions"]:
+    for region in data["result"]["regions"]:
         evidence = region["variant_evidence"]
         assert evidence["residue_level"]["gnomad"]["available"] is False
         assert isinstance(evidence["residue_level"]["clinvar"]["variant_count"], int)
@@ -162,7 +162,7 @@ async def test_summarize_intolerant_regions_region_fields(facade: Any, call_tool
         {"transcript_id": TID},
     )
     assert data["success"] is True
-    for region in data["regions"]:
+    for region in data["result"]["regions"]:
         assert "start" in region
         assert "stop" in region
         assert "length" in region
@@ -185,7 +185,7 @@ async def test_summarize_intolerant_regions_top_n_one(facade: Any, call_tool: An
         {"transcript_id": TID, "top_n": 1},
     )
     assert data["success"] is True
-    assert len(data["regions"]) <= 1
+    assert len(data["result"]["regions"]) <= 1
 
 
 async def test_summarize_intolerant_regions_respects_min_run(facade: Any, call_tool: Any) -> None:
@@ -199,7 +199,7 @@ async def test_summarize_intolerant_regions_respects_min_run(facade: Any, call_t
     # p.173-177 has length 5; with min_run=6 it is excluded
     # Use standard mode so empty regions list is preserved (compact drops empty lists)
     covered: set[int] = set()
-    for region in data.get("regions", []):
+    for region in data["result"].get("regions", []):
         covered.update(range(region["start"], region["stop"] + 1))
     assert 175 not in covered, (
         f"Expected p.175 to be excluded with min_run=6; covered={sorted(covered)}"
@@ -214,7 +214,7 @@ async def test_summarize_intolerant_regions_ranked_ascending(facade: Any, call_t
         {"transcript_id": TID, "min_run": 1},  # allow short runs for more regions
     )
     assert data["success"] is True
-    scores = [r["mean_sw_dn_ds"] for r in data["regions"]]
+    scores = [r["mean_sw_dn_ds"] for r in data["result"]["regions"]]
     assert scores == sorted(scores), f"Regions not sorted ascending: {scores}"
 
 
@@ -231,9 +231,9 @@ async def test_summarize_intolerant_regions_envelope_fields(facade: Any, call_to
         {"transcript_id": TID, "threshold": 0.45, "min_run": 3, "top_n": 5},
     )
     assert data["success"] is True
-    assert data["threshold"] == pytest.approx(0.45)
-    assert data["min_run"] == 3
-    assert data["top_n"] == 5
+    assert data["result"]["threshold"] == pytest.approx(0.45)
+    assert data["result"]["min_run"] == 3
+    assert data["result"]["top_n"] == 5
 
 
 # ---------------------------------------------------------------------------

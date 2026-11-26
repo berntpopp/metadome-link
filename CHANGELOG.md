@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-26
+
+### Changed
+
+- **Breaking:** every data tool's payload now sits under the Response-Envelope v1 §1 primary key. Each MetaDome data tool describes one transcript or position, so each returns a single `result` object. The list metadata block `pagination` (`total`, `returned`, `limit`, `offset`, `truncated`, `next_offset`), `recommended_citation`, `data_currency_caveat` and `dropped_summary` stay at the envelope top level beside `result`. `get_server_capabilities` and `get_diagnostics` are unchanged. Old key to new key:
+
+  | Tool | Old | New |
+  |---|---|---|
+  | `resolve_transcript` | `resolved_from`, `gene_name`, `canonical_transcript_id`, `analyzable`, `transcripts`, `transcript_id`, `note` | `result.<field>` |
+  | `request_tolerance_landscape` | `job_id`, `transcript_id`, `status`, `poll_after_s`, `eta_hint`, `cold_build_warning` | `result.<field>` |
+  | `get_tolerance_landscape` | `transcript_id`, `gene_name`, `protein_ac`, `refseq_ids`, `domains`, `positional_annotation`, `status`, `poll_after_s`, `cold_build_warning` | `result.<field>` |
+  | `get_position_tolerance` | `transcript_id`, `protein_pos`, `sw_dn_ds`, `domains`, `variant_evidence` and the other position fields | `result.<field>` |
+  | `get_variant_counts` | `transcript_id`, `source`, `positions` | `result.<field>` |
+  | `compare_positions` | `transcript_id`, `comparison` | `result.<field>` |
+  | `get_protein_domains` | `transcript_id`, `gene_name`, `domains` | `result.<field>` |
+  | `get_meta_domain` | `transcript_id`, `protein_position`, `requested_domains`, `meta_domains` | `result.<field>` |
+  | `summarize_intolerant_regions` | `transcript_id`, `gene_name`, `threshold`, `min_run`, `top_n`, `regions` | `result.<field>` |
+
+- The closed output schemas in `mcp/schemas.py` describe the nested shape.
+- Conformance: the vendored envelope schema now applies in full; the strict-xfail exclusion of the `result`/`results` rule is removed.
+
 ## [0.6.0] - 2026-11-26
 
 ### Added

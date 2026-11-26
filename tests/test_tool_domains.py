@@ -25,8 +25,8 @@ async def test_get_protein_domains_returns_pfam_list(facade: Any, call_tool: Any
     """get_protein_domains returns the Pfam domains with ID/Name/start/stop/metadomain."""
     data = await call_tool(facade, "get_protein_domains", {"transcript_id": TID})
     assert data["success"] is True
-    assert data["transcript_id"] == TID
-    domains = data["domains"]
+    assert data["result"]["transcript_id"] == TID
+    domains = data["result"]["domains"]
     assert isinstance(domains, list) and domains
     pf00870 = next(d for d in domains if d["ID"] == "PF00870")
     assert pf00870["Name"] == "P53 DNA-binding domain"
@@ -45,10 +45,10 @@ async def test_get_meta_domain_derives_request_when_omitted(facade: Any, call_to
         {"transcript_id": TID, "position": 175},
     )
     assert data["success"] is True
-    assert data["protein_position"] == 175
+    assert data["result"]["protein_position"] == 175
     # Derived from the cached residue's domains map: {PF00870: [81]}.
-    assert data["requested_domains"] == {"PF00870": [81]}
-    meta = data["meta_domains"]["PF00870"]
+    assert data["result"]["requested_domains"] == {"PF00870": [81]}
+    meta = data["result"]["meta_domains"]["PF00870"]
     assert meta["alignment_depth"] == 3
     # Homologous variants carry the homolog gene_name (TP63 / TP73), not TP53.
     homolog_genes = {v["gene_name"] for v in meta["normal_variants"]}
@@ -76,9 +76,9 @@ async def test_get_meta_domain_non_metadomain_position_empty_not_error(
         {"transcript_id": TID, "position": 2, "response_mode": "standard"},
     )
     assert data["success"] is True
-    assert data["protein_position"] == 2
-    assert data["requested_domains"] == {}
-    assert data["meta_domains"] == {}
+    assert data["result"]["protein_position"] == 2
+    assert data["result"]["requested_domains"] == {}
+    assert data["result"]["meta_domains"] == {}
     assert "error_code" not in data
 
 
@@ -96,7 +96,7 @@ async def test_get_meta_domain_explicit_domains_paginates(facade: Any, call_tool
         },
     )
     assert data["success"] is True
-    meta = data["meta_domains"]["PF00870"]
+    meta = data["result"]["meta_domains"]["PF00870"]
     assert len(meta["normal_variants"]) == 1
     block = meta["pagination"]["normal_variants"]
     assert block["limit"] == 1
