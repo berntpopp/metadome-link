@@ -144,18 +144,20 @@ Every tool response follows the same envelope:
   "_meta": {
     "tool": "...",
     "request_id": "...",
+    "elapsed_ms": 42,
+    "source": "metadome",              ← successful data results
+    "data_version": "metadome2.0-…",   ← successful data results
+    "retrieved_at": "2026-11-26T08:00:00Z", ← upstream fetch time (cache hit: original fetch)
     "data_versions": { "assembly": "GRCh38.p14", "gnomad": "v4.1", ... },
     "capabilities_version": "...",     ← compact+
-    "next_commands": [ ... ],          ← compact+
-    "elapsed_ms": 42                   ← standard/full only
+    "next_commands": [ ... ]           ← compact+
   }
 }
 ```
 
 `_meta` verbosity is tiered by `response_mode`; the data payload always retains its core answer:
-- **minimal**: core answer plus `{tool, request_id, data_versions, unsafe_for_clinical_use}`.
-- **compact** (default): adds `next_commands` + `capabilities_version` + `data_versions`.
-- **standard / full**: adds `elapsed_ms`.
+- **minimal**: core answer plus `{tool, request_id, elapsed_ms, data_versions, unsafe_for_clinical_use}` and the provenance fields.
+- **compact** (default) and richer: adds `next_commands` + `capabilities_version`.
 
 ## `capabilities_version`
 

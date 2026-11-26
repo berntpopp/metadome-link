@@ -26,12 +26,12 @@ import time as _time_module
 from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import typer
 
+from metadome_link import provenance
 from metadome_link.api.response import parse_json_text
 from metadome_link.config import ServerSettings, settings
 from metadome_link.constants import METADOME_DATA_VERSION, data_profile
@@ -157,7 +157,10 @@ class ResultCache:
         _maxsize = lru_maxsize if lru_maxsize is not None else settings.cache.lru_results
         # LRU entries live indefinitely (no TTL on disk entries — disk is the
         # authoritative source; LRU is purely an acceleration layer).
-        self._lru: TTLCache[str, dict[str, Any]] = TTLCache(maxsize=_maxsize, ttl=float("inf"))
+        # Each entry keeps its upstream fetch time (Response-Envelope v1.2).
+        self._lru: TTLCache[str, tuple[dict[str, Any], str | None]] = TTLCache(
+            maxsize=_maxsize, ttl=float("inf")
+        )
         self._closed = False
 
         # Ensure parent directory exists
@@ -188,10 +191,11 @@ class ResultCache:
         """
         cached = self._lru.get(transcript_id)
         if cached is not None:
-            return cached
+            provenance.fetched(cached[1])
+            return cached[0]
 
         row = self._conn.execute(
-            "SELECT json FROM results WHERE transcript_id = ? AND data_version = ?",
+            "SELECT json, fetched_at FROM results WHERE transcript_id = ? AND data_version = ?",
             (transcript_id, self._data_version),
         ).fetchone()
         if row is None:
@@ -202,13 +206,18 @@ class ResultCache:
                 "MetaDome cache contains a non-object JSON value.", field="cache_body"
             )
         value: dict[str, Any] = decoded
+        try:
+            fetched_at: str | None = provenance.utc(row[1])
+        except ValueError:  # unreadable stamp: the envelope reports this request instead
+            fetched_at = None
+        provenance.fetched(fetched_at)
         # Warm the LRU
-        self._lru.set(transcript_id, value)
+        self._lru.set(transcript_id, (value, fetched_at))
         return value
 
     def put_result(self, transcript_id: str, landscape: dict[str, Any]) -> None:
         """Store *landscape* for *transcript_id*, replacing any existing entry."""
-        fetched_at = datetime.now(UTC).isoformat()
+        fetched_at = provenance.utc()
         blob = json.dumps(landscape, ensure_ascii=False)
         self._conn.execute(
             """
@@ -221,7 +230,7 @@ class ResultCache:
             (transcript_id, self._data_version, fetched_at, blob),
         )
         self._conn.commit()
-        self._lru.set(transcript_id, landscape)
+        self._lru.set(transcript_id, (landscape, fetched_at))
 
     def cached_transcript_ids(self) -> list[str]:
         """Return all transcript ids stored for the current data_version."""

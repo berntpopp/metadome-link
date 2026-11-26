@@ -72,10 +72,13 @@ META = closed(
         "data_versions": {"$ref": "#/$defs/V"},
         "unsafe_for_clinical_use": {"const": True},
         "elapsed_ms": INT,
+        "source": STR,
+        "data_version": STR,
+        "retrieved_at": STR,
         "capabilities_version": STR,
         "next_commands": {"type": "array", "items": {"$ref": "#/$defs/N"}},
     },
-    ("tool", "request_id", "data_versions", "unsafe_for_clinical_use"),
+    ("tool", "request_id", "elapsed_ms", "data_versions", "unsafe_for_clinical_use"),
 )
 
 PAGINATION = closed(

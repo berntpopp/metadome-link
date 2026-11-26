@@ -223,15 +223,20 @@ def build_capabilities(
             "tool",
             "request_id",
             "elapsed_ms",
+            "source",
+            "data_version",
+            "retrieved_at",
             "capabilities_version",
             "next_commands",
             "data_versions",
         ],
         "per_call_meta_semantics": (
             "_meta verbosity is tiered by response_mode: minimal preserves the core answer "
-            "with trace/provenance fields; compact (default) adds next_commands and "
-            "capabilities_version; standard/full add elapsed_ms. "
-            "data_versions is always present."
+            "with trace/provenance fields; compact (default) and richer add next_commands "
+            "and capabilities_version. data_versions and elapsed_ms are always present. "
+            "A successful data result also carries source (metadome), data_version (the "
+            "MetaDome data release) and retrieved_at (UTC time of the upstream fetch; a "
+            "cached landscape keeps its original fetch time)."
         ),
     }
     payload["data_version"] = version

@@ -52,10 +52,13 @@ is a **first-class success state** (not an error), carrying `poll_after_s` /
   `ambiguous_query`, `rate_limited`, `upstream_unavailable`, `internal`.
 - Every `compact` (default) or richer response carries `_meta.next_commands`
   (ready-to-call follow-ups); `minimal` is the explicit opt-out and retains the
-  essential answer/identity fields plus `_meta = {tool, request_id, data_versions,
-  unsafe_for_clinical_use}`. `_meta` verbosity is tiered by `response_mode`:
-  `compact` keeps `next_commands` + `capabilities_version` but drops `elapsed_ms`;
-  `standard`/`full` add `elapsed_ms`.
+  essential answer/identity fields plus `_meta = {tool, request_id, elapsed_ms,
+  data_versions, unsafe_for_clinical_use}`. `_meta` verbosity is tiered by
+  `response_mode`: `compact` and richer add `next_commands` + `capabilities_version`.
+- **Provenance (Response-Envelope v1.2)**: every successful data result carries
+  `_meta.source`, `_meta.data_version` and `_meta.retrieved_at` at every mode. A cache
+  that serves a stored upstream answer reports its fetch time through
+  `metadome_link.provenance.fetched`.
 - **`_meta.data_versions` is ALWAYS present** and identifies the selected live build
   (`GRCh37.p13` or `GRCh38.p14`) plus its component snapshot.
 - Every tool carries the appropriate read-only or compute annotation and a model-facing

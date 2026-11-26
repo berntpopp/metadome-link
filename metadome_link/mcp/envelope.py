@@ -26,7 +26,12 @@ from typing import Any
 from fastmcp.tools import ToolResult
 from pydantic import ValidationError as PydanticValidationError
 
-from metadome_link.constants import DATA_VERSIONS, DEFAULT_RESPONSE_MODE, MAX_RESPONSE_CHARS
+from metadome_link import provenance
+from metadome_link.constants import (
+    DATA_VERSIONS,
+    DEFAULT_RESPONSE_MODE,
+    MAX_RESPONSE_CHARS,
+)
 from metadome_link.exceptions import (
     AmbiguousQueryError,
     MetaDomeError,
@@ -41,7 +46,8 @@ logger = logging.getLogger(__name__)
 # Per-call _meta is kept lean: static provenance (citation, the MetaDome release)
 # lives ONLY in get_server_capabilities. Per-call _meta carries data_versions and
 # unsafe_for_clinical_use (always) plus the dynamic fields: tool, request_id,
-# [next_commands, capabilities_version, elapsed_ms] -- the last three tiered by
+# elapsed_ms, on a successful data result the v1.2 provenance (source, data_version,
+# retrieved_at), and [next_commands, capabilities_version] -- the last two tiered by
 # response_mode (see _shape_meta).
 _RETRYABLE = {"rate_limited", "upstream_unavailable"}
 
@@ -230,6 +236,7 @@ def _new_meta(tool_name: str) -> dict[str, Any]:
     return {
         "tool": tool_name,
         "request_id": _request_id(),
+        "elapsed_ms": 0,
         "data_versions": _runtime_data_versions(),
         "unsafe_for_clinical_use": True,
     }
@@ -348,34 +355,35 @@ def _stamp_capabilities_version(meta: dict[str, Any]) -> None:
         meta["capabilities_version"] = version
 
 
+#: ``_meta`` keys kept at ``minimal``: the trace essentials, the invariants, and the
+#: fields the Response-Envelope Standard requires on every result (v1 §4, v1.2).
+_MINIMAL_META_KEYS = (
+    "tool",
+    "request_id",
+    "elapsed_ms",
+    "data_versions",
+    "unsafe_for_clinical_use",
+    "source",
+    "data_version",
+    "retrieved_at",
+)
+
+
 def _shape_meta(meta: dict[str, Any], response_mode: str) -> dict[str, Any]:
     """Tier ``_meta`` verbosity by ``response_mode`` to control the per-call token tax.
 
-    - ``minimal``: the trace essentials only -- ``{tool, request_id, data_versions,
-      unsafe_for_clinical_use}``. The caller explicitly opted out of guidance, so
-      ``next_commands`` / ``capabilities_version`` / ``elapsed_ms`` are dropped, but
-      the data-version and research-use-disclaimer invariants are kept.
-    - ``compact`` (default): keep ``next_commands`` (workflow guidance) and
-      ``capabilities_version`` (the warm-client cache key the discovery contract leans
-      on), but drop the ``elapsed_ms`` observability echo from the hot path -- it is
-      still recorded server-side and surfaced by ``get_diagnostics``.
-    - ``standard`` / ``full``: the complete ``_meta``, including ``elapsed_ms``.
+    - ``minimal``: the trace essentials only (``_MINIMAL_META_KEYS``). The caller
+      explicitly opted out of guidance, so ``next_commands`` / ``capabilities_version``
+      are dropped; ``data_versions``, ``unsafe_for_clinical_use``, ``elapsed_ms`` and
+      the provenance fields are never dropped at any response_mode.
+    - ``compact`` (default) and richer: the complete ``_meta``.
 
     The universal ``next_commands`` invariant therefore holds for ``compact`` and
     richer (every default response still chains); ``minimal`` is the documented opt-out.
-    ``data_versions`` and ``unsafe_for_clinical_use`` are universal across every tier
-    -- neither is ever stripped, including at ``minimal``.
     """
     if response_mode == "minimal":
-        return {
-            "tool": meta["tool"],
-            "request_id": meta["request_id"],
-            "data_versions": meta["data_versions"],
-            "unsafe_for_clinical_use": meta["unsafe_for_clinical_use"],
-        }
-    if response_mode in ("standard", "full"):
-        return meta
-    return {k: v for k, v in meta.items() if k != "elapsed_ms"}
+        return {k: meta[k] for k in _MINIMAL_META_KEYS if k in meta}
+    return meta
 
 
 def _shaped_forward_offset(payload: dict[str, Any]) -> int | None:
@@ -442,6 +450,7 @@ async def run_mcp_tool(
     and read by the client as a successful call (Response-Envelope Standard v1).
     """
     ctx = context or McpErrorContext(tool_name=tool_name)
+    provenance.begin()
     start = time.perf_counter()
     try:
         result = await call()
@@ -462,6 +471,7 @@ async def run_mcp_tool(
                 "data_versions": _runtime_data_versions(),
                 "unsafe_for_clinical_use": True,
                 "elapsed_ms": elapsed,
+                **(provenance.meta(tool_name) if success else {}),
             }
             _stamp_capabilities_version(meta)
             result["_meta"] = _shape_meta(meta, ctx.response_mode)

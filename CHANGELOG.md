@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-11-26
+
+### Added
+
+- Response-Envelope v1.2 provenance (#130): every successful data result carries `_meta.source` (`metadome`), `_meta.data_version` (the MetaDome data release of the served genome build) and `_meta.retrieved_at` (RFC 3339 UTC, `Z`), at every `response_mode`. `retrieved_at` is the time of the upstream fetch: a landscape served from the result cache and a transcript list served from the in-memory cache keep the time they were first fetched, and a result from several fetches reports the oldest. `_meta.data_versions` (the component map) stays. `get_server_capabilities` and `get_diagnostics` are outside the rule.
+- Conformance: the envelope JSON Schema (genefoundry-envelope v1.2.0, sha256-pinned) is vendored and every data tool is validated against it in-process; `tests/conformance/behaviour.py` is re-vendored with the provenance check.
+
+### Changed
+
+- `_meta.elapsed_ms` is now present at every `response_mode` and on every error envelope (v1 §4 requires it); `minimal` and `compact` used to drop it.
+
+### Known gaps
+
+- The payload is still returned flat beside `success`; the schema's `result`/`results` primary key (v1 §1) is not met and is tracked by a strict-xfail test.
+
 ## [0.5.2] - 2026-11-19
 
 - `resolve_transcript` lead names its purpose: the MetaDome transcript (GRCh37 or GRCh38 build) to use for the missense tolerance landscape.

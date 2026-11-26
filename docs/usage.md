@@ -285,10 +285,15 @@ compare_positions(transcript_id="ENST00000269305.9", positions=[175, 248, 273])
 
 | Mode | `_meta` | Payload shaping | Use when |
 |------|---------|----------------|----------|
-| `minimal` | `{tool, request_id, data_versions, unsafe_for_clinical_use}` | Essential answer and identity fields | Token-cheapest; machine parsing |
+| `minimal` | `{tool, request_id, elapsed_ms, data_versions, unsafe_for_clinical_use}` + provenance | Essential answer and identity fields | Token-cheapest; machine parsing |
 | `compact` (default) | + `next_commands`, `capabilities_version`, `data_versions` | Null/empty fields dropped; lists projected to key fields | Normal agent use |
-| `standard` | + `elapsed_ms` | Complete records, structured fields expanded | Debugging |
-| `full` | + `elapsed_ms` | Full records, full domain maps, full variant detail | Detailed review |
+| `standard` | as `compact` | Complete records, structured fields expanded | Debugging |
+| `full` | as `compact` | Full records, full domain maps, full variant detail | Detailed review |
+
+Provenance (Response-Envelope v1.2) is on every successful data result at every mode:
+`_meta.source` (`metadome`), `_meta.data_version` (the MetaDome data release) and
+`_meta.retrieved_at` (UTC time of the upstream fetch; a cached landscape keeps the time it
+was first fetched).
 
 A hard char-budget guard (~25k tokens) truncates overflow lists and injects `dropped_summary`
 when the payload exceeds budget.
