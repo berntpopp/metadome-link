@@ -89,7 +89,7 @@ def validate_transcript_id(s: str) -> str:
     candidate = s.strip()
     if not is_transcript_id(candidate):
         raise InvalidInputError(
-            f"Invalid transcript id: {s!r}. {_TRANSCRIPT_HINT}",
+            f"Invalid transcript_id: expected an {_TRANSCRIPT_HINT}.",
             field="transcript_id",
             hint=_TRANSCRIPT_HINT,
         )
