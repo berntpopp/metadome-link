@@ -72,8 +72,8 @@ async def test_v1_success_envelope_is_flat_banner_with_real_meta_keys() -> None:
 
     assert out["success"] is True
     # Payload keys live at the top level, not nested under a "result"/"data" wrapper.
-    assert out["transcript_id"] == "ENST00000269305.9"
-    assert out["gene_name"] == "TP53"
+    assert out["result"]["transcript_id"] == "ENST00000269305.9"
+    assert out["result"]["gene_name"] == "TP53"
 
     meta = out["_meta"]
     assert meta["tool"] == "resolve_transcript"

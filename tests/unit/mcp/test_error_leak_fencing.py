@@ -133,7 +133,7 @@ async def test_surface_b_batch_row_error_is_sanitized(
     res = await _drive(facade, "compare_positions", {"transcript_id": TID, "positions": [1]})
     for frame in _both_mirrors(res):
         assert frame["success"] is True  # the batch tool itself "succeeds"
-        rows = frame["comparison"]
+        rows = frame["result"]["comparison"]
         assert rows and "error" in rows[0]
         _assert_no_forbidden(rows[0]["error"])
 

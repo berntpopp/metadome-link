@@ -3,12 +3,6 @@
 The schema is vendored from berntpopp/genefoundry-envelope, tag v1.2.0
 (``envelope-v1.2.schema.json``); its digest is pinned in the sibling ``.sha256`` file.
 Each tool is called in-process against the mocked MetaDome upstream.
-
-One rule is not met yet and is excluded by name, not by weakening the schema: v1 §1
-puts the payload under ``result`` (object) or ``results`` (array), while the tools
-here still return their payload flat beside ``success``. Moving it is a breaking
-wire change of its own; ``test_payload_sits_under_the_primary_key`` is a strict
-xfail that fails the day the payload moves, so this exclusion cannot outlive it.
 """
 
 from __future__ import annotations
@@ -35,16 +29,10 @@ _PROVENANCE = ("source", "data_version", "retrieved_at")
 _TID = _SUCCESS_ARGS["get_tolerance_landscape"]["transcript_id"]
 
 
-def _is_payload_key_rule(error: Any) -> bool:
-    """The v1 §1 ``result``/``results`` rule at the envelope root (see module docstring)."""
-    return error.validator == "anyOf" and not error.absolute_path
-
-
 def _violations(envelope: dict[str, Any]) -> list[str]:
     return [
         f"{'/'.join(map(str, e.absolute_path))}: {e.message}"
         for e in _VALIDATOR.iter_errors(envelope)
-        if not _is_payload_key_rule(e)
     ]
 
 
@@ -100,8 +88,3 @@ def test_retrieved_at_is_the_oldest_fetch() -> None:
     provenance.fetched("2024-05-01T00:00:00Z")
     provenance.fetched("2023-05-01T00:00:00Z")
     assert provenance.retrieved_at() == "2023-05-01T00:00:00Z"
-
-
-@pytest.mark.xfail(strict=True, reason="payload is still flat; v1 §1 result/results is open")
-async def test_payload_sits_under_the_primary_key(facade: Any, call_tool: Any) -> None:
-    _VALIDATOR.validate(await call_tool(facade, "resolve_transcript", {"query": "TP53"}))

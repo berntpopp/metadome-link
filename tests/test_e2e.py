@@ -78,7 +78,7 @@ async def test_resolve_request_get_happy_path(facade: Any, call_tool: Any) -> No
         facade, "request_tolerance_landscape", {"transcript_id": "ENST00000269305.9"}
     )
     assert requested["success"] is True
-    assert requested["status"] in {"ready", "processing"}
+    assert requested["result"]["status"] in {"ready", "processing"}
 
     landscape = await call_tool(
         facade, "get_tolerance_landscape", {"transcript_id": "ENST00000269305.9"}
@@ -86,7 +86,7 @@ async def test_resolve_request_get_happy_path(facade: Any, call_tool: Any) -> No
     assert landscape["success"] is True
     # A ready landscape carries positional_annotation; a still-building job is a
     # first-class status='processing' success state. Accept either.
-    if landscape.get("status") == "processing":
-        assert landscape["transcript_id"] == "ENST00000269305.9"
+    if landscape["result"].get("status") == "processing":
+        assert landscape["result"]["transcript_id"] == "ENST00000269305.9"
     else:
-        assert isinstance(landscape["positional_annotation"], list)
+        assert isinstance(landscape["result"]["positional_annotation"], list)

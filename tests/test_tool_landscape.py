@@ -73,9 +73,9 @@ async def test_request_landscape_ready(facade: Any, call_tool: Any) -> None:
     """A pre-built transcript returns status='ready' with the poll handle + chain."""
     data = await call_tool(facade, "request_tolerance_landscape", {"transcript_id": TID})
     assert data["success"] is True
-    assert data["status"] == "ready"
-    assert data["job_id"] == TID
-    assert data["transcript_id"] == TID
+    assert data["result"]["status"] == "ready"
+    assert data["result"]["job_id"] == TID
+    assert data["result"]["transcript_id"] == TID
     assert data["recommended_citation"]
     # The success chain points at the poll tool keyed on the same transcript.
     steps = data["_meta"]["next_commands"]
@@ -95,9 +95,9 @@ async def test_request_landscape_processing(
     )
     data = await call_tool(facade, "request_tolerance_landscape", {"transcript_id": TID})
     assert data["success"] is True
-    assert data["status"] == "processing"
-    assert data["poll_after_s"] is not None
-    assert data["cold_build_warning"]
+    assert data["result"]["status"] == "processing"
+    assert data["result"]["poll_after_s"] is not None
+    assert data["result"]["cold_build_warning"]
 
 
 async def test_request_landscape_failure_is_non_retryable(
@@ -136,10 +136,10 @@ async def test_get_landscape_ready_returns_domains_and_positions(
     """A ready landscape returns domains + paginated positions + data_versions."""
     data = await call_tool(facade, "get_tolerance_landscape", {"transcript_id": TID})
     assert data["success"] is True
-    assert data["transcript_id"] == TID
-    assert data["gene_name"] == "TP53"
-    assert isinstance(data["domains"], list) and len(data["domains"]) == 3
-    positions = data["positional_annotation"]
+    assert data["result"]["transcript_id"] == TID
+    assert data["result"]["gene_name"] == "TP53"
+    assert isinstance(data["result"]["domains"], list) and len(data["result"]["domains"]) == 3
+    positions = data["result"]["positional_annotation"]
     assert isinstance(positions, list) and positions
     assert all("protein_pos" in p for p in positions)
     # D1 contract truth: the pinned lead names sw_dn_ds.
@@ -182,7 +182,7 @@ async def test_get_landscape_slice_by_position_range(facade: Any, call_tool: Any
         {"transcript_id": TID, "position_start": 173, "position_stop": 177},
     )
     assert data["success"] is True
-    positions = data["positional_annotation"]
+    positions = data["result"]["positional_annotation"]
     poss = [p["protein_pos"] for p in positions]
     assert poss == [173, 174, 175, 176, 177]
     assert data["pagination"]["total"] == 5
@@ -204,9 +204,9 @@ async def test_get_landscape_processing_state(
     )
     data = await call_tool(facade, "get_tolerance_landscape", {"transcript_id": TID})
     assert data["success"] is True
-    assert data["status"] == "processing"
-    assert data["poll_after_s"] is not None
-    assert data["cold_build_warning"]
+    assert data["result"]["status"] == "processing"
+    assert data["result"]["poll_after_s"] is not None
+    assert data["result"]["cold_build_warning"]
     # Still building: request (idempotent) then poll again.
     steps = data["_meta"]["next_commands"]
     assert steps[0]["tool"] == "request_tolerance_landscape"
@@ -315,13 +315,15 @@ async def test_get_landscape_avil_repeated_pfam_without_alignment_depth(
         {"transcript_id": AVIL_TID, "position_start": 415, "position_stop": 435},
     )
     assert data["success"] is True, data
-    assert data["gene_name"] == "AVIL"
-    domains = data["domains"]
+    assert data["result"]["gene_name"] == "AVIL"
+    domains = data["result"]["domains"]
     assert len(domains) == 7
     assert domains[0]["meta_domain_alignment_depth"] == 45
     # Absent upstream stays absent -- never fabricated.
     assert "meta_domain_alignment_depth" not in domains[1]
-    assert [p["protein_pos"] for p in data["positional_annotation"]] == list(range(415, 436))
+    assert [p["protein_pos"] for p in data["result"]["positional_annotation"]] == list(
+        range(415, 436)
+    )
 
 
 async def test_get_position_tolerance_avil_425(

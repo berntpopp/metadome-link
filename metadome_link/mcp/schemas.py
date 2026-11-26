@@ -49,6 +49,12 @@ from metadome_link.mcp.schema_utils import closed, refactor_pattern
 _CITATION = {"recommended_citation": STR}
 _CAVEAT = {"data_currency_caveat": STR}
 
+
+def _in_result(constraint: dict[str, object]) -> dict[str, object]:
+    """Apply a constraint to the record under ``result``."""
+    return {"properties": {"result": constraint}}
+
+
 GET_SERVER_CAPABILITIES_SCHEMA = output_schema(
     {
         "server": STR,
@@ -107,6 +113,7 @@ GET_SERVER_CAPABILITIES_SCHEMA = output_schema(
     ),
     defs={"b": BUILD, "l": LIMITS, "tm": TOOL_MODES},
     next_command=CAPABILITIES_NEXT_COMMAND,
+    flat=True,
 )
 
 # Same key sets, fewer tokens (Tool-Surface Budget B2 after FastMCP 4 added titles).
@@ -169,6 +176,7 @@ GET_DIAGNOSTICS_SCHEMA = output_schema(
         "z": TALLY,
     },
     next_command=DIAGNOSTICS_NEXT_COMMAND,
+    flat=True,
 )
 
 RESOLVE_TRANSCRIPT_SCHEMA = output_schema(
@@ -185,11 +193,15 @@ RESOLVE_TRANSCRIPT_SCHEMA = output_schema(
     ("resolved_from", "recommended_citation"),
     constraint={
         "oneOf": [
-            {"properties": {"resolved_from": {"const": "id"}}, "required": ["transcript_id"]},
-            {
-                "properties": {"resolved_from": {"const": "gene"}},
-                "required": ["gene_name", "analyzable", "transcripts"],
-            },
+            _in_result(
+                {"properties": {"resolved_from": {"const": "id"}}, "required": ["transcript_id"]}
+            ),
+            _in_result(
+                {
+                    "properties": {"resolved_from": {"const": "gene"}},
+                    "required": ["gene_name", "analyzable", "transcripts"],
+                }
+            ),
         ]
     },
     defs={"t": TRANSCRIPT},
@@ -237,7 +249,7 @@ GET_TOLERANCE_LANDSCAPE_SCHEMA = output_schema(
     ("transcript_id", "recommended_citation"),
     constraint={
         "oneOf": [
-            {"required": ["status", "poll_after_s", "cold_build_warning"]},
+            _in_result({"required": ["status", "poll_after_s", "cold_build_warning"]}),
             {"required": ["pagination"]},
         ]
     },

@@ -43,8 +43,8 @@ async def test_explicit_empty_domains_stays_empty_scope(
         {"transcript_id": TID, "position": 175, "domains": {}, "response_mode": "standard"},
     )
     assert data["success"] is True
-    assert data["requested_domains"] == {}
-    assert data["meta_domains"] == {}
+    assert data["result"]["requested_domains"] == {}
+    assert data["result"]["meta_domains"] == {}
     assert mocked_metadome.post("/get_metadomain_annotation/").call_count == 0
 
 

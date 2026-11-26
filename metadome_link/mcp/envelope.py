@@ -39,6 +39,7 @@ from metadome_link.exceptions import (
 from metadome_link.mcp import metrics
 from metadome_link.mcp._sanitize import sanitize_message
 from metadome_link.mcp.next_commands import cmd, default_error_next_commands
+from metadome_link.mcp.payload import nest_payload
 from metadome_link.services.shaping import char_budget_guard
 
 logger = logging.getLogger(__name__)
@@ -476,6 +477,7 @@ async def run_mcp_tool(
             _stamp_capabilities_version(meta)
             result["_meta"] = _shape_meta(meta, ctx.response_mode)
             metrics.record(tool_name, elapsed, ok=success)
+            nest_payload(tool_name, result)
         return result
     except Exception as exc:  # broad catch is the error-boundary contract
         elapsed = int((time.perf_counter() - start) * 1000)

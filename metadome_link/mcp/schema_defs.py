@@ -6,6 +6,7 @@ import json
 from copy import deepcopy
 from typing import Any
 
+from metadome_link.mcp.payload import TOP_LEVEL
 from metadome_link.mcp.schema_command_defs import NEXT_COMMAND
 from metadome_link.mcp.schema_utils import closed, refactor_pattern
 
@@ -393,14 +394,23 @@ def output_schema(
     defs: dict[str, Any] | None = None,
     candidates: bool = False,
     next_command: dict[str, Any] | None = None,
+    flat: bool = False,
 ) -> dict[str, Any]:
-    """Build a genuine two-branch, closed success/error output contract."""
+    """Build a genuine two-branch, closed success/error output contract.
+
+    A data tool's record sits under ``result`` (Response-Envelope v1 §1); ``flat`` keeps
+    an ops tool's payload beside ``success``.
+    """
     success_properties = {
         "success": {"const": True},
         "_meta": {"$ref": "#/$defs/M"},
         "dropped_summary": STR,
         **properties,
     }
+    if not flat:
+        record = {k: success_properties.pop(k) for k in properties if k not in TOP_LEVEL}
+        success_properties["result"] = closed(record, tuple(r for r in required if r in record))
+        required = ("result", *(r for r in required if r not in record))
     success = closed(success_properties, ("success", "_meta", *required))
     success.pop("type")
     if constraint is not None:

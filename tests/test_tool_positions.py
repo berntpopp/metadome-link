@@ -29,9 +29,9 @@ async def test_get_position_tolerance_returns_sw_dn_ds(
         {"transcript_id": TID, "position": 175, "response_mode": "standard"},
     )
     assert data["success"] is True
-    assert data["protein_pos"] == 175
-    assert data["ref_aa"] == "R"
-    assert data["sw_dn_ds"] == 0.44289044289044294
+    assert data["result"]["protein_pos"] == 175
+    assert data["result"]["ref_aa"] == "R"
+    assert data["result"]["sw_dn_ds"] == 0.44289044289044294
     assert "recommended_citation" in data
     assert data["_meta"]["next_commands"]
 
@@ -73,7 +73,7 @@ async def test_get_variant_counts_source_both(
         {"transcript_id": TID, "position": 35, "source": "both"},
     )
     assert data["success"] is True
-    evidence = data["positions"][0]["variant_evidence"]
+    evidence = data["result"]["positions"][0]["variant_evidence"]
     assert "gnomad" in evidence["residue_level"]
     assert "clinvar" in evidence["residue_level"]
 
@@ -88,7 +88,7 @@ async def test_get_variant_counts_source_gnomad_only(
         {"transcript_id": TID, "position": 35, "source": "gnomad"},
     )
     assert data["success"] is True
-    row = data["positions"][0]
+    row = data["result"]["positions"][0]
     evidence = row["variant_evidence"]
     assert "gnomad" in evidence["residue_level"]
     assert "clinvar" not in evidence["residue_level"]
@@ -105,7 +105,7 @@ async def test_get_variant_counts_clinvar_id_present(
         {"transcript_id": TID, "position": 35, "source": "clinvar"},
     )
     assert data["success"] is True
-    row = data["positions"][0]
+    row = data["result"]["positions"][0]
     assert "gnomad" not in row["variant_evidence"]["residue_level"]
     variants = row["clinvar_variants"]
     assert any(v.get("clinvar_ID") == "12371" for v in variants)
@@ -131,7 +131,7 @@ async def test_get_variant_counts_whole_protein_paginates_with_next_command(
         {"transcript_id": TID, "limit": 2, "offset": 0, "response_mode": "compact"},
     )
     assert data["success"] is True
-    assert len(data["positions"]) == 2
+    assert len(data["result"]["positions"]) == 2
     assert data["pagination"]["limit"] == 2
     assert data["pagination"]["offset"] == 0
     assert data["pagination"]["truncated"] is True
@@ -168,7 +168,7 @@ async def test_compare_positions_table(facade: Any, call_tool: Any, mocked_metad
         {"transcript_id": TID, "positions": [35, 175, 248], "response_mode": "standard"},
     )
     assert data["success"] is True
-    rows = {r["protein_pos"]: r for r in data["comparison"]}
+    rows = {r["protein_pos"]: r for r in data["result"]["comparison"]}
     assert set(rows) == {35, 175, 248}
     assert rows[175]["sw_dn_ds"] == 0.44289044289044294
     assert rows[248]["ref_aa"] == "R"
@@ -184,7 +184,7 @@ async def test_compare_positions_per_item_error(
         {"transcript_id": TID, "positions": [175, 9999]},
     )
     assert data["success"] is True
-    rows = {r["protein_pos"]: r for r in data["comparison"]}
+    rows = {r["protein_pos"]: r for r in data["result"]["comparison"]}
     assert "error" in rows[9999]
     assert "error" not in rows[175]
 

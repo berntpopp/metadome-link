@@ -28,7 +28,7 @@ async def test_position_and_comparison_expose_provenanced_variant_evidence(
         {"transcript_id": TID, "positions": [175], "response_mode": "standard"},
     )
 
-    for row in (position, comparison["comparison"][0]):
+    for row in (position["result"], comparison["result"]["comparison"][0]):
         assert "counts" not in row
         evidence = row["variant_evidence"]
         assert evidence["residue_level"]["gnomad"]["available"] is False
@@ -49,7 +49,7 @@ async def test_variant_counts_separate_actual_clinvar_from_homolog_aggregates(
         {"transcript_id": TID, "position": 175, "source": "both", "response_mode": "standard"},
     )
 
-    row = data["positions"][0]
+    row = data["result"]["positions"][0]
     assert "counts" not in row
     evidence = row["variant_evidence"]
     assert evidence["residue_level"]["gnomad"]["available"] is False
@@ -68,7 +68,7 @@ async def test_non_metadomain_residue_never_reports_a_gnomad_zero(
         {"transcript_id": TID, "position": 35, "source": "gnomad", "response_mode": "standard"},
     )
 
-    evidence = data["positions"][0]["variant_evidence"]
+    evidence = data["result"]["positions"][0]["variant_evidence"]
     gnomad = evidence["residue_level"]["gnomad"]
     assert gnomad["available"] is False
     assert "variant_count" not in gnomad
@@ -87,7 +87,7 @@ async def test_null_domain_mapping_is_unavailable_not_a_homolog_zero(
         {"transcript_id": TID, "position": 357, "source": "gnomad", "response_mode": "standard"},
     )
 
-    evidence = data["positions"][0]["variant_evidence"]
+    evidence = data["result"]["positions"][0]["variant_evidence"]
     assert evidence["residue_level"]["gnomad"]["available"] is False
     homologs = evidence["meta_domain_homolog_aggregate"]
     assert homologs["available"] is False
@@ -104,11 +104,11 @@ async def test_position_view_hides_unscoped_upstream_variant_fields(
         {"transcript_id": TID, "position": 175, "response_mode": "standard"},
     )
 
-    membership = data["domains"]["PF00870"]
+    membership = data["result"]["domains"]["PF00870"]
     assert membership == {"meta_domain_homolog_aggregate_available": True}
     assert "normal_variant_count" not in membership
     assert "pathogenic_variant_count" not in membership
-    assert "ClinVar" not in data
+    assert "ClinVar" not in data["result"]
 
 
 async def test_region_summary_labels_homolog_aggregates_and_actual_clinvar(
@@ -121,8 +121,8 @@ async def test_region_summary_labels_homolog_aggregates_and_actual_clinvar(
         {"transcript_id": TID, "response_mode": "standard"},
     )
 
-    assert data["regions"]
-    for region in data["regions"]:
+    assert data["result"]["regions"]
+    for region in data["result"]["regions"]:
         assert "gnomad_variant_count" not in region
         assert "clinvar_variant_count" not in region
         evidence = region["variant_evidence"]
@@ -194,7 +194,7 @@ async def test_envelope_applies_honest_pagination_after_budget_shaping(
             arguments={"transcript_id": TID, "limit": 20, "offset": 0},
         ),
     )
-    rows = result["positions"]
+    rows = result["result"]["positions"]
     block = result["pagination"]
     assert block["returned"] == len(rows)
     assert block["next_offset"] == len(rows)
@@ -261,7 +261,7 @@ async def test_envelope_keeps_nested_meta_domain_forward_page_from_skipping_rows
             arguments={"transcript_id": TID, "position": 175, "offset": 0},
         ),
     )
-    block = result["meta_domains"]["PF00001"]["pagination"]
+    block = result["result"]["meta_domains"]["PF00001"]["pagination"]
     omitted_offsets = [
         page["next_offset"]
         for page in block.values()
@@ -300,5 +300,5 @@ async def test_minimal_mode_retains_each_audit_tool_core_answer(
     )
 
     assert data["success"] is True
-    assert answer_key in data
-    assert data[answer_key] not in (None, [], {})
+    assert answer_key in data["result"]
+    assert data["result"][answer_key] not in (None, [], {})

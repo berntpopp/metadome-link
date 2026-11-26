@@ -136,7 +136,8 @@ async def test_success_branch_requires_tool_data(
             _SCHEMAS[tool_name],
         )
     isolated = deepcopy(output)
-    isolated.pop(_PRIMARY_DATA_FIELD[tool_name])
+    field = _PRIMARY_DATA_FIELD[tool_name]
+    (isolated if field in isolated else isolated["result"]).pop(field)
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(isolated, _SCHEMAS[tool_name])
 
@@ -162,7 +163,7 @@ async def test_error_branch_forbids_success_data(
         "success": False,
         "_meta": output["_meta"],
         **_ERROR_FIELDS,
-        data_key: output[data_key],
+        data_key: output[data_key] if data_key in output else output["result"][data_key],
     }
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(error, _SCHEMAS[tool_name])
@@ -177,23 +178,23 @@ async def test_nested_records_are_required_typed_and_closed(facade: Any, call_to
 
     mutations: list[tuple[dict[str, Any], dict[str, Any]]] = []
     bad = deepcopy(domains)
-    bad["domains"][0] = {}
+    bad["result"]["domains"][0] = {}
     mutations.append((bad, schemas.GET_PROTEIN_DOMAINS_SCHEMA))
     bad = deepcopy(landscape)
-    bad["positional_annotation"][0] = {}
+    bad["result"]["positional_annotation"][0] = {}
     mutations.append((bad, schemas.GET_TOLERANCE_LANDSCAPE_SCHEMA))
     bad = deepcopy(landscape)
     bad["pagination"]["truncated"] = 1
     mutations.append((bad, schemas.GET_TOLERANCE_LANDSCAPE_SCHEMA))
     bad = deepcopy(position)
-    bad["variant_evidence"] = {}
+    bad["result"]["variant_evidence"] = {}
     mutations.append((bad, schemas.GET_POSITION_TOLERANCE_SCHEMA))
     bad = deepcopy(position)
-    membership = next(iter(bad["domains"].values()))
+    membership = next(iter(bad["result"]["domains"].values()))
     membership["unknown"] = True
     mutations.append((bad, schemas.GET_POSITION_TOLERANCE_SCHEMA))
     bad = deepcopy(meta_domain)
-    block = next(iter(bad["meta_domains"].values()))
+    block = next(iter(bad["result"]["meta_domains"].values()))
     block["normal_variants"][0] = {}
     mutations.append((bad, schemas.GET_META_DOMAIN_SCHEMA))
 
@@ -268,10 +269,10 @@ async def test_all_preserved_optional_v2_fields_validate_but_extras_do_not(
     variant_counts = await _success(facade, call_tool, "get_variant_counts")
     meta_domain = await _success(facade, call_tool, "get_meta_domain")
 
-    landscape["positional_annotation"][0]["exon_numbers"] = "5, 5, 5"
-    clinvar = variant_counts["positions"][0]["clinvar_variants"][0]
+    landscape["result"]["positional_annotation"][0]["exon_numbers"] = "5, 5, 5"
+    clinvar = variant_counts["result"]["positions"][0]["clinvar_variants"][0]
     clinvar["clinvar_clinsig"] = "Pathogenic"
-    block = next(iter(meta_domain["meta_domains"].values()))
+    block = next(iter(meta_domain["result"]["meta_domains"].values()))
     block["normal_variants"][0]["exon_numbers"] = "5, 5, 5"
     block["pathogenic_variants"][0]["exon_numbers"] = "5, 5, 5"
     block["pathogenic_variants"][0]["clinvar_clinsig"] = "Pathogenic"
@@ -284,7 +285,7 @@ async def test_all_preserved_optional_v2_fields_validate_but_extras_do_not(
         (
             landscape,
             schemas.GET_TOLERANCE_LANDSCAPE_SCHEMA,
-            landscape["positional_annotation"][0],
+            landscape["result"]["positional_annotation"][0],
         ),
         (variant_counts, schemas.GET_VARIANT_COUNTS_SCHEMA, clinvar),
         (meta_domain, schemas.GET_META_DOMAIN_SCHEMA, block["normal_variants"][0]),
@@ -292,11 +293,11 @@ async def test_all_preserved_optional_v2_fields_validate_but_extras_do_not(
         bad = deepcopy(output)
         # Locate the copied target by using the same stable shape-specific path.
         if schema is schemas.GET_TOLERANCE_LANDSCAPE_SCHEMA:
-            copied_target = bad["positional_annotation"][0]
+            copied_target = bad["result"]["positional_annotation"][0]
         elif schema is schemas.GET_VARIANT_COUNTS_SCHEMA:
-            copied_target = bad["positions"][0]["clinvar_variants"][0]
+            copied_target = bad["result"]["positions"][0]["clinvar_variants"][0]
         else:
-            copied_target = next(iter(bad["meta_domains"].values()))["normal_variants"][0]
+            copied_target = next(iter(bad["result"]["meta_domains"].values()))["normal_variants"][0]
         assert target
         copied_target["unknown_live_field"] = "x"
         with pytest.raises(jsonschema.ValidationError):

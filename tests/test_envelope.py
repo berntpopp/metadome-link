@@ -50,7 +50,7 @@ async def test_success_injects_success_and_meta() -> None:
 
     out = await _run("resolve_transcript", call)
     assert out["success"] is True
-    assert out["transcript_id"] == "ENST00000269305.9"
+    assert out["result"]["transcript_id"] == "ENST00000269305.9"
     meta = out["_meta"]
     assert meta["tool"] == "resolve_transcript"
     assert "request_id" in meta
@@ -289,7 +289,7 @@ async def test_oversized_success_payload_is_budget_guarded() -> None:
     # Serialised size is at/under the budget.
     assert len(json.dumps(out)) <= MAX_RESPONSE_CHARS
     # The big lists were reduced from their originals.
-    assert len(out["positional_annotation"]) < 1500
+    assert len(out["result"]["positional_annotation"]) < 1500
     # _meta survives intact and is NOT truncated/dropped.
     meta = out["_meta"]
     assert meta["tool"] == "get_tolerance_landscape"
@@ -305,7 +305,7 @@ async def test_normal_payload_unaffected_by_budget_guard() -> None:
 
     out = await _run("get_position_tolerance", call)
     assert "dropped_summary" not in out
-    assert out["positions"] == [1, 2, 3]
+    assert out["result"]["positions"] == [1, 2, 3]
 
 
 def _error_cases() -> list[Any]:

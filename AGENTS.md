@@ -74,6 +74,9 @@ is a **first-class success state** (not an error), carrying `poll_after_s` /
   `truncated`/`next_offset`); when truncated, `_meta.next_commands` offers a
   forward-page step (advance `offset`). `positional_annotation` and meta-domain
   variant lists are always paginated.
+- A data tool's record sits under `result` (Response-Envelope v1 §1); `pagination`,
+  `recommended_citation`, `data_currency_caveat` and `dropped_summary` stay at the
+  envelope top level. `mcp/payload.py::nest_payload` does this once, in `run_mcp_tool`.
 - Every record-derived payload carries `recommended_citation` (verbatim Wiel 2019).
 - Keep `mcp/capabilities.py::TOOLS` (the frozen 11-name list) in sync with the
   registered tool set.
