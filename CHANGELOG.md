@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-11-26
+
+### Fixed
+
+- `resolve_transcript` no longer answers an Ensembl gene id (`ENSG00000141510`), an HGNC id (`HGNC:11998`) or an NCBI Gene id (`NCBIGene:7157`) with `not_found`. MetaDome is keyed by gene symbol, so the gene was never looked up and the answer read as "this gene has no transcripts". The tool now returns `invalid_input` with `field`, `allowed_values` and the converter (`hgnc_resolve_symbol` or `hgnc_resolve_gene_by_xref`) in `_meta.next_commands` (Response-Envelope Standard v1 §2b), and does not call MetaDome.
+
 ## [0.7.0] - 2026-11-26
 
 ### Changed

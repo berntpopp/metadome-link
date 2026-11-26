@@ -16,6 +16,7 @@ The canonical transcript for TP53 in the fixture is ENST00000269305.9
 from __future__ import annotations
 
 import httpx
+import pytest
 import respx
 
 from tests.conftest import TID
@@ -160,3 +161,33 @@ async def test_resolve_compact_mode_includes_next_commands(
     )
     assert data["success"] is True
     assert "next_commands" in data.get("_meta", {})
+
+
+# ---------------------------------------------------------------------------
+# Gene ids in a namespace MetaDome is not keyed by (Response-Envelope v1 section 2b)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("query", "tool", "arguments"),
+    [
+        ("ENSG00000141510", "hgnc_resolve_symbol", {"query": "ENSG00000141510"}),
+        ("hgnc:11998", "hgnc_resolve_symbol", {"query": "HGNC:11998"}),
+        ("NCBIGene:7157", "hgnc_resolve_gene_by_xref", {"source": "entrez_id", "value": "7157"}),
+    ],
+)
+async def test_resolve_foreign_gene_id_is_invalid_input_naming_the_converter(
+    facade: object,
+    call_tool: object,
+    mocked_metadome: respx.MockRouter,
+    query: str,
+    tool: str,
+    arguments: dict[str, str],
+) -> None:
+    """A gene id that is not a symbol is rejected before any MetaDome call, never not_found."""
+    data = await call_tool(facade, "resolve_transcript", {"query": query})  # type: ignore[operator]
+    assert data["error_code"] == "invalid_input"
+    assert data["field"] == "query"
+    assert data["allowed_values"]
+    assert data["_meta"]["next_commands"] == [{"tool": tool, "arguments": arguments}]
+    assert not mocked_metadome.calls
