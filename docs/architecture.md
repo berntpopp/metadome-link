@@ -62,10 +62,10 @@ metadome_link/mcp/
     _common.py       # shared Annotated arg types (ResponseMode, TranscriptIdArg, PositionArg, ...)
     discovery.py     # get_server_capabilities, get_diagnostics
     transcripts.py   # resolve_transcript
-    landscape.py     # request_tolerance_landscape, get_tolerance_landscape
+    landscape.py     # submit_tolerance_landscape, get_tolerance_landscape
     positions.py     # get_position_tolerance, get_variant_counts, compare_positions
     domains.py       # get_protein_domains, get_meta_domain
-    analysis.py      # summarize_intolerant_regions
+    analysis.py      # find_intolerant_regions
 ```
 
 ## Async request + poll model
@@ -77,7 +77,7 @@ to ~1 hour.
 The tool surface implements an explicit **request + poll split**:
 
 ```
-request_tolerance_landscape(transcript_id)
+submit_tolerance_landscape(transcript_id)
   → submit (POST /submit_visualization/)
   → one status check (GET /status/<genome_build>/<tid>)
   → returns {job_id, status:"ready"|"processing", poll_after_s, eta_hint, cold_build_warning}

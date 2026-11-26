@@ -4,7 +4,7 @@
 
 The image starts the unified server (FastAPI `/health` + MCP `/mcp`) on port 8000
 immediately — there is no bulk-ingest step. The read-only data tools poll/fetch landscapes
-and populate the result cache lazily; only the explicit `request_tolerance_landscape` tool
+and populate the result cache lazily; only the explicit `submit_tolerance_landscape` tool
 submits an upstream build. Mount a persistent volume at `/data` so cached landscapes
 survive container restarts.
 

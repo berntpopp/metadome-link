@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-26
+
+### Changed (BREAKING)
+
+- Two tools are renamed to canonical verbs of the Tool-Naming Standard v1.1 (#136). The old
+  names are removed with no aliases; the arguments and output are unchanged.
+
+  **Migration:** call the new names.
+
+  | Old name | New name |
+  |---|---|
+  | `request_tolerance_landscape` | `submit_tolerance_landscape` |
+  | `summarize_intolerant_regions` | `find_intolerant_regions` |
+
+  Every sibling description, `_meta.next_commands`, the server instructions and
+  `get_server_capabilities` workflows now name the new tools. The per-tool verb exemption in the
+  naming guard is removed; every domain tool now passes the verb canon.
+
 ## [0.7.1] - 2026-11-26
 
 ### Fixed

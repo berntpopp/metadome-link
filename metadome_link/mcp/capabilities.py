@@ -43,14 +43,14 @@ TOOLS: list[str] = [
     "get_server_capabilities",
     "get_diagnostics",
     "resolve_transcript",
-    "request_tolerance_landscape",
+    "submit_tolerance_landscape",
     "get_tolerance_landscape",
     "get_position_tolerance",
     "get_variant_counts",
     "compare_positions",
     "get_protein_domains",
     "get_meta_domain",
-    "summarize_intolerant_regions",
+    "find_intolerant_regions",
 ]
 
 #: Keys extracted for the summary detail level.
@@ -172,18 +172,18 @@ def build_capabilities(
         ],
         "recommended_workflows": [
             (
-                "resolve_transcript(query) → request_tolerance_landscape(transcript_id) "
+                "resolve_transcript(query) → submit_tolerance_landscape(transcript_id) "
                 "→ get_tolerance_landscape(transcript_id) → get_position_tolerance / "
                 "get_variant_counts / get_protein_domains / get_meta_domain / "
-                "summarize_intolerant_regions / compare_positions"
+                "find_intolerant_regions / compare_positions"
             ),
             "gene symbol → resolve_transcript → canonical transcript_id",
             "ENST id → resolve_transcript (validates version suffix) → canonical",
-            "transcript_id → request_tolerance_landscape → status:'ready'|'processing'",
+            "transcript_id → submit_tolerance_landscape → status:'ready'|'processing'",
             "transcript_id → get_tolerance_landscape → paginated positional_annotation",
             "transcript_id + position → get_position_tolerance → sw_dn_ds, domains",
             "transcript_id + position → get_meta_domain → homologous-domain variants",
-            "transcript_id → summarize_intolerant_regions → ranked constrained windows",
+            "transcript_id → find_intolerant_regions → ranked constrained windows",
             "transcript_id + positions[] → compare_positions → side-by-side table",
         ],
         "error_codes": ERROR_CODES,
@@ -192,17 +192,17 @@ def build_capabilities(
             "default_page_limit": DEFAULT_PAGE_LIMIT,
             "max_page_limit": MAX_PAGE_LIMIT,
         },
-        # The aggregate is mixed: request_tolerance_landscape can submit a
+        # The aggregate is mixed: submit_tolerance_landscape can submit a
         # build, while all other tools only read cached/upstream data.
         "read_only": False,
         "tool_modes": {
-            "read_only": [tool for tool in TOOLS if tool != "request_tolerance_landscape"],
-            "compute_orchestration": ["request_tolerance_landscape"],
+            "read_only": [tool for tool in TOOLS if tool != "submit_tolerance_landscape"],
+            "compute_orchestration": ["submit_tolerance_landscape"],
         },
         "async_model": (
             "MetaDome computes tolerance landscapes asynchronously (Celery). Popular "
             "transcripts (e.g. TP53) are pre-built and return status='ready' immediately; "
-            "a cold build can take up to ~1 hour. Use request_tolerance_landscape to "
+            "a cold build can take up to ~1 hour. Use submit_tolerance_landscape to "
             "submit (idempotent), then poll get_tolerance_landscape. "
             "status:'processing' is a first-class success state, not an error. An id with "
             "no MetaDome landscape or build job (unknown, or never requested) is not_found."

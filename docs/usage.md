@@ -43,13 +43,13 @@ MetaDome build (GRCh37.p13 or GRCh38.p14) transcript candidates.
 - **ENST id** (`ENST00000269305.9`): the `.N` version suffix is required; validated and echoed
   directly without an upstream call. An id without a version suffix → `invalid_input`.
 
-`_meta.next_commands` points at `request_tolerance_landscape` for the canonical transcript.
+`_meta.next_commands` points at `submit_tolerance_landscape` for the canonical transcript.
 
 ### 3. Async tolerance landscape (`mcp/tools/landscape.py`)
 
 MetaDome computes landscapes asynchronously. The two-tool split is explicit by design.
 
-#### `request_tolerance_landscape(transcript_id, response_mode="compact")`
+#### `submit_tolerance_landscape(transcript_id, response_mode="compact")`
 
 Submit (or re-confirm) a landscape build and return a job handle. **Idempotent.**
 
@@ -77,7 +77,7 @@ Cache-first fetch of the built landscape.
 - **Cache hit**: returns the landscape immediately.
 - **Cache miss + build ready**: fetches from MetaDome, caches on disk, returns the landscape.
 - **Cache miss + no job upstream** (unknown id, or never requested): `not_found` (non-retryable);
-  `request_tolerance_landscape` starts a build; for an id MetaDome does not know, that build fails
+  `submit_tolerance_landscape` starts a build; for an id MetaDome does not know, that build fails
   within seconds and the next poll returns `not_found` with a `resolve_transcript` hint.
 - **Cache miss + still building**: returns `{success:true, status:"processing", poll_after_s}`
   — **not an error**. Re-poll after `poll_after_s`.
@@ -114,7 +114,7 @@ range queries. If omitted, the full `positional_annotation` is paginated.
 
 All three operate on a built landscape. A cache miss attempts one live poll; if still building
 → `not_found` with `recovery_action:"switch_tool"` and `next_commands` pointing at
-`request_tolerance_landscape` + `get_tolerance_landscape`.
+`submit_tolerance_landscape` + `get_tolerance_landscape`.
 
 #### `get_position_tolerance(transcript_id, position, response_mode="compact")`
 
@@ -177,7 +177,7 @@ Variant lists are paginated via `limit` + `offset`.
 
 ### 6. Analysis (`mcp/tools/analysis.py`)
 
-#### `summarize_intolerant_regions(transcript_id, threshold=0.5, min_run=3, top_n=15, response_mode="compact")`
+#### `find_intolerant_regions(transcript_id, threshold=0.5, min_run=3, top_n=15, response_mode="compact")`
 
 Scan the cached landscape and return the top ranked contiguous intolerant regions:
 
@@ -206,7 +206,7 @@ is `ENST00000269305.9` (393 aa, MANE Select).
 
 **Step 2 — request the landscape:**
 ```json
-{ "tool": "request_tolerance_landscape", "arguments": { "transcript_id": "ENST00000269305.9" } }
+{ "tool": "submit_tolerance_landscape", "arguments": { "transcript_id": "ENST00000269305.9" } }
 ```
 For TP53 the landscape is pre-built; `status:"ready"` is returned immediately.
 
@@ -232,7 +232,7 @@ homologous proteins in the same Pfam domain family.
 
 **Step 4c — identify the most constrained regions:**
 ```json
-{ "tool": "summarize_intolerant_regions", "arguments": { "transcript_id": "ENST00000269305.9" } }
+{ "tool": "find_intolerant_regions", "arguments": { "transcript_id": "ENST00000269305.9" } }
 ```
 Returns ranked contiguous intolerant runs (mean `sw_dn_ds` below threshold) annotated with
 overlapping Pfam domains and explicitly scoped variant evidence.
@@ -249,7 +249,7 @@ resolve_transcript(query="TP53")
 ### Landscape → per-position analysis
 
 ```
-request_tolerance_landscape(transcript_id="ENST00000269305.9")
+submit_tolerance_landscape(transcript_id="ENST00000269305.9")
   → status:"ready"
 get_tolerance_landscape(transcript_id="ENST00000269305.9")
   → landscape + domains + paginated positional_annotation
@@ -257,14 +257,14 @@ get_position_tolerance(transcript_id="ENST00000269305.9", position=175)
   → sw_dn_ds at p.R175
 get_meta_domain(transcript_id="ENST00000269305.9", position=175)
   → homologous ClinVar pathogenic variants at consensus position
-summarize_intolerant_regions(transcript_id="ENST00000269305.9")
+find_intolerant_regions(transcript_id="ENST00000269305.9")
   → top constrained regions
 ```
 
 ### Cold-build transcript
 
 ```
-request_tolerance_landscape(transcript_id="ENST00000000001.1")
+submit_tolerance_landscape(transcript_id="ENST00000000001.1")
   → status:"processing", poll_after_s=30
 # wait poll_after_s seconds, then:
 get_tolerance_landscape(transcript_id="ENST00000000001.1")
@@ -310,7 +310,7 @@ when the payload exceeds budget.
 | `internal` | Unexpected server error | false |
 
 On a `not_found` for a missing landscape, `recovery_action` is `"switch_tool"` and
-`_meta.next_commands` offers `request_tolerance_landscape` + `get_tolerance_landscape`.
+`_meta.next_commands` offers `submit_tolerance_landscape` + `get_tolerance_landscape`.
 
 ## Limits
 

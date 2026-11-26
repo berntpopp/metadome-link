@@ -209,7 +209,7 @@ RESOLVE_TRANSCRIPT_SCHEMA = output_schema(
     next_command=RESOLVE_NEXT_COMMAND,
 )
 
-REQUEST_TOLERANCE_LANDSCAPE_SCHEMA = output_schema(
+SUBMIT_TOLERANCE_LANDSCAPE_SCHEMA = output_schema(
     {
         "job_id": STR,
         "transcript_id": STR,
@@ -392,7 +392,7 @@ GET_META_DOMAIN_SCHEMA = output_schema(
     next_command=META_NEXT_COMMAND,
 )
 
-SUMMARIZE_INTOLERANT_REGIONS_SCHEMA = output_schema(
+FIND_INTOLERANT_REGIONS_SCHEMA = output_schema(
     {
         "transcript_id": STR,
         "gene_name": STR_NULL,

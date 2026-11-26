@@ -4,7 +4,7 @@
 `metadome-link`, wrapping [MetaDome 2.0](https://www.metadome.app/metadome). Its
 read-only data tools expose build-scoped missense-tolerance landscapes, Pfam domains,
 and meta-domain homologue aggregates. The one explicit compute trigger,
-`request_tolerance_landscape`, idempotently starts an upstream build job when needed;
+`submit_tolerance_landscape`, idempotently starts an upstream build job when needed;
 MetaDome does not provide true per-residue gnomAD counts.
 
 **Sources cross-checked (cite these in design reviews):**
@@ -21,14 +21,14 @@ MetaDome does not provide true per-residue gnomAD counts.
 
 1. **Resolve, then fetch.** One `resolve_*` tool turns free-text (gene symbol, transcript, UniProt) into a stable transcript ID; every data tool takes that ID. Never make a data tool guess identifiers.
 2. **~8–12 tools, `verb_noun`, unprefixed.** Small surface, one action each. Keep reads read-only and isolate the idempotent compute trigger. Let the GeneFoundry router apply the `metadome` namespace at mount time (as `mondo-link` does).
-3. **Async compute is a job, not a blocking call.** Model MetaDome's tolerance-landscape computation as `request_tolerance_landscape` → `get_tolerance_landscape` (poll), with a typed `temporarily_unavailable`/`processing` state. Never block a tool for minutes.
+3. **Async compute is a job, not a blocking call.** Model MetaDome's tolerance-landscape computation as `submit_tolerance_landscape` → `get_tolerance_landscape` (poll), with a typed `temporarily_unavailable`/`processing` state. Never block a tool for minutes.
 4. **One envelope, always.** Every result is `{success, ...data, _meta}`; every failure is `{success:false, error_code, message, retryable, recovery_action, _meta}`. Reuse the `mondo-link` envelope verbatim.
 5. **`response_mode` defaults to `compact`.** Tiers `minimal|compact|standard|full`. Per-position data is the killer payload — default lean, paginate, and return IDs/counts not blobs.
 6. **Typed error codes only:** `invalid_input | not_found | ambiguous_query | temporarily_unavailable | rate_limited | upstream_unavailable`. `ambiguous_query` carries `candidates[]`; errors carry `next_commands`.
 7. **`get_server_capabilities` is the discovery tool.** It pins static provenance (data version, citation, research-use note) and a `capabilities_version` hash echoed in every `_meta` for warm-client cache-busting.
 8. **Cite everything.** Pin the MetaDome/gnomAD/ClinVar data versions and the transcript ID; surface a verbatim `recommended_citation`. Provenance lives in capabilities, not in every row.
 9. **Truthful annotations + research-use-only.** Mark the read-only data tools
-   `readOnlyHint: true`; mark `request_tolerance_landscape` `readOnlyHint: false`,
+   `readOnlyHint: true`; mark `submit_tolerance_landscape` `readOnlyHint: false`,
    `destructiveHint: false`, and `idempotentHint: true`. Repeat "not for clinical
    decision support / diagnosis / treatment" in instructions and capabilities.
 10. **Evals before submission.** Unit-test the envelope, mock MetaDome, and run a handful of realistic multi-step "tool evals" (resolve→landscape→position). Provide `outputSchema` + text fallback.
@@ -55,7 +55,7 @@ MetaDome does not provide true per-residue gnomAD counts.
 | `get_server_capabilities` | Discovery: inventory, limits, error taxonomy, data versions, citation. |
 | `get_diagnostics` | Liveness: upstream MetaDome status, cache stats, loaded data versions. |
 | `resolve_transcript` | Free-text → canonical `transcript_id` (+ `ambiguous_query` candidates). |
-| `request_tolerance_landscape` | Kick off the async per-position tolerance computation; returns a `job_id`. |
+| `submit_tolerance_landscape` | Kick off the async per-position tolerance computation; returns a `job_id`. |
 | `get_tolerance_landscape` | Fetch landscape by `transcript_id`/`job_id` (paginated, region-filterable). |
 | `get_position_tolerance` | Single residue: tolerance score + Pfam + variant counts (workflow tool). |
 | `get_metadomains` | Meta-domain homologue mapping for a position/domain. |
@@ -87,7 +87,7 @@ Per-position data over a 1000+ residue protein is the dominant cost. Tool schema
 - [ ] **Provide `outputSchema` + `structuredContent`, with a JSON text fallback** in `content[0].text` (MCP spec: structured tools SHOULD also serialize JSON to a TextContent block; not all hosts read `structuredContent`).
 - [ ] **One success envelope across all tools:** `{success: true, ...payload, _meta: {tool, request_id, [next_commands, capabilities_version, elapsed_ms]}}`. Reuse `mondo_link/mcp/envelope.py:run_mcp_tool` — it injects `success`/`_meta` and tiers `_meta` by `response_mode`. Don't reinvent.
 - [ ] **One error envelope:** `{success: false, error_code, message, retryable, recovery_action, _meta}` plus code-specific keys (`candidates`, `field`, `allowed_values`, `hint`). Errors are **returned, never raised across the transport** (MCP `isError` for execution errors; reserve JSON-RPC protocol errors for unknown-tool/bad-args).
-- [ ] **`_meta.next_commands`** = ready-to-call follow-ups (the `cmd("tool", **args)` shape from `mondo_link/mcp/next_commands.py`). After `resolve_transcript`, chain to `request_tolerance_landscape`/`get_pfam_domains`. This is the fleet's "follow `_meta.next_commands` rather than guessing" convention.
+- [ ] **`_meta.next_commands`** = ready-to-call follow-ups (the `cmd("tool", **args)` shape from `mondo_link/mcp/next_commands.py`). After `resolve_transcript`, chain to `submit_tolerance_landscape`/`get_pfam_domains`. This is the fleet's "follow `_meta.next_commands` rather than guessing" convention.
 - [ ] **Tight input schemas** (`tool-design.md`): `transcript_id` as a regex-constrained string (`^ENST\d+` / `^NM_\d+`), `position` as `int >= 1`, `response_mode` as an enum, `limit` as `int.min(1).max(N).default(...)`. Every constraint is one fewer runtime failure. **Describe every parameter.**
 
 ---
@@ -123,7 +123,7 @@ The description is the contract — the only thing the model sees before calling
 - [ ] **Research-use-only disclaimer** in the instruction string AND `get_server_capabilities`: "Research use only; NOT clinical decision support — not for diagnosis, treatment, triage, or patient management." (Verbatim from `mondo-link`/`gtex-link`/`sysndd`.)
 - [ ] **Truthful mixed-mode surface.** Mark read-only data tools `readOnlyHint: true`
   and `openWorldHint: true` when they access live MetaDome. The explicit
-  `request_tolerance_landscape` compute trigger POSTs a build request, so mark it
+  `submit_tolerance_landscape` compute trigger POSTs a build request, so mark it
   `readOnlyHint: false`, `destructiveHint: false`, `idempotentHint: true`, and
   `openWorldHint: true`. Keep all other tools out of the write path.
 - [ ] **Validate and sanitize all inputs/outputs** (MCP spec security: servers MUST validate inputs, sanitize outputs, rate-limit). Cap `message` length (`mondo-link` caps at 280 chars) so injected upstream errors can't balloon context.
@@ -173,7 +173,7 @@ The description is the contract — the only thing the model sees before calling
 - [ ] **Iterate from transcripts.** Read the eval agents' reasoning to find vague descriptions / wrong-tool calls; refine descriptions and schemas; hold out a test set to avoid overfitting.
 - [ ] **Pre-submission checklist** (Directory): every tool has a truthful `title` and
   side-effect annotation; read-only data tools declare `readOnlyHint: true`, while
-  `request_tolerance_landscape` declares `readOnlyHint: false`. Keep names ≤64 chars,
+  `submit_tolerance_landscape` declares `readOnlyHint: false`. Keep names ≤64 chars,
   descriptions free of behavioral instructions, and the compute path isolated.
 
 ---

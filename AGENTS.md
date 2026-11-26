@@ -40,7 +40,7 @@ under the namespace **`metadome`**. It mirrors the sibling fleet stack lifted fr
 
 MetaDome builds landscapes asynchronously (Celery; a cold build can take ~1 h).
 The tool surface is an explicit **request + poll split**:
-`request_tolerance_landscape(transcript_id)` submits and returns a job handle;
+`submit_tolerance_landscape(transcript_id)` submits and returns a job handle;
 `get_tolerance_landscape(...)` polls/returns the landscape. `status:"processing"`
 is a **first-class success state** (not an error), carrying `poll_after_s` /
 `eta_hint`. No tool ever hard-blocks: the poll loop is bounded by a soft deadline.

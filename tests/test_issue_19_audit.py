@@ -117,7 +117,7 @@ async def test_region_summary_labels_homolog_aggregates_and_actual_clinvar(
     """Region sums cannot be presented as transcript-residue gnomAD/ClinVar counts."""
     data = await call_tool(
         facade,
-        "summarize_intolerant_regions",
+        "find_intolerant_regions",
         {"transcript_id": TID, "response_mode": "standard"},
     )
 
@@ -282,7 +282,7 @@ async def test_envelope_keeps_nested_meta_domain_forward_page_from_skipping_rows
         ("get_variant_counts", {"position": 175}, "positions"),
         ("compare_positions", {"positions": [175]}, "comparison"),
         ("get_tolerance_landscape", {"limit": 1}, "positional_annotation"),
-        ("summarize_intolerant_regions", {}, "regions"),
+        ("find_intolerant_regions", {}, "regions"),
     ],
 )
 async def test_minimal_mode_retains_each_audit_tool_core_answer(

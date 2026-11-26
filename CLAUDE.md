@@ -19,7 +19,7 @@ file only highlights the essentials.
   where `run_mcp_tool` owns `success`/`_meta` and returns structured errors (never
   raised). There is **no `ingest/` / no local index** — this is a live-API proxy
   with a persistent on-disk result cache + in-memory TTL.
-- **Async model:** explicit request + poll split (`request_tolerance_landscape` →
+- **Async model:** explicit request + poll split (`submit_tolerance_landscape` →
   `get_tolerance_landscape`); `status:"processing"` is a first-class success state.
   Cold builds can take ~1 h; the poll loop never blocks past a soft deadline.
 - **Invariants:** every `compact`+ (default) response carries `_meta.next_commands`

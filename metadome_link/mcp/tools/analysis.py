@@ -1,6 +1,6 @@
-"""Analysis tools: ``summarize_intolerant_regions``.
+"""Analysis tools: ``find_intolerant_regions``.
 
-Registers one tool on the FastMCP instance: ``summarize_intolerant_regions``,
+Registers one tool on the FastMCP instance: ``find_intolerant_regions``,
 which identifies the most constrained contiguous protein regions in a MetaDome
 tolerance landscape, annotates each run with overlapping Pfam domain ids, and
 separates true ClinVar annotations from Pfam homolog aggregates per region.
@@ -63,18 +63,18 @@ def register_analysis_tools(mcp: FastMCP) -> None:
     """Register the analysis tools on a FastMCP instance."""
 
     @mcp.tool(
-        name="summarize_intolerant_regions",
+        name="find_intolerant_regions",
         annotations=READ_ONLY_OPEN_WORLD,
         output_schema=None,  # Tool-Surface Budget v1 rule 3: the model never reads it
         tags={"analysis"},
         description=(
             "Find ranked runs of missense-intolerant residues (sw_dn_ds below threshold) with Pfam"
             " overlap and scoped variant evidence. Needs a built landscape "
-            "(request_tolerance_landscape). For raw per-residue scores use "
+            "(submit_tolerance_landscape). For raw per-residue scores use "
             "get_tolerance_landscape."
         ),
     )
-    async def summarize_intolerant_regions(
+    async def find_intolerant_regions(
         transcript_id: TranscriptIdArg,
         threshold: ThresholdArg = 0.5,
         min_run: Annotated[
@@ -98,7 +98,7 @@ def register_analysis_tools(mcp: FastMCP) -> None:
         service = get_metadome_service()
 
         async def call() -> dict[str, Any]:
-            payload = await service.summarize_intolerant_regions(
+            payload = await service.find_intolerant_regions(
                 transcript_id,
                 threshold=threshold,
                 min_run=min_run,
@@ -113,10 +113,10 @@ def register_analysis_tools(mcp: FastMCP) -> None:
             return payload
 
         return await run_mcp_tool(
-            "summarize_intolerant_regions",
+            "find_intolerant_regions",
             call,
             context=McpErrorContext(
-                "summarize_intolerant_regions",
+                "find_intolerant_regions",
                 arguments={"transcript_id": transcript_id},
                 response_mode=response_mode,
             ),

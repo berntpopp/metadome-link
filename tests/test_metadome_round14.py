@@ -144,7 +144,7 @@ def test_output_schemas_reject_known_shape_mismatches() -> None:
         jsonschema.validate({"success": True, "total": 1}, schemas.RESOLVE_TRANSCRIPT_SCHEMA)
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(
-            {"success": True, "region_count": 1}, schemas.SUMMARIZE_INTOLERANT_REGIONS_SCHEMA
+            {"success": True, "region_count": 1}, schemas.FIND_INTOLERANT_REGIONS_SCHEMA
         )
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(

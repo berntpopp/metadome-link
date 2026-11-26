@@ -27,7 +27,7 @@ array per protein — no per-position lookup, no pagination, no citation.
 The async build is the trap: a naive client either blocks for an hour or mistakes a half-built
 landscape for an error. `metadome-link` makes the contract explicit.
 
-- **Request + poll split.** `request_tolerance_landscape` submits; `get_tolerance_landscape`
+- **Request + poll split.** `submit_tolerance_landscape` submits; `get_tolerance_landscape`
   fetches. `status:"processing"` is a first-class *success* state, never an error, and no tool
   ever hard-blocks — the poll loop is bounded by a soft deadline.
 - **Persistent result cache.** A landscape is built once, then keyed on disk by
@@ -66,14 +66,14 @@ Health check: `curl localhost:8000/health`. Cache state: `make cache-status`.
 | Tool | Purpose |
 |------|---------|
 | `resolve_transcript` | Resolve a gene symbol or versioned ENST id to the configured MetaDome build; prefers analyzable MANE Select |
-| `request_tolerance_landscape` | Submit (or re-confirm) an async landscape build; returns a status handle |
+| `submit_tolerance_landscape` | Submit (or re-confirm) an async landscape build; returns a status handle |
 | `get_tolerance_landscape` | Cache-first fetch of a built landscape; `status:"processing"` while it builds |
 | `get_position_tolerance` | One residue: `sw_dn_ds`, codon context, domains, and explicitly scoped variant evidence |
 | `get_variant_counts` | Residue-level ClinVar annotations plus separately labelled Pfam homolog aggregates |
 | `compare_positions` | Side-by-side tolerance table for a batch of positions (≤ 50) |
 | `get_protein_domains` | Pfam domains on a transcript: id, name, span, meta-domain flag, alignment depth |
 | `get_meta_domain` | Homolog drill-down: gnomAD and ClinVar variants at the aligned consensus position across the Pfam family |
-| `summarize_intolerant_regions` | Rank constrained runs, with Pfam overlap and scoped variant evidence |
+| `find_intolerant_regions` | Rank constrained runs, with Pfam overlap and scoped variant evidence |
 | `get_server_capabilities` | Discovery surface: tool list, data versions, workflows, error codes, limits |
 | `get_diagnostics` | Local diagnostics: build info, cache stats, metrics, and pinned data versions (no upstream probe) |
 
@@ -83,7 +83,7 @@ the namespace token `metadome`, so `resolve_transcript` surfaces as
 `metadome_resolve_transcript`.
 
 Data-reading tools are annotated `READ_ONLY_OPEN_WORLD`; the idempotent
-`request_tolerance_landscape` build trigger is annotated as a compute operation. Every data tool
+`submit_tolerance_landscape` build trigger is annotated as a compute operation. Every data tool
 (all but the two discovery tools) accepts `response_mode ∈ {minimal, compact, standard, full}`
 (default `compact`). Errors are *returned* as a typed envelope with a 6-code wire taxonomy, never
 raised, and every `compact`-or-richer response carries `_meta.next_commands` with ready-to-call

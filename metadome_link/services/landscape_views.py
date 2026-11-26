@@ -3,7 +3,7 @@
 These module-level functions are the bodies of :class:`MetaDomeService`'s
 read-only per-landscape operations (``get_position``, ``get_variant_counts``,
 ``compare_positions``, ``get_domains``, ``get_meta_domain``,
-``summarize_intolerant_regions``). Each takes an **already-built** landscape dict
+``find_intolerant_regions``). Each takes an **already-built** landscape dict
 (fetched by the service via its cache / ``_require_landscape``) plus the request
 parameters, and returns the plain result dict — never a ``success``/``_meta``
 envelope (that is the MCP plane's job) and always carrying
@@ -248,7 +248,7 @@ def get_meta_domain_view(
     return shape_record(payload, response_mode)
 
 
-def summarize_intolerant_regions_view(
+def find_intolerant_regions_view(
     landscape: dict[str, Any],
     transcript_id: str,
     *,

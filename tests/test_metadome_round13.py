@@ -88,14 +88,14 @@ async def test_output_schemas_stay_internal_contracts(facade: Any) -> None:
         "get_server_capabilities": schemas.GET_SERVER_CAPABILITIES_SCHEMA,
         "get_diagnostics": schemas.GET_DIAGNOSTICS_SCHEMA,
         "resolve_transcript": schemas.RESOLVE_TRANSCRIPT_SCHEMA,
-        "request_tolerance_landscape": schemas.REQUEST_TOLERANCE_LANDSCAPE_SCHEMA,
+        "submit_tolerance_landscape": schemas.SUBMIT_TOLERANCE_LANDSCAPE_SCHEMA,
         "get_tolerance_landscape": schemas.GET_TOLERANCE_LANDSCAPE_SCHEMA,
         "get_position_tolerance": schemas.GET_POSITION_TOLERANCE_SCHEMA,
         "get_variant_counts": schemas.GET_VARIANT_COUNTS_SCHEMA,
         "compare_positions": schemas.COMPARE_POSITIONS_SCHEMA,
         "get_protein_domains": schemas.GET_PROTEIN_DOMAINS_SCHEMA,
         "get_meta_domain": schemas.GET_META_DOMAIN_SCHEMA,
-        "summarize_intolerant_regions": schemas.SUMMARIZE_INTOLERANT_REGIONS_SCHEMA,
+        "find_intolerant_regions": schemas.FIND_INTOLERANT_REGIONS_SCHEMA,
     }
     async with Client(facade) as client:
         tools = {item.name: item for item in await client.list_tools()}
@@ -119,10 +119,10 @@ def test_docs_describe_tool_modes_and_terminal_cached_failures_truthfully() -> N
     dockerfile = pathlib.Path("docker/Dockerfile").read_text()
     best_practices = pathlib.Path("docs/research/04-mcp-best-practices.md").read_text()
     assert "Every tool is annotated `READ_ONLY_OPEN_WORLD`" not in readme
-    assert "request_tolerance_landscape" in readme and "idempotent" in readme
+    assert "submit_tolerance_landscape" in readme and "idempotent" in readme
     assert "build/poll" not in deployment
     assert "read-only data tools poll/fetch" in deployment.lower()
-    assert "only the explicit `request_tolerance_landscape` tool" in deployment
+    assert "only the explicit `submit_tolerance_landscape` tool" in deployment
     for text in (package, app, annotations, docker_readme, dockerfile, best_practices):
         assert "whole server is read-only" not in text.lower()
         assert "read-only data tools" in text
@@ -131,7 +131,7 @@ def test_docs_describe_tool_modes_and_terminal_cached_failures_truthfully() -> N
     assert "stuart.radboudumc.nl" not in best_practices
     assert "Mark every tool `readOnlyHint: true`" not in best_practices
     assert "every tool has `readOnlyHint`" not in best_practices
-    assert "request_tolerance_landscape" in normalized_best_practices
+    assert "submit_tolerance_landscape" in normalized_best_practices
     assert "readOnlyHint: false" in normalized_best_practices
     assert (
         "_meta = {tool, request_id, elapsed_ms, data_versions, unsafe_for_clinical_use}"
