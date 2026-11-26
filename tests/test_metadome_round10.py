@@ -75,7 +75,7 @@ async def test_summarize_threshold_rejects_non_strict_or_nonfinite_values(
     """The MCP boundary rejects coercive and non-finite threshold values."""
     data = await call_tool(
         facade,
-        "summarize_intolerant_regions",
+        "find_intolerant_regions",
         {"transcript_id": TID, "threshold": threshold},
     )
     assert data["success"] is False
@@ -88,7 +88,7 @@ async def test_summarize_threshold_accepts_strict_finite_integer(
     """An integer threshold is a valid finite real-number input."""
     data = await call_tool(
         facade,
-        "summarize_intolerant_regions",
+        "find_intolerant_regions",
         {"transcript_id": TID, "threshold": 1},
     )
     assert data["success"] is True

@@ -10,13 +10,6 @@ Adopts the ratified two-tier verb canon (2026-06-30):
             score, submit, export, generate, download
   ops/meta carve-out -- tools tagged 'ops' or 'meta' skip the verb rule (charset/length
   and no-self-prefix still apply). See docs/TOOL-NAMING-STANDARD-v1.md Q3.
-
-Per-tool exempt list (follow-up rename needed):
-  request_tolerance_landscape -- verb 'request' not in canon; rename candidate:
-      submit_landscape_build (Tier-2 'submit') or get_landscape_status.
-  summarize_intolerant_regions -- verb 'summarize' not in canon; rename candidate:
-      analyze_intolerant_regions (Tier-2 'analyze').
-  These are kept in _METADOME_VERB_EXEMPT and tracked for the follow-up rename pass.
 """
 
 from __future__ import annotations
@@ -58,24 +51,6 @@ _CANONICAL_VERBS = _TIER1_VERBS | _TIER2_VERBS
 #: Tags that exempt a tool from the verb rule (Standard v1.1 Q3 ops/meta carve-out).
 _OPS_META_TAGS = frozenset({"ops", "meta"})
 
-#: Per-tool exempt set: DOMAIN tools whose verbs are NOT yet in the canon, pending a
-#: follow-up rename toward the Tier-2 standard.  Each entry is justified above.
-#:
-#: Fleet-remediation decision (2026-07-03): KEEP these name-exempt rather than
-#: tag them ops/meta.  They are domain-data/compute tools, not operational tools —
-#: tagging them ops/meta would mis-model them and hide real rename debt (contrast
-#: vep's check_upstream_health, a genuine ops tool that WAS retagged).  The rename
-#: itself is a client-facing BREAKING change (MAJOR bump + router transform aliases
-#: + redeploy), so it is deferred to a coordinated breaking-change wave.  Until then
-#: `router doctor --strict-naming` correctly flags these two as rename-owed; that is
-#: the intended signal, not a defect.
-_METADOME_VERB_EXEMPT = frozenset(
-    {
-        "request_tolerance_landscape",  # 'request' -> rename to submit_landscape_build
-        "summarize_intolerant_regions",  # 'summarize' -> rename to analyze_intolerant_regions
-    }
-)
-
 _NAMESPACE = "metadome"
 
 
@@ -87,8 +62,7 @@ async def _registered_tools() -> list:
 async def test_every_tool_name_is_standard_v1_1_compliant() -> None:
     """Every tool must pass charset/length, no-self-prefix, and verb canon.
 
-    ops/meta-tagged tools are exempt from the verb rule; tools in
-    _METADOME_VERB_EXEMPT are temporarily exempt pending a follow-up rename.
+    ops/meta-tagged tools are exempt from the verb rule.
     """
     tools = await _registered_tools()
     assert tools, "no tools registered on the facade"
@@ -100,8 +74,8 @@ async def test_every_tool_name_is_standard_v1_1_compliant() -> None:
         if t.name.startswith(f"{_NAMESPACE}_"):
             issues.append(f"self-prefix: {t.name!r} must not start with '{_NAMESPACE}_'")
         tags = frozenset(getattr(t, "tags", None) or ())
-        # Verb check: skip for ops/meta-tagged tools and per-tool exempt set.
-        if not (tags & _OPS_META_TAGS) and t.name not in _METADOME_VERB_EXEMPT:
+        # Verb check: skip for ops/meta-tagged tools.
+        if not (tags & _OPS_META_TAGS):
             verb = t.name.split("_", 1)[0]
             if verb not in _CANONICAL_VERBS:
                 issues.append(
@@ -111,15 +85,6 @@ async def test_every_tool_name_is_standard_v1_1_compliant() -> None:
         if issues:
             violations[t.name] = issues
     assert not violations, f"Tool-Naming Standard v1.1 violations: {violations}"
-
-
-async def test_exempt_tools_still_pass_charset_and_length() -> None:
-    """Exempt tools skip the verb rule but must still have valid shape."""
-    tools = {t.name: t for t in await _registered_tools()}
-    for name in _METADOME_VERB_EXEMPT:
-        assert name in tools, f"exempt tool {name!r} not registered -- update the exempt set"
-        assert _LEAF_NAME_RE.match(name), f"exempt tool {name!r} violates charset/length rule"
-        assert not name.startswith(f"{_NAMESPACE}_"), f"exempt tool {name!r} must not self-prefix"
 
 
 async def test_live_tools_match_capabilities_tools() -> None:

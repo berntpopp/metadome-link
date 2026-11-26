@@ -1,7 +1,7 @@
-"""Tolerance-landscape tools: ``request_tolerance_landscape`` + ``get_tolerance_landscape``.
+"""Tolerance-landscape tools: ``submit_tolerance_landscape`` + ``get_tolerance_landscape``.
 
 These two implement the explicit async split MetaDome forces on us (Celery cold
-builds run up to ~1 h): ``request_tolerance_landscape`` submits/echoes a build
+builds run up to ~1 h): ``submit_tolerance_landscape`` submits/echoes a build
 handle, and ``get_tolerance_landscape`` is the cache-first poll that either
 returns the built landscape (domains + paginated positions) or a first-class
 ``status: "processing"`` success state. Each tool projects the matching plain
@@ -56,7 +56,7 @@ def after_get_landscape(
     """
     if payload.get("status") == "processing":
         return [
-            cmd("request_tolerance_landscape", transcript_id=transcript_id),
+            cmd("submit_tolerance_landscape", transcript_id=transcript_id),
             cmd("get_tolerance_landscape", transcript_id=transcript_id),
         ]
     base: dict[str, Any] = {"transcript_id": transcript_id}
@@ -72,7 +72,7 @@ def after_get_landscape(
         [
             cmd("get_position_tolerance", transcript_id=transcript_id, position=1),
             cmd("get_protein_domains", transcript_id=transcript_id),
-            cmd("summarize_intolerant_regions", transcript_id=transcript_id),
+            cmd("find_intolerant_regions", transcript_id=transcript_id),
         ]
     )
     return steps
@@ -82,7 +82,7 @@ def register_landscape_tools(mcp: FastMCP) -> None:
     """Register the tolerance-landscape tools on a FastMCP instance."""
 
     @mcp.tool(
-        name="request_tolerance_landscape",
+        name="submit_tolerance_landscape",
         # F-11: this POSTs /submit_visualization/ (starts a Celery build) -> NOT
         # read-only. Non-destructive + idempotent (MetaDome dedupes by transcript_id).
         annotations=COMPUTE_IDEMPOTENT_OPEN_WORLD,
@@ -94,7 +94,7 @@ def register_landscape_tools(mcp: FastMCP) -> None:
             "up to ~1 h. Every read tool needs this first; then poll get_tolerance_landscape."
         ),
     )
-    async def request_tolerance_landscape(
+    async def submit_tolerance_landscape(
         transcript_id: TranscriptIdArg,
         response_mode: ResponseMode = "compact",
     ) -> ToolReturn:
@@ -107,10 +107,10 @@ def register_landscape_tools(mcp: FastMCP) -> None:
             return payload
 
         return await run_mcp_tool(
-            "request_tolerance_landscape",
+            "submit_tolerance_landscape",
             call,
             context=McpErrorContext(
-                "request_tolerance_landscape",
+                "submit_tolerance_landscape",
                 arguments={"transcript_id": transcript_id},
                 response_mode=response_mode,
             ),
@@ -123,7 +123,7 @@ def register_landscape_tools(mcp: FastMCP) -> None:
         tags={"landscape"},
         description=(
             "Get per-residue missense tolerance (sw_dn_ds, lower = more intolerant) and Pfam "
-            "domains for a transcript, paginated. Call request_tolerance_landscape first. "
+            "domains for a transcript, paginated. Call submit_tolerance_landscape first. "
             "status processing with poll_after_s is not an error: wait and poll again. "
             "not_found = MetaDome has no landscape or build job for the id."
         ),

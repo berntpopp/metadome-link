@@ -17,27 +17,27 @@ _SCHEMAS: dict[str, dict[str, Any]] = {
     "get_server_capabilities": schemas.GET_SERVER_CAPABILITIES_SCHEMA,
     "get_diagnostics": schemas.GET_DIAGNOSTICS_SCHEMA,
     "resolve_transcript": schemas.RESOLVE_TRANSCRIPT_SCHEMA,
-    "request_tolerance_landscape": schemas.REQUEST_TOLERANCE_LANDSCAPE_SCHEMA,
+    "submit_tolerance_landscape": schemas.SUBMIT_TOLERANCE_LANDSCAPE_SCHEMA,
     "get_tolerance_landscape": schemas.GET_TOLERANCE_LANDSCAPE_SCHEMA,
     "get_position_tolerance": schemas.GET_POSITION_TOLERANCE_SCHEMA,
     "get_variant_counts": schemas.GET_VARIANT_COUNTS_SCHEMA,
     "compare_positions": schemas.COMPARE_POSITIONS_SCHEMA,
     "get_protein_domains": schemas.GET_PROTEIN_DOMAINS_SCHEMA,
     "get_meta_domain": schemas.GET_META_DOMAIN_SCHEMA,
-    "summarize_intolerant_regions": schemas.SUMMARIZE_INTOLERANT_REGIONS_SCHEMA,
+    "find_intolerant_regions": schemas.FIND_INTOLERANT_REGIONS_SCHEMA,
 }
 _SUCCESS_ARGS: dict[str, dict[str, Any]] = {
     "get_server_capabilities": {},
     "get_diagnostics": {},
     "resolve_transcript": {"query": "TP53"},
-    "request_tolerance_landscape": {"transcript_id": _TID},
+    "submit_tolerance_landscape": {"transcript_id": _TID},
     "get_tolerance_landscape": {"transcript_id": _TID},
     "get_position_tolerance": {"transcript_id": _TID, "position": 175},
     "get_variant_counts": {"transcript_id": _TID, "position": 35},
     "compare_positions": {"transcript_id": _TID, "positions": [35, 175]},
     "get_protein_domains": {"transcript_id": _TID},
     "get_meta_domain": {"transcript_id": _TID, "position": 175},
-    "summarize_intolerant_regions": {"transcript_id": _TID},
+    "find_intolerant_regions": {"transcript_id": _TID},
 }
 _ERROR_FIELDS = {
     "error_code": "invalid_input",
@@ -49,18 +49,18 @@ _PRIMARY_DATA_FIELD = {
     "get_server_capabilities": "server",
     "get_diagnostics": "cache_stats",
     "resolve_transcript": "resolved_from",
-    "request_tolerance_landscape": "job_id",
+    "submit_tolerance_landscape": "job_id",
     "get_tolerance_landscape": "pagination",
     "get_position_tolerance": "variant_evidence",
     "get_variant_counts": "positions",
     "compare_positions": "comparison",
     "get_protein_domains": "domains",
     "get_meta_domain": "meta_domains",
-    "summarize_intolerant_regions": "threshold",
+    "find_intolerant_regions": "threshold",
 }
 
 _READ_ONLY_ARGS = {
-    name: args for name, args in _SUCCESS_ARGS.items() if name != "request_tolerance_landscape"
+    name: args for name, args in _SUCCESS_ARGS.items() if name != "submit_tolerance_landscape"
 }
 
 

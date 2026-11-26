@@ -43,20 +43,18 @@ async def test_resolve_tp53_canonical_flagged(facade: object, call_tool: object)
 async def test_resolve_tp53_next_commands_includes_request_landscape(
     facade: object, call_tool: object
 ) -> None:
-    """_meta.next_commands includes request_tolerance_landscape for the canonical transcript."""
+    """_meta.next_commands includes submit_tolerance_landscape for the canonical transcript."""
     data = await call_tool(facade, "resolve_transcript", {"query": "TP53"})  # type: ignore[operator]
     next_cmds = data.get("_meta", {}).get("next_commands", [])
     tool_names = [nc.get("tool") for nc in next_cmds]
-    assert "request_tolerance_landscape" in tool_names
+    assert "submit_tolerance_landscape" in tool_names
 
 
 async def test_resolve_tp53_next_commands_canonical_id(facade: object, call_tool: object) -> None:
-    """next_commands.request_tolerance_landscape uses the canonical transcript id."""
+    """next_commands.submit_tolerance_landscape uses the canonical transcript id."""
     data = await call_tool(facade, "resolve_transcript", {"query": "TP53"})  # type: ignore[operator]
     next_cmds = data.get("_meta", {}).get("next_commands", [])
-    req_cmd = next(
-        (nc for nc in next_cmds if nc.get("tool") == "request_tolerance_landscape"), None
-    )
+    req_cmd = next((nc for nc in next_cmds if nc.get("tool") == "submit_tolerance_landscape"), None)
     assert req_cmd is not None
     assert req_cmd.get("arguments", {}).get("transcript_id") == TID
 
@@ -96,14 +94,12 @@ async def test_resolve_enst_passthrough(facade: object, call_tool: object) -> No
 
 
 async def test_resolve_enst_passthrough_next_commands(facade: object, call_tool: object) -> None:
-    """An ENST id path also steers to request_tolerance_landscape."""
+    """An ENST id path also steers to submit_tolerance_landscape."""
     data = await call_tool(facade, "resolve_transcript", {"query": TID})  # type: ignore[operator]
     next_cmds = data.get("_meta", {}).get("next_commands", [])
     tool_names = [nc.get("tool") for nc in next_cmds]
-    assert "request_tolerance_landscape" in tool_names
-    req_cmd = next(
-        (nc for nc in next_cmds if nc.get("tool") == "request_tolerance_landscape"), None
-    )
+    assert "submit_tolerance_landscape" in tool_names
+    req_cmd = next((nc for nc in next_cmds if nc.get("tool") == "submit_tolerance_landscape"), None)
     assert req_cmd is not None
     assert req_cmd.get("arguments", {}).get("transcript_id") == TID
 

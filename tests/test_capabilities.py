@@ -8,14 +8,14 @@ FROZEN_TOOLS: list[str] = [
     "get_server_capabilities",
     "get_diagnostics",
     "resolve_transcript",
-    "request_tolerance_landscape",
+    "submit_tolerance_landscape",
     "get_tolerance_landscape",
     "get_position_tolerance",
     "get_variant_counts",
     "compare_positions",
     "get_protein_domains",
     "get_meta_domain",
-    "summarize_intolerant_regions",
+    "find_intolerant_regions",
 ]
 
 
@@ -146,14 +146,14 @@ def test_schema_constants_exist() -> None:
         "GET_SERVER_CAPABILITIES_SCHEMA",
         "GET_DIAGNOSTICS_SCHEMA",
         "RESOLVE_TRANSCRIPT_SCHEMA",
-        "REQUEST_TOLERANCE_LANDSCAPE_SCHEMA",
+        "SUBMIT_TOLERANCE_LANDSCAPE_SCHEMA",
         "GET_TOLERANCE_LANDSCAPE_SCHEMA",
         "GET_POSITION_TOLERANCE_SCHEMA",
         "GET_VARIANT_COUNTS_SCHEMA",
         "COMPARE_POSITIONS_SCHEMA",
         "GET_PROTEIN_DOMAINS_SCHEMA",
         "GET_META_DOMAIN_SCHEMA",
-        "SUMMARIZE_INTOLERANT_REGIONS_SCHEMA",
+        "FIND_INTOLERANT_REGIONS_SCHEMA",
     ]
     for name in expected_names:
         assert hasattr(schemas, name), f"Missing schema constant: {name}"

@@ -3,7 +3,7 @@
 The envelope-facing subset (``cmd``, ``widen_cmd``, ``page_cmd``,
 ``default_error_next_commands``) is consumed by the error boundary; the per-tool
 ``after_*`` chainers (added in later tasks) steer the success path
-(resolve_transcript -> request_tolerance_landscape -> get_tolerance_landscape ->
+(resolve_transcript -> submit_tolerance_landscape -> get_tolerance_landscape ->
 positions / variants / domains / meta-domain / summarize).
 """
 
@@ -58,7 +58,7 @@ _LANDSCAPE_TOOLS = {
     "compare_positions",
     "get_protein_domains",
     "get_meta_domain",
-    "summarize_intolerant_regions",
+    "find_intolerant_regions",
 }
 
 
@@ -75,7 +75,7 @@ def default_error_next_commands(
         if transcript_id and error_code == "not_found":
             # The landscape is not built yet: request a build, then poll for it.
             return [
-                cmd("request_tolerance_landscape", transcript_id=transcript_id),
+                cmd("submit_tolerance_landscape", transcript_id=transcript_id),
                 cmd("get_tolerance_landscape", transcript_id=transcript_id),
             ]
     if error_code == "upstream_unavailable":

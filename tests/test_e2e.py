@@ -8,7 +8,7 @@ Three layers are exercised:
 2. **MCP tool surface** — list tools over an in-memory ``fastmcp.Client`` against
    ``create_metadome_mcp(service_factory=...)`` and assert the registered set is
    EXACTLY the frozen 11-tool ``EXPECTED_TOOLS``.
-3. **Happy path** — a ``resolve_transcript`` → ``request_tolerance_landscape`` →
+3. **Happy path** — a ``resolve_transcript`` → ``submit_tolerance_landscape`` →
    ``get_tolerance_landscape`` walk over the respx-mocked upstream, ending in a
    ``processing`` or ``ready`` landscape (both first-class success states).
 
@@ -28,14 +28,14 @@ EXPECTED_TOOLS: frozenset[str] = frozenset(
         "get_server_capabilities",
         "get_diagnostics",
         "resolve_transcript",
-        "request_tolerance_landscape",
+        "submit_tolerance_landscape",
         "get_tolerance_landscape",
         "get_position_tolerance",
         "get_variant_counts",
         "compare_positions",
         "get_protein_domains",
         "get_meta_domain",
-        "summarize_intolerant_regions",
+        "find_intolerant_regions",
     }
 )
 
@@ -70,12 +70,12 @@ async def test_facade_lists_exactly_the_eleven_tools(facade: Any) -> None:
 
 
 async def test_resolve_request_get_happy_path(facade: Any, call_tool: Any) -> None:
-    """resolve_transcript → request_tolerance_landscape → get_tolerance_landscape."""
+    """resolve_transcript → submit_tolerance_landscape → get_tolerance_landscape."""
     resolved = await call_tool(facade, "resolve_transcript", {"query": "TP53"})
     assert resolved["success"] is True
 
     requested = await call_tool(
-        facade, "request_tolerance_landscape", {"transcript_id": "ENST00000269305.9"}
+        facade, "submit_tolerance_landscape", {"transcript_id": "ENST00000269305.9"}
     )
     assert requested["success"] is True
     assert requested["result"]["status"] in {"ready", "processing"}

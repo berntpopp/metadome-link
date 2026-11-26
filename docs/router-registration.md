@@ -79,21 +79,21 @@ Expected output of `list-tools --namespace metadome` (11 tools):
 metadome_get_server_capabilities
 metadome_get_diagnostics
 metadome_resolve_transcript           ← pinned entrypoint
-metadome_request_tolerance_landscape
+metadome_submit_tolerance_landscape
 metadome_get_tolerance_landscape      ← pinned entrypoint
 metadome_get_position_tolerance
 metadome_get_variant_counts
 metadome_compare_positions
 metadome_get_protein_domains
 metadome_get_meta_domain
-metadome_summarize_intolerant_regions
+metadome_find_intolerant_regions
 ```
 
 ## Tool naming compliance
 
 All 11 tool leaf names comply with the GeneFoundry Tool-Naming Standard v1:
-- `verb_noun` format with canonical verbs (`get_*`, `resolve_*`, `request_*`, `compare_*`,
-  `summarize_*`).
+- `verb_noun` format with canonical verbs (`get_*`, `resolve_*`, `submit_*`, `compare_*`,
+  `find_*`).
 - ≤ 50 characters.
 - Characters: `[a-z0-9_]`.
 - Namespaced form (`metadome_<leaf>`) is ≤ 64 characters.

@@ -34,14 +34,14 @@ _TOOL_SCHEMAS: dict[str, dict[str, Any]] = {
     "get_server_capabilities": _s.GET_SERVER_CAPABILITIES_SCHEMA,
     "get_diagnostics": _s.GET_DIAGNOSTICS_SCHEMA,
     "resolve_transcript": _s.RESOLVE_TRANSCRIPT_SCHEMA,
-    "request_tolerance_landscape": _s.REQUEST_TOLERANCE_LANDSCAPE_SCHEMA,
+    "submit_tolerance_landscape": _s.SUBMIT_TOLERANCE_LANDSCAPE_SCHEMA,
     "get_tolerance_landscape": _s.GET_TOLERANCE_LANDSCAPE_SCHEMA,
     "get_position_tolerance": _s.GET_POSITION_TOLERANCE_SCHEMA,
     "get_variant_counts": _s.GET_VARIANT_COUNTS_SCHEMA,
     "compare_positions": _s.COMPARE_POSITIONS_SCHEMA,
     "get_protein_domains": _s.GET_PROTEIN_DOMAINS_SCHEMA,
     "get_meta_domain": _s.GET_META_DOMAIN_SCHEMA,
-    "summarize_intolerant_regions": _s.SUMMARIZE_INTOLERANT_REGIONS_SCHEMA,
+    "find_intolerant_regions": _s.FIND_INTOLERANT_REGIONS_SCHEMA,
 }
 
 # ── Constants shared across tests ──────────────────────────────────────────
@@ -58,14 +58,14 @@ _SUCCESS_ARGS: dict[str, dict[str, Any]] = {
     "get_server_capabilities": {},
     "get_diagnostics": {},
     "resolve_transcript": {"query": "TP53"},
-    "request_tolerance_landscape": {"transcript_id": _TID},
+    "submit_tolerance_landscape": {"transcript_id": _TID},
     "get_tolerance_landscape": {"transcript_id": _TID},
     "get_position_tolerance": {"transcript_id": _TID, "position": 175},
     "get_variant_counts": {"transcript_id": _TID, "position": 35},
     "compare_positions": {"transcript_id": _TID, "positions": [35, 175]},
     "get_protein_domains": {"transcript_id": _TID},
     "get_meta_domain": {"transcript_id": _TID, "position": 175},
-    "summarize_intolerant_regions": {"transcript_id": _TID},
+    "find_intolerant_regions": {"transcript_id": _TID},
 }
 
 # ── Forced-error args per tool ─────────────────────────────────────────────
@@ -75,14 +75,14 @@ _ERROR_ARGS: dict[str, dict[str, Any]] = {
     "get_server_capabilities": {},  # no error path; re-use success (see special handling)
     "get_diagnostics": {},  # no error path; re-use success
     "resolve_transcript": {"query": _BAD_TID},  # invalid_input (unversioned ENST)
-    "request_tolerance_landscape": {"transcript_id": _BAD_TID},  # invalid_input
+    "submit_tolerance_landscape": {"transcript_id": _BAD_TID},  # invalid_input
     "get_tolerance_landscape": {"transcript_id": _BAD_TID},  # invalid_input
     "get_position_tolerance": {"transcript_id": _TID, "position": 9999},  # invalid_input (OOB)
     "get_variant_counts": {"transcript_id": _TID, "position": 35, "source": "bogus"},  # invalid
     "compare_positions": {"transcript_id": _BAD_TID, "positions": [35, 175]},  # invalid_input
     "get_protein_domains": {"transcript_id": _BAD_TID},  # invalid_input
     "get_meta_domain": {"transcript_id": _BAD_TID, "position": 1},  # invalid_input
-    "summarize_intolerant_regions": {"transcript_id": _BAD_TID},  # invalid_input
+    "find_intolerant_regions": {"transcript_id": _BAD_TID},  # invalid_input
 }
 
 # ── Tools whose "error" scenario is just the success path repeated ──────────

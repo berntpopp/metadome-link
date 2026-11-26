@@ -23,12 +23,12 @@ from metadome_link.services.citation import recommended_citation
 from metadome_link.services.landscape import slice_positions, validate_landscape_range
 from metadome_link.services.landscape_views import (
     compare_positions_view,
+    find_intolerant_regions_view,
     get_domains_view,
     get_meta_domain_view,
     get_position_view,
     get_variant_counts_view,
     resolve_meta_domain_request,
-    summarize_intolerant_regions_view,
 )
 from metadome_link.services.pagination import paginate
 from metadome_link.services.resolution import (
@@ -180,7 +180,7 @@ class MetaDomeService:
             payload["note"] = (
                 f"No {gene} transcript in MetaDome ({self.genome_build}) has protein data "
                 "(has_protein_data=false for all); MetaDome cannot build a tolerance "
-                "landscape for this gene. Do not call request_tolerance_landscape."
+                "landscape for this gene. Do not call submit_tolerance_landscape."
             )
         return self._stamp_caveat(shape_record(payload, response_mode))
 
@@ -434,7 +434,7 @@ class MetaDomeService:
 
     # -- analysis --------------------------------------------------------------
 
-    async def summarize_intolerant_regions(
+    async def find_intolerant_regions(
         self,
         transcript_id: str,
         *,
@@ -448,7 +448,7 @@ class MetaDomeService:
         Each region is the mean-``sw_dn_ds``-ranked run of consecutive residues
         below ``threshold`` (length >= ``min_run``), annotated with overlapping
         Pfam domain ids and explicitly-scoped variant evidence. Thin delegator over
-        :func:`landscape_views.summarize_intolerant_regions_view`.
+        :func:`landscape_views.find_intolerant_regions_view`.
 
         Raises:
             NotFoundError: The landscape is not built yet (``switch_tool``).
@@ -456,7 +456,7 @@ class MetaDomeService:
         tid = validate_transcript_id(transcript_id)
         landscape = await self._require_landscape(tid)
         return self._stamp_caveat(
-            summarize_intolerant_regions_view(
+            find_intolerant_regions_view(
                 landscape,
                 tid,
                 threshold=threshold,
@@ -488,7 +488,7 @@ class MetaDomeService:
             transcript_id=transcript_id,
             next_commands=[
                 {
-                    "tool": "request_tolerance_landscape",
+                    "tool": "submit_tolerance_landscape",
                     "arguments": {"transcript_id": transcript_id},
                 },
                 {

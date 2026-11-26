@@ -4,7 +4,7 @@ Fully implemented here (Task 11). All three operate on a *built* tolerance
 landscape: they delegate to :class:`~metadome_link.services.metadome_service.MetaDomeService`,
 which raises a :class:`~metadome_link.exceptions.NotFoundError`
 (``recovery_action="switch_tool"``) when the landscape is not built yet -- the
-error boundary then surfaces ``request_tolerance_landscape`` +
+error boundary then surfaces ``submit_tolerance_landscape`` +
 ``get_tolerance_landscape`` as the recovery ``next_commands``.
 
 Each tool mirrors the canonical pattern in ``discovery.py``: a ``@mcp.tool``
@@ -99,7 +99,7 @@ def after_variant_counts(
         steps.extend(_more_steps("get_variant_counts", base, pagination, ceiling=1000))
     steps.extend(
         [
-            cmd("summarize_intolerant_regions", transcript_id=transcript_id),
+            cmd("find_intolerant_regions", transcript_id=transcript_id),
             cmd("get_tolerance_landscape", transcript_id=transcript_id),
         ]
     )
@@ -142,7 +142,7 @@ def register_position_tools(mcp: FastMCP) -> None:
         tags={"positions"},
         description=(
             "Get the tolerance score, Pfam domain and ClinVar variants at one protein residue. "
-            "Needs a built landscape (request_tolerance_landscape). For several residues use "
+            "Needs a built landscape (submit_tolerance_landscape). For several residues use "
             "compare_positions."
         ),
     )
@@ -179,7 +179,7 @@ def register_position_tools(mcp: FastMCP) -> None:
         description=(
             "Get residue ClinVar variants plus Pfam meta-domain homolog aggregates for one "
             "residue or a range. Aggregates can include other genes; MetaDome has no per-"
-            "residue gnomAD counts. Needs a built landscape (request_tolerance_landscape)."
+            "residue gnomAD counts. Needs a built landscape (submit_tolerance_landscape)."
         ),
     )
     async def get_variant_counts(
@@ -240,7 +240,7 @@ def register_position_tools(mcp: FastMCP) -> None:
         tags={"positions"},
         description=(
             "Compare several residues of one transcript; returns a side-by-side tolerance, "
-            "domain and ClinVar table. Needs a built landscape (request_tolerance_landscape). For one "
+            "domain and ClinVar table. Needs a built landscape (submit_tolerance_landscape). For one "
             "residue use get_position_tolerance."
         ),
     )

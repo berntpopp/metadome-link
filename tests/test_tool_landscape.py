@@ -2,7 +2,7 @@
 
 These exercise the full MCP path: facade -> envelope -> landscape tool body ->
 injected (respx-mocked) service. They cover the async split: the
-``request_tolerance_landscape`` handle (ready vs processing) and the
+``submit_tolerance_landscape`` handle (ready vs processing) and the
 ``get_tolerance_landscape`` poll (processing-state success, ready landscape with
 domains + paginated positions, a position-range slice, and a FAILURE -> upstream
 error).
@@ -36,7 +36,7 @@ def _load(name: str) -> Any:
 
 
 async def test_request_landscape_annotation_marks_compute_side_effect(facade: Any) -> None:
-    """F-11: request_tolerance_landscape POSTs /submit_visualization/ (starts a build).
+    """F-11: submit_tolerance_landscape POSTs /submit_visualization/ (starts a build).
 
     It is NOT read-only. It is non-destructive and idempotent (dedupes by
     transcript_id upstream), so readOnlyHint=false, destructiveHint=false,
@@ -46,7 +46,7 @@ async def test_request_landscape_annotation_marks_compute_side_effect(facade: An
 
     async with Client(facade) as client:
         tools = await client.list_tools()
-    ann = next(t for t in tools if t.name == "request_tolerance_landscape").annotations
+    ann = next(t for t in tools if t.name == "submit_tolerance_landscape").annotations
     assert ann is not None
     assert ann.read_only_hint is False
     assert ann.destructive_hint is False
@@ -65,13 +65,13 @@ async def test_get_landscape_annotation_stays_read_only(facade: Any) -> None:
 
 
 # ---------------------------------------------------------------------------
-# request_tolerance_landscape
+# submit_tolerance_landscape
 # ---------------------------------------------------------------------------
 
 
 async def test_request_landscape_ready(facade: Any, call_tool: Any) -> None:
     """A pre-built transcript returns status='ready' with the poll handle + chain."""
-    data = await call_tool(facade, "request_tolerance_landscape", {"transcript_id": TID})
+    data = await call_tool(facade, "submit_tolerance_landscape", {"transcript_id": TID})
     assert data["success"] is True
     assert data["result"]["status"] == "ready"
     assert data["result"]["job_id"] == TID
@@ -93,7 +93,7 @@ async def test_request_landscape_processing(
     mocked_metadome.get(f"/status/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"status": "PENDING"})
     )
-    data = await call_tool(facade, "request_tolerance_landscape", {"transcript_id": TID})
+    data = await call_tool(facade, "submit_tolerance_landscape", {"transcript_id": TID})
     assert data["success"] is True
     assert data["result"]["status"] == "processing"
     assert data["result"]["poll_after_s"] is not None
@@ -110,7 +110,7 @@ async def test_request_landscape_failure_is_non_retryable(
     mocked_metadome.get(f"/error/GRCh38.p14/{TID}").mock(
         return_value=httpx.Response(200, json={"error": "boom"})
     )
-    data = await call_tool(facade, "request_tolerance_landscape", {"transcript_id": TID})
+    data = await call_tool(facade, "submit_tolerance_landscape", {"transcript_id": TID})
     assert data["success"] is False
     assert data["error_code"] == "upstream_unavailable"
     assert data["retryable"] is False
@@ -119,7 +119,7 @@ async def test_request_landscape_failure_is_non_retryable(
 async def test_request_landscape_bad_id_is_invalid_input(facade: Any, call_tool: Any) -> None:
     """An unversioned ENST id fails locally as invalid_input."""
     data = await call_tool(
-        facade, "request_tolerance_landscape", {"transcript_id": "ENST00000269305"}
+        facade, "submit_tolerance_landscape", {"transcript_id": "ENST00000269305"}
     )
     assert data["success"] is False
     assert data["error_code"] == "invalid_input"
@@ -209,7 +209,7 @@ async def test_get_landscape_processing_state(
     assert data["result"]["cold_build_warning"]
     # Still building: request (idempotent) then poll again.
     steps = data["_meta"]["next_commands"]
-    assert steps[0]["tool"] == "request_tolerance_landscape"
+    assert steps[0]["tool"] == "submit_tolerance_landscape"
     assert any(
         s["tool"] == "get_tolerance_landscape" and s["arguments"].get("transcript_id") == TID
         for s in steps
@@ -231,7 +231,7 @@ async def test_get_landscape_absent_is_typed_and_points_to_request_then_poll(
     assert data["success"] is False
     assert data["error_code"] == "not_found"
     assert [step["tool"] for step in data["_meta"]["next_commands"][:2]] == [
-        "request_tolerance_landscape",
+        "submit_tolerance_landscape",
         "get_tolerance_landscape",
     ]
     submit = next(
@@ -388,10 +388,10 @@ async def test_get_landscape_unknown_transcript_is_not_found_not_processing(
     assert data["field"] == "transcript_id"
     assert "resolve_transcript" in data["message"]
     assert "1 hour" not in data["message"]
-    # request_tolerance_landscape disambiguates: it starts a build for a real id and
+    # submit_tolerance_landscape disambiguates: it starts a build for a real id and
     # reports not_found for an id MetaDome does not know.
     assert [step["tool"] for step in data["_meta"]["next_commands"][:2]] == [
-        "request_tolerance_landscape",
+        "submit_tolerance_landscape",
         "get_tolerance_landscape",
     ]
     submit = next(
@@ -428,7 +428,7 @@ async def test_unknown_transcript_build_failure_is_not_found_with_resolve_hint(
             },
         )
     )
-    for tool in ("request_tolerance_landscape", "get_tolerance_landscape"):
+    for tool in ("submit_tolerance_landscape", "get_tolerance_landscape"):
         data = await call_tool(facade, tool, {"transcript_id": UNKNOWN_TID})
         assert data["success"] is False, tool
         assert data["error_code"] == "not_found", tool
@@ -437,4 +437,4 @@ async def test_unknown_transcript_build_failure_is_not_found_with_resolve_hint(
         assert "resolve_transcript" in data["message"]
         assert "Traceback" not in data["message"] and "GeneRepository" not in data["message"]
         tools = [step["tool"] for step in data["_meta"]["next_commands"]]
-        assert "request_tolerance_landscape" not in tools, tool
+        assert "submit_tolerance_landscape" not in tools, tool

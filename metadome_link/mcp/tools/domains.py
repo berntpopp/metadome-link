@@ -95,7 +95,7 @@ def _after_get_protein_domains(transcript_id: str, payload: dict[str, Any]) -> l
                 )
             )
             break
-    steps.append(cmd("summarize_intolerant_regions", transcript_id=transcript_id))
+    steps.append(cmd("find_intolerant_regions", transcript_id=transcript_id))
     steps.append(cmd("get_tolerance_landscape", transcript_id=transcript_id))
     return steps
 
@@ -154,7 +154,7 @@ def register_domain_tools(mcp: FastMCP) -> None:
         tags={"domains"},
         description=(
             "List Pfam domains (id, name, residue range) of a transcript. Needs a built landscape "
-            "(request_tolerance_landscape). Then get_meta_domain for homolog variants."
+            "(submit_tolerance_landscape). Then get_meta_domain for homolog variants."
         ),
     )
     async def get_protein_domains(
@@ -187,7 +187,7 @@ def register_domain_tools(mcp: FastMCP) -> None:
         description=(
             "Get variants at the aligned position of homologous Pfam domains (meta-domain) for "
             "one residue; these span other genes, not this gene alone. Needs a built "
-            "landscape (request_tolerance_landscape). Paginated."
+            "landscape (submit_tolerance_landscape). Paginated."
         ),
     )
     async def get_meta_domain(

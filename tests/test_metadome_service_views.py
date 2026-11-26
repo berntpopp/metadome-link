@@ -2,7 +2,7 @@
 
 Covers the per-landscape view methods of :class:`MetaDomeService`
 (``get_position``, ``get_variant_counts``, ``compare_positions``,
-``get_domains``, ``get_meta_domain``, ``summarize_intolerant_regions``) plus the
+``get_domains``, ``get_meta_domain``, ``find_intolerant_regions``) plus the
 ``_require_landscape`` not-ready path they share. Each method is a thin delegator
 over :mod:`metadome_link.services.landscape_views`; these tests assert the public
 return shape and exception contract through the service.
@@ -329,16 +329,16 @@ async def test_get_meta_domain_explicit_domains_still_validates_position(
 
 
 # ---------------------------------------------------------------------------
-# summarize_intolerant_regions
+# find_intolerant_regions
 # ---------------------------------------------------------------------------
 
 
 @respx.mock
-async def test_summarize_intolerant_regions_finds_run(cache: ResultCache) -> None:
+async def test_find_intolerant_regions_finds_run(cache: ResultCache) -> None:
     """summarize finds the constrained DNA-binding stretch and annotates domains."""
     cache.put_result(TID, _load("result_TP53.json"))
     svc = _make_service(cache)
-    out = await svc.summarize_intolerant_regions(
+    out = await svc.find_intolerant_regions(
         TID, threshold=0.5, min_run=3, top_n=15, response_mode="standard"
     )
     assert out["regions"], "expected at least one intolerant region"

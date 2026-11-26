@@ -6,7 +6,7 @@ MANE Select transcript is preferred as ``canonical`` (otherwise the longest
 analyzable protein-coding transcript). A bare ENST id is validated and echoed.
 
 After a successful gene resolution, ``_meta.next_commands`` includes
-``request_tolerance_landscape`` for the canonical transcript, steering the
+``submit_tolerance_landscape`` for the canonical transcript, steering the
 client straight into the two-step landscape workflow.
 """
 
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
 def after_resolve_transcript(payload: dict[str, Any]) -> list[dict[str, Any]]:
     """Build ``next_commands`` for a successful ``resolve_transcript`` response.
 
-    - **Gene path**: suggests ``request_tolerance_landscape`` for the canonical
+    - **Gene path**: suggests ``submit_tolerance_landscape`` for the canonical
       transcript (the preferred analyzable MANE Select entry), followed by
       ``get_tolerance_landscape`` so the client can start the poll loop right away.
     - **ID path**: same, using the echoed transcript id directly.
@@ -43,14 +43,14 @@ def after_resolve_transcript(payload: dict[str, Any]) -> list[dict[str, Any]]:
     canonical = payload.get("canonical_transcript_id")
     if canonical:
         return [
-            cmd("request_tolerance_landscape", transcript_id=canonical),
+            cmd("submit_tolerance_landscape", transcript_id=canonical),
             cmd("get_tolerance_landscape", transcript_id=canonical),
         ]
     # ID path: transcript_id is echoed
     tid = payload.get("transcript_id")
     if tid:
         return [
-            cmd("request_tolerance_landscape", transcript_id=tid),
+            cmd("submit_tolerance_landscape", transcript_id=tid),
             cmd("get_tolerance_landscape", transcript_id=tid),
         ]
     return [cmd("get_server_capabilities")]
@@ -68,7 +68,7 @@ def register_transcript_tools(mcp: FastMCP) -> None:
             "Resolve a gene symbol or versioned ENST id to the MetaDome transcript (GRCh37 or "
             "GRCh38 build) to use for its missense tolerance landscape; for a gene returns its "
             "transcripts and canonical_transcript_id (MANE Select, else longest analyzable). "
-            "Use first, then request_tolerance_landscape."
+            "Use first, then submit_tolerance_landscape."
         ),
     )
     async def resolve_transcript(

@@ -230,9 +230,7 @@ async def test_threshold_schema_uses_standard_json_schema_keywords(facade: Any) 
 
     async with Client(facade) as client:
         tool = next(
-            item
-            for item in await client.list_tools()
-            if item.name == "summarize_intolerant_regions"
+            item for item in await client.list_tools() if item.name == "find_intolerant_regions"
         )
     threshold = tool.input_schema["properties"]["threshold"]
     assert threshold["exclusiveMinimum"] == 0.0

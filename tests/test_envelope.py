@@ -218,7 +218,7 @@ async def test_error_envelope_carries_next_commands_for_compact() -> None:
     )
     assert "next_commands" in out["_meta"]
     tools = [step["tool"] for step in out["_meta"]["next_commands"]]
-    assert "request_tolerance_landscape" in tools
+    assert "submit_tolerance_landscape" in tools
 
 
 async def test_standard_includes_elapsed_ms() -> None:

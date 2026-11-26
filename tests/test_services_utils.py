@@ -198,7 +198,7 @@ def test_shape_record_minimal_keeps_scalar_results() -> None:
 
 
 def test_shape_record_minimal_keeps_build_handle_scalars() -> None:
-    """minimal must not drop request_tolerance_landscape's poll handle (job_id/status/poll_after_s)."""
+    """minimal must not drop submit_tolerance_landscape's poll handle (job_id/status/poll_after_s)."""
     from metadome_link.services.shaping import shape_record
 
     record = {

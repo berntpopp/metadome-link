@@ -143,10 +143,10 @@ def unknown_transcript_error(transcript_id: str, *, build_failed: bool) -> NotFo
     else:
         cause = (
             "MetaDome has no landscape or build job for it (unknown id, or never requested; "
-            "request_tolerance_landscape tells them apart)"
+            "submit_tolerance_landscape tells them apart)"
         )
         steps = [
-            {"tool": "request_tolerance_landscape", "arguments": {"transcript_id": transcript_id}},
+            {"tool": "submit_tolerance_landscape", "arguments": {"transcript_id": transcript_id}},
             {"tool": "get_tolerance_landscape", "arguments": {"transcript_id": transcript_id}},
         ]
     return NotFoundError(

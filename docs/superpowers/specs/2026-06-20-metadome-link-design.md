@@ -34,8 +34,8 @@ gnomAD/ClinVar per-position counts for human transcripts, from MetaDome."
 
 | Fork | Decision |
 |---|---|
-| **Async model** | **Explicit request + poll split** — `request_tolerance_landscape(transcript_id)` submits & returns a job handle; `get_tolerance_landscape(...)` polls/returns the landscape (`status:"processing"` while building). |
-| **Tool surface** | **Rich (~9-10 tools)** — core + `summarize_intolerant_regions`, `get_variant_counts`, `compare_positions`. |
+| **Async model** | **Explicit request + poll split** — `submit_tolerance_landscape(transcript_id)` submits & returns a job handle; `get_tolerance_landscape(...)` polls/returns the landscape (`status:"processing"` while building). |
+| **Tool surface** | **Rich (~9-10 tools)** — core + `find_intolerant_regions`, `get_variant_counts`, `compare_positions`. |
 | **Scope** | **Faithful MetaDome wrapper + prominent caveats** — no live gnomAD/ClinVar enrichment in v1; surface `_meta.data_versions` (GRCh37, gnomAD r2.0.2, ClinVar 2018-06-03, Gencode v19, Pfam 30.0) everywhere. |
 | **Caching** | **On-disk cache (SQLite) keyed by `(transcript_id, metadome_data_version)` for completed landscapes + in-memory TTL** for transcript lists / status. |
 
@@ -125,7 +125,7 @@ one) — wrapped in a soft deadline so no tool blocks for minutes.
 Default `response_mode="compact"`. Tools 6-11 read the cached landscape; on a cache miss
 they attempt one live `status`+`result` fetch, and if the build isn't ready return a
 typed **`not_found`/not-ready** error whose `next_commands` points at
-`request_tolerance_landscape` → `get_tolerance_landscape`.
+`submit_tolerance_landscape` → `get_tolerance_landscape`.
 
 ### Discovery (`mcp/tools/discovery.py`)
 1. **`get_server_capabilities(detail="summary"|"full")`** — contract: server/version,
@@ -140,10 +140,10 @@ typed **`not_found`/not-ready** error whose `next_commands` points at
    desc; flags the **canonical** (longest `has_protein_data=true`). Accepts a bare `ENST…`
    id (validates `.N`, echoes). Unknown gene → `not_found`. Many protein-coding
    transcripts → still returns all (canonical flagged), not an error.
-   Maps endpoint 1. `_meta.next_commands` → `request_tolerance_landscape(canonical)`.
+   Maps endpoint 1. `_meta.next_commands` → `submit_tolerance_landscape(canonical)`.
 
 ### Async tolerance landscape (`mcp/tools/landscape.py`)
-4. **`request_tolerance_landscape(transcript_id, response_mode)`** — submit (endpoint 2) +
+4. **`submit_tolerance_landscape(transcript_id, response_mode)`** — submit (endpoint 2) +
    one status check (endpoint 3). Returns `{job_id (=transcript_id), transcript_id,
    status: "ready"|"processing", poll_after_s, eta_hint, cold_build_warning}`. Idempotent.
    `400` from upstream → `invalid_input` (bad/unversioned id).
@@ -179,7 +179,7 @@ typed **`not_found`/not-ready** error whose `next_commands` points at
     Paginated. Residue not in a meta-domain → empty lists (not an error).
 
 ### Analysis helper (`mcp/tools/analysis.py`)
-11. **`summarize_intolerant_regions(transcript_id, threshold=0.5, min_run=3, top_n=15,
+11. **`find_intolerant_regions(transcript_id, threshold=0.5, min_run=3, top_n=15,
     response_mode)`** — scan the cached landscape; return the most intolerant contiguous
     runs (mean `sw_dn_ds` below `threshold`, length ≥ `min_run`), ranked, each annotated
     with overlapping Pfam domain(s) and aggregate variant counts. Token-efficient summary

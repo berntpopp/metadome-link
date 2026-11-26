@@ -1,4 +1,4 @@
-"""Tests for the summarize_intolerant_regions MCP tool (Task 13).
+"""Tests for the find_intolerant_regions MCP tool (Task 13).
 
 Exercises the full MCP path: facade → envelope → analysis tool body →
 injected (respx-mocked) service.  The fixture landscape (result_TP53.json) has
@@ -27,11 +27,11 @@ TID = "ENST00000269305.9"
 # ---------------------------------------------------------------------------
 
 
-async def test_summarize_intolerant_regions_success(facade: Any, call_tool: Any) -> None:
-    """summarize_intolerant_regions returns ranked runs with domain/count annotations."""
+async def test_find_intolerant_regions_success(facade: Any, call_tool: Any) -> None:
+    """find_intolerant_regions returns ranked runs with domain/count annotations."""
     data = await call_tool(
         facade,
-        "summarize_intolerant_regions",
+        "find_intolerant_regions",
         {"transcript_id": TID},
     )
     assert data["success"] is True
@@ -40,11 +40,11 @@ async def test_summarize_intolerant_regions_success(facade: Any, call_tool: Any)
     assert len(data["result"]["regions"]) >= 1
 
 
-async def test_summarize_intolerant_regions_contains_173_177(facade: Any, call_tool: Any) -> None:
+async def test_find_intolerant_regions_contains_173_177(facade: Any, call_tool: Any) -> None:
     """The p.173-177 run is present and fully covered by at least one region."""
     data = await call_tool(
         facade,
-        "summarize_intolerant_regions",
+        "find_intolerant_regions",
         {"transcript_id": TID, "threshold": 0.5, "min_run": 3},
     )
     assert data["success"] is True
@@ -56,13 +56,11 @@ async def test_summarize_intolerant_regions_contains_173_177(facade: Any, call_t
     )
 
 
-async def test_summarize_intolerant_regions_mean_below_threshold(
-    facade: Any, call_tool: Any
-) -> None:
+async def test_find_intolerant_regions_mean_below_threshold(facade: Any, call_tool: Any) -> None:
     """Every returned region has mean_sw_dn_ds strictly below the threshold."""
     data = await call_tool(
         facade,
-        "summarize_intolerant_regions",
+        "find_intolerant_regions",
         {"transcript_id": TID, "threshold": 0.5},
     )
     assert data["success"] is True
@@ -73,11 +71,11 @@ async def test_summarize_intolerant_regions_mean_below_threshold(
         )
 
 
-async def test_summarize_intolerant_regions_domain_overlap(facade: Any, call_tool: Any) -> None:
+async def test_find_intolerant_regions_domain_overlap(facade: Any, call_tool: Any) -> None:
     """At least one region overlaps PF00870 (the p53 DNA-binding domain, aa 95-288)."""
     data = await call_tool(
         facade,
-        "summarize_intolerant_regions",
+        "find_intolerant_regions",
         {"transcript_id": TID},
     )
     assert data["success"] is True
@@ -88,11 +86,11 @@ async def test_summarize_intolerant_regions_domain_overlap(facade: Any, call_too
     )
 
 
-async def test_summarize_intolerant_regions_counts_present(facade: Any, call_tool: Any) -> None:
+async def test_find_intolerant_regions_counts_present(facade: Any, call_tool: Any) -> None:
     """Every region separates actual ClinVar from aligned-homolog evidence."""
     data = await call_tool(
         facade,
-        "summarize_intolerant_regions",
+        "find_intolerant_regions",
         {"transcript_id": TID},
     )
     assert data["success"] is True
@@ -103,13 +101,11 @@ async def test_summarize_intolerant_regions_counts_present(facade: Any, call_too
         assert "provenance" in evidence["meta_domain_homolog_aggregate"]
 
 
-async def test_summarize_intolerant_regions_recommended_citation(
-    facade: Any, call_tool: Any
-) -> None:
+async def test_find_intolerant_regions_recommended_citation(facade: Any, call_tool: Any) -> None:
     """Payload carries recommended_citation."""
     data = await call_tool(
         facade,
-        "summarize_intolerant_regions",
+        "find_intolerant_regions",
         {"transcript_id": TID},
     )
     assert data["success"] is True
@@ -117,11 +113,11 @@ async def test_summarize_intolerant_regions_recommended_citation(
     assert data["recommended_citation"]
 
 
-async def test_summarize_intolerant_regions_meta_next_commands(facade: Any, call_tool: Any) -> None:
+async def test_find_intolerant_regions_meta_next_commands(facade: Any, call_tool: Any) -> None:
     """compact response_mode includes _meta.next_commands."""
     data = await call_tool(
         facade,
-        "summarize_intolerant_regions",
+        "find_intolerant_regions",
         {"transcript_id": TID, "response_mode": "compact"},
     )
     assert data["success"] is True
@@ -131,13 +127,13 @@ async def test_summarize_intolerant_regions_meta_next_commands(facade: Any, call
     assert len(meta["next_commands"]) >= 1
 
 
-async def test_summarize_intolerant_regions_next_commands_use_position_arg(
+async def test_find_intolerant_regions_next_commands_use_position_arg(
     facade: Any, call_tool: Any
 ) -> None:
     """Drill-down next_commands use the public position arg name, not protein_pos."""
     data = await call_tool(
         facade,
-        "summarize_intolerant_regions",
+        "find_intolerant_regions",
         {"transcript_id": TID, "response_mode": "compact"},
     )
     assert data["success"] is True
@@ -154,11 +150,11 @@ async def test_summarize_intolerant_regions_next_commands_use_position_arg(
         assert "protein_pos" not in arguments
 
 
-async def test_summarize_intolerant_regions_region_fields(facade: Any, call_tool: Any) -> None:
+async def test_find_intolerant_regions_region_fields(facade: Any, call_tool: Any) -> None:
     """Each region entry carries the required structural fields."""
     data = await call_tool(
         facade,
-        "summarize_intolerant_regions",
+        "find_intolerant_regions",
         {"transcript_id": TID},
     )
     assert data["success"] is True
@@ -177,22 +173,22 @@ async def test_summarize_intolerant_regions_region_fields(facade: Any, call_tool
 # ---------------------------------------------------------------------------
 
 
-async def test_summarize_intolerant_regions_top_n_one(facade: Any, call_tool: Any) -> None:
+async def test_find_intolerant_regions_top_n_one(facade: Any, call_tool: Any) -> None:
     """top_n=1 returns at most 1 region."""
     data = await call_tool(
         facade,
-        "summarize_intolerant_regions",
+        "find_intolerant_regions",
         {"transcript_id": TID, "top_n": 1},
     )
     assert data["success"] is True
     assert len(data["result"]["regions"]) <= 1
 
 
-async def test_summarize_intolerant_regions_respects_min_run(facade: Any, call_tool: Any) -> None:
+async def test_find_intolerant_regions_respects_min_run(facade: Any, call_tool: Any) -> None:
     """min_run=6 excludes the p.173-177 run (length 5); returns no regions."""
     data = await call_tool(
         facade,
-        "summarize_intolerant_regions",
+        "find_intolerant_regions",
         {"transcript_id": TID, "threshold": 0.5, "min_run": 6, "response_mode": "standard"},
     )
     assert data["success"] is True
@@ -206,11 +202,11 @@ async def test_summarize_intolerant_regions_respects_min_run(facade: Any, call_t
     )
 
 
-async def test_summarize_intolerant_regions_ranked_ascending(facade: Any, call_tool: Any) -> None:
+async def test_find_intolerant_regions_ranked_ascending(facade: Any, call_tool: Any) -> None:
     """Regions are ranked by mean_sw_dn_ds ascending (most constrained first)."""
     data = await call_tool(
         facade,
-        "summarize_intolerant_regions",
+        "find_intolerant_regions",
         {"transcript_id": TID, "min_run": 1},  # allow short runs for more regions
     )
     assert data["success"] is True
@@ -223,11 +219,11 @@ async def test_summarize_intolerant_regions_ranked_ascending(facade: Any, call_t
 # ---------------------------------------------------------------------------
 
 
-async def test_summarize_intolerant_regions_envelope_fields(facade: Any, call_tool: Any) -> None:
+async def test_find_intolerant_regions_envelope_fields(facade: Any, call_tool: Any) -> None:
     """Payload includes threshold, min_run, top_n echo and region_count."""
     data = await call_tool(
         facade,
-        "summarize_intolerant_regions",
+        "find_intolerant_regions",
         {"transcript_id": TID, "threshold": 0.45, "min_run": 3, "top_n": 5},
     )
     assert data["success"] is True
@@ -242,7 +238,7 @@ async def test_summarize_intolerant_regions_envelope_fields(facade: Any, call_to
 
 
 @respx.mock
-async def test_summarize_intolerant_regions_not_found(
+async def test_find_intolerant_regions_not_found(
     call_tool: Any,
     facade: Any,
     mocked_metadome: Any,
@@ -260,7 +256,7 @@ async def test_summarize_intolerant_regions_not_found(
     )
     data = await call_tool(
         facade,
-        "summarize_intolerant_regions",
+        "find_intolerant_regions",
         {"transcript_id": unknown_tid},
     )
     assert data["success"] is False
@@ -268,13 +264,11 @@ async def test_summarize_intolerant_regions_not_found(
     assert data["recovery_action"] == "switch_tool"
 
 
-async def test_summarize_intolerant_regions_invalid_transcript_id(
-    facade: Any, call_tool: Any
-) -> None:
+async def test_find_intolerant_regions_invalid_transcript_id(facade: Any, call_tool: Any) -> None:
     """An unversioned transcript id returns error_code=invalid_input."""
     data = await call_tool(
         facade,
-        "summarize_intolerant_regions",
+        "find_intolerant_regions",
         {"transcript_id": "ENST00000269305"},  # missing .N suffix
     )
     assert data["success"] is False
