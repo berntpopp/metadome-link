@@ -80,29 +80,50 @@ metadome-link/
 ```python
 class MetaDomeError(Exception):
     error_code = "internal_error"
-    def __init__(self, message: str, *, retryable: bool = False,
-                 recovery_action: str | None = None, **extra: object) -> None:
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        retryable: bool = False,
+        recovery_action: str | None = None,
+        **extra: object,
+    ) -> None:
         super().__init__(message)
         self.message = message
         self.retryable = retryable
         self.recovery_action = recovery_action
         self.extra: dict[str, object] = dict(extra)
 
+
 class InvalidInputError(MetaDomeError):
     error_code = "invalid_input"
+
+
 class NotFoundError(MetaDomeError):
     error_code = "not_found"
+
+
 class AmbiguousQueryError(MetaDomeError):
     error_code = "ambiguous_query"
+
     def __init__(self, message: str, *, candidates: list[object], **kw: object) -> None:
         super().__init__(message, candidates=candidates, **kw)
         self.candidates = candidates
+
+
 class DataUnavailableError(MetaDomeError):
     error_code = "data_unavailable"
+
+
 class RateLimitedError(MetaDomeError):
     error_code = "rate_limited"
+
+
 class UpstreamUnavailableError(MetaDomeError):
     error_code = "upstream_unavailable"
+
+
 class InternalError(MetaDomeError):
     error_code = "internal_error"
 ```
@@ -113,13 +134,19 @@ class InternalError(MetaDomeError):
 # tests/test_identifiers.py
 import pytest
 from metadome_link.identifiers import (
-    is_transcript_id, validate_transcript_id, normalize_gene_symbol, looks_like_transcript_query)
+    is_transcript_id,
+    validate_transcript_id,
+    normalize_gene_symbol,
+    looks_like_transcript_query,
+)
 from metadome_link.exceptions import InvalidInputError
+
 
 def test_is_transcript_id_requires_version():
     assert is_transcript_id("ENST00000269305.4")
     assert not is_transcript_id("ENST00000269305")  # no version
     assert not is_transcript_id("TP53")
+
 
 def test_validate_transcript_id_raises_on_unversioned():
     with pytest.raises(InvalidInputError) as ei:
@@ -127,8 +154,10 @@ def test_validate_transcript_id_raises_on_unversioned():
     assert ei.value.error_code == "invalid_input"
     assert ei.value.extra.get("field") == "transcript_id"
 
+
 def test_normalize_gene_symbol():
     assert normalize_gene_symbol(" tp53 ") == "TP53"
+
 
 def test_looks_like_transcript_query():
     assert looks_like_transcript_query("ENST00000269305.4")
@@ -139,14 +168,17 @@ def test_looks_like_transcript_query():
 # tests/test_config.py
 from metadome_link.config import settings, ServerSettings
 
+
 def test_settings_defaults():
     s = ServerSettings()
     assert s.port == 8000
     assert s.metadome.base_url.endswith("/metadome/api")
     assert s.transport in {"unified", "http", "stdio"}
 
+
 def test_constants_data_versions():
     from metadome_link.constants import DATA_VERSIONS, RECOMMENDED_CITATION
+
     assert DATA_VERSIONS["assembly"] == "GRCh37"
     assert "humu.23798" in RECOMMENDED_CITATION
 ```
@@ -184,29 +216,45 @@ def test_constants_data_versions():
 ```python
 import json, pathlib, httpx, respx, pytest
 from metadome_link.api.client import MetaDomeClient
+
 FX = pathlib.Path(__file__).parent / "fixtures" / "metadome"
 BASE = "https://stuart.radboudumc.nl/metadome/api"
 
-def _load(name): return json.loads((FX / name).read_text())
+
+def _load(name):
+    return json.loads((FX / name).read_text())
+
 
 @respx.mock
 async def test_get_transcripts_parses_typo_key():
-    respx.get(f"{BASE}/get_transcripts/TP53").mock(return_value=httpx.Response(200, json=_load("get_transcripts_TP53.json")))
+    respx.get(f"{BASE}/get_transcripts/TP53").mock(
+        return_value=httpx.Response(200, json=_load("get_transcripts_TP53.json"))
+    )
     c = MetaDomeClient()
     out = await c.get_transcripts("TP53")
     assert any(t["gencode_id"] == "ENST00000269305.4" and t["has_protein_data"] for t in out)
     assert isinstance(out[0]["refseq_ids"], list)
     await c.aclose()
 
+
 @respx.mock
 async def test_unknown_gene_returns_empty():
-    respx.get(f"{BASE}/get_transcripts/NOSUCHGENE").mock(return_value=httpx.Response(200, json={"message":"No transcripts...","trancript_ids":[]}))
-    c = MetaDomeClient(); assert await c.get_transcripts("NOSUCHGENE") == []; await c.aclose()
+    respx.get(f"{BASE}/get_transcripts/NOSUCHGENE").mock(
+        return_value=httpx.Response(200, json={"message": "No transcripts...", "trancript_ids": []})
+    )
+    c = MetaDomeClient()
+    assert await c.get_transcripts("NOSUCHGENE") == []
+    await c.aclose()
+
 
 @respx.mock
 async def test_poll_processing_at_deadline():
-    respx.post(f"{BASE}/submit_visualization/").mock(return_value=httpx.Response(200, json={"transcript_id":"ENST00000269305.4"}))
-    respx.get(f"{BASE}/status/ENST00000269305.4/").mock(return_value=httpx.Response(200, json={"status":"PENDING"}))
+    respx.post(f"{BASE}/submit_visualization/").mock(
+        return_value=httpx.Response(200, json={"transcript_id": "ENST00000269305.4"})
+    )
+    respx.get(f"{BASE}/status/ENST00000269305.4/").mock(
+        return_value=httpx.Response(200, json={"status": "PENDING"})
+    )
     c = MetaDomeClient()
     state, res = await c.poll_until_ready("ENST00000269305.4", soft_deadline_s=0.05)
     assert state == "processing" and res is None

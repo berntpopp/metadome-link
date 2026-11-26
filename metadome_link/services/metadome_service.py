@@ -16,6 +16,7 @@ from metadome_link.exceptions import (
 from metadome_link.identifiers import (
     looks_like_transcript_query,
     normalize_gene_symbol,
+    reject_foreign_gene_id,
     validate_transcript_id,
 )
 from metadome_link.services.citation import recommended_citation
@@ -138,7 +139,7 @@ class MetaDomeService:
             {transcript_id, resolved_from: "id", recommended_citation}
 
         Raises:
-            InvalidInputError: A malformed/unversioned ENST id.
+            InvalidInputError: A malformed/unversioned ENST id, or a gene id that is not a symbol.
             NotFoundError: No transcripts exist for the configured build.
         """
         if detect_query_type(query) == "id" and looks_like_transcript_query(query):
@@ -150,6 +151,7 @@ class MetaDomeService:
             }
             return shape_record(payload, response_mode)
 
+        reject_foreign_gene_id(query)
         gene = normalize_gene_symbol(query)
         transcripts = await self._client.get_transcripts(gene)
         if not transcripts:

@@ -267,23 +267,27 @@ from mondo_link.mcp.capabilities import register_capability_resources
 from mondo_link.mcp.middleware import ArgValidationMiddleware
 from mondo_link.mcp.resources import MONDO_SERVER_INSTRUCTIONS
 from mondo_link.mcp.tools import (
-    register_batch_tools, register_discovery_tools, register_disease_tools,
-    register_hierarchy_tools, register_xref_tools,
+    register_batch_tools,
+    register_discovery_tools,
+    register_disease_tools,
+    register_hierarchy_tools,
+    register_xref_tools,
 )
+
 
 def create_mondo_mcp() -> FastMCP:
     """Build a FastMCP instance with all mondo-link tools, resources, middleware."""
     mcp = FastMCP(
         name="mondo-link",
         instructions=MONDO_SERVER_INSTRUCTIONS,
-        mask_error_details=True,          # NON-NEGOTIABLE: never leak internals
+        mask_error_details=True,  # NON-NEGOTIABLE: never leak internals
     )
     register_discovery_tools(mcp)
     register_disease_tools(mcp)
     register_hierarchy_tools(mcp)
     register_xref_tools(mcp)
     register_batch_tools(mcp)
-    register_capability_resources(mcp)    # the <x>:// resource family
+    register_capability_resources(mcp)  # the <x>:// resource family
     mcp.add_middleware(ArgValidationMiddleware())
     return mcp
 ```
@@ -295,8 +299,10 @@ clinvar's variant takes `service_factory` for DI and also registers `register_wo
 ```python
 #!/usr/bin/env python3
 """Stdio MCP entry point for Claude Desktop and similar clients."""
+
 from __future__ import annotations
 import asyncio, os, sys
+
 
 def main() -> None:
     # Configure env BEFORE importing anything that may print to stdout (stdio safety).
@@ -318,7 +324,9 @@ def main() -> None:
     except KeyboardInterrupt:
         logger.info("MCP stdio server shutdown requested")
     except Exception as exc:
-        logger.error("MCP stdio server error", error=str(exc)); sys.exit(1)
+        logger.error("MCP stdio server error", error=str(exc))
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     main()
@@ -331,10 +339,12 @@ if __name__ == "__main__":
 ```python
 # server_manager.py (unified)
 mcp = create_mondo_mcp()
-mcp_asgi = mcp.http_app(path=settings.mcp_path)          # "/mcp"
+mcp_asgi = mcp.http_app(path=settings.mcp_path)  # "/mcp"
 # combine FastAPI lifespan + MCP lifespan via AsyncExitStack, then:
 fastapi_app.mount("/", mcp_asgi)
-uvicorn.Server(uvicorn.Config(app=fastapi_app, host=host, port=port, log_config=None, lifespan="on"))
+uvicorn.Server(
+    uvicorn.Config(app=fastapi_app, host=host, port=port, log_config=None, lifespan="on")
+)
 ```
 
 This is why the router can proxy each backend at `https://<name>-link.genefoundry.org/mcp` — every backend serves Streamable-HTTP at `/mcp` in unified mode.
@@ -358,16 +368,17 @@ from mondo_link.mcp.schemas import RESOLVE_DISEASE_SCHEMA
 from mondo_link.mcp.service_adapters import get_mondo_service
 from mondo_link.mcp.tools._common import QueryStr, ResponseMode
 
+
 def register_disease_tools(mcp):
     @mcp.tool(
         name="resolve_disease",
         title="Resolve Disease",
-        annotations=READ_ONLY_OPEN_WORLD,          # read-only research server
-        output_schema=RESOLVE_DISEASE_SCHEMA,       # JSON Schema; output is validated against it
+        annotations=READ_ONLY_OPEN_WORLD,  # read-only research server
+        output_schema=RESOLVE_DISEASE_SCHEMA,  # JSON Schema; output is validated against it
         tags={"disease", "resolve"},
-        description=(                                # FIRST SENTENCE = discovery summary;
+        description=(  # FIRST SENTENCE = discovery summary;
             "Resolve a disease label, synonym, MONDO id, or external CURIE ... "
-            "Signature: resolve_disease(query, response_mode=)."   # ENDS WITH Signature:
+            "Signature: resolve_disease(query, response_mode=)."  # ENDS WITH Signature:
         ),
     )
     async def resolve_disease(
@@ -377,6 +388,7 @@ def register_disease_tools(mcp):
             payload = get_mondo_service().resolve_disease(query, response_mode=response_mode)
             payload.setdefault("_meta", {})["next_commands"] = after_resolve_disease(payload)
             return payload
+
         return await run_mcp_tool(
             "resolve_disease",
             call,
@@ -399,15 +411,21 @@ ResponseMode = Annotated[
     Field(description="Verbosity: minimal|compact|standard|full (default compact)."),
 ]
 QueryStr = Annotated[str, Field(description="...", examples=["Marfan syndrome", "MONDO:0008426"])]
-FieldsArg = Annotated[list[str] | None, Field(description="Sparse fieldset ...", examples=[["xrefs.OMIM"]])]
+FieldsArg = Annotated[
+    list[str] | None, Field(description="Sparse fieldset ...", examples=[["xrefs.OMIM"]])
+]
 ```
 
 ### 4.3 `READ_ONLY_OPEN_WORLD` annotations (`mcp/annotations.py`)
 
 ```python
 from mcp.types import ToolAnnotations
+
 READ_ONLY_OPEN_WORLD = ToolAnnotations(
-    readOnlyHint=True, destructiveHint=False, idempotentHint=True, openWorldHint=True,
+    readOnlyHint=True,
+    destructiveHint=False,
+    idempotentHint=True,
+    openWorldHint=True,
 )
 ```
 
@@ -419,14 +437,14 @@ READ_ONLY_OPEN_WORLD = ToolAnnotations(
 RESPONSE_MODES = ["minimal", "compact", "standard", "full"]
 DEFAULT_RESPONSE_MODE = "compact"
 
+
 def shape_record(record, mode):
-    if mode == "minimal":               # identity anchors only (e.g. {id, name, _meta})
+    if mode == "minimal":  # identity anchors only (e.g. {id, name, _meta})
         return {k: v for k, v in record.items() if k in _MINIMAL_KEEP}
-    if mode in ("standard", "full"):    # the complete record (identity projection)
+    if mode in ("standard", "full"):  # the complete record (identity projection)
         return dict(record)
     # compact (default): drop null/empty values, collapse nested structures to plain strings
-    return {k: v for k, v in record.items()
-            if k in _PRESERVE_KEYS or not _is_empty(v)}
+    return {k: v for k, v in record.items() if k in _PRESERVE_KEYS or not _is_empty(v)}
 ```
 
 - **minimal**: identity anchors only (`{id, name}` + `_meta`). Token-cheapest.
@@ -526,21 +544,29 @@ async def run_mcp_tool(tool_name, call, *, context=None):
         if isinstance(result, dict):
             existing_meta = result.get("_meta") or {}
             success = bool(result.setdefault("success", True))
-            meta = {**existing_meta, "tool": tool_name,
-                    "request_id": _request_id(), "elapsed_ms": elapsed}
+            meta = {
+                **existing_meta,
+                "tool": tool_name,
+                "request_id": _request_id(),
+                "elapsed_ms": elapsed,
+            }
             _stamp_capabilities_version(meta)
             result["_meta"] = _shape_meta(meta, ctx.response_mode)
             metrics.record(tool_name, elapsed, ok=success)
         return result
-    except Exception as exc:                    # broad catch = error-boundary contract
+    except Exception as exc:  # broad catch = error-boundary contract
         elapsed = int((time.perf_counter() - start) * 1000)
-        envelope = _error_envelope(exc, ctx)    # _classify -> code+message, recovery, next_commands
+        envelope = _error_envelope(exc, ctx)  # _classify -> code+message, recovery, next_commands
         envelope["_meta"]["elapsed_ms"] = elapsed
         _stamp_capabilities_version(envelope["_meta"])
         envelope["_meta"] = _shape_meta(envelope["_meta"], ctx.response_mode)
         metrics.record(tool_name, elapsed, ok=False)
-        logger.warning("mcp_tool_error tool=%s code=%s exc=%s",
-                       tool_name, envelope["error_code"], exc.__class__.__name__)
+        logger.warning(
+            "mcp_tool_error tool=%s code=%s exc=%s",
+            tool_name,
+            envelope["error_code"],
+            exc.__class__.__name__,
+        )
         return envelope
 ```
 
@@ -563,13 +589,15 @@ Two discovery tools: `get_server_capabilities(detail="summary"|"full")` and `get
 _HASH_EXCLUDE = frozenset({"build", "capabilities_version"})  # exclude volatile keys
 _VERSION_CACHE: dict[str, str] = {}
 
+
 def _hash_contract(payload):
     contract = {k: v for k, v in payload.items() if k not in _HASH_EXCLUDE}
     blob = json.dumps(contract, sort_keys=True, default=str)
-    return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]   # 16-hex short hash
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]  # 16-hex short hash
+
 
 def capabilities_version() -> str:
-    key = _data_version() or "unbuilt"        # keyed by loaded upstream release
+    key = _data_version() or "unbuilt"  # keyed by loaded upstream release
     cached = _VERSION_CACHE.get(key)
     if cached is None:
         cached = build_capabilities()["capabilities_version"]
@@ -593,16 +621,23 @@ Resources are registered inside `register_capability_resources(mcp)` with `@mcp.
 
 ```python
 @mcp.resource("mondo://capabilities", mime_type="application/json")
-def capabilities() -> str: return json.dumps(build_capabilities(), indent=2)
+def capabilities() -> str:
+    return json.dumps(build_capabilities(), indent=2)
+
 
 @mcp.resource("mondo://tools", mime_type="application/json")
-async def tools_overview() -> str: return json.dumps(await build_tools_overview(mcp), indent=2)
+async def tools_overview() -> str:
+    return json.dumps(await build_tools_overview(mcp), indent=2)
+
 
 @mcp.resource("mondo://usage", mime_type="text/plain")
-def usage() -> str: return MONDO_USAGE_NOTES
+def usage() -> str:
+    return MONDO_USAGE_NOTES
+
 
 @mcp.resource("mondo://reference", mime_type="text/plain")  # also: research-use, citation
-def reference() -> str: return MONDO_REFERENCE_NOTES
+def reference() -> str:
+    return MONDO_REFERENCE_NOTES
 ```
 
 Standard resource family for metadome: `metadome://capabilities`, `metadome://tools`, `metadome://usage`, `metadome://reference`, `metadome://research-use`, `metadome://citation`. (clinvar/sysndd also use `<x>://schema/overview`, `<x>://license`.) The `instructions=` string on the FastMCP instance names these resources for orientation.
@@ -617,8 +652,10 @@ Standard resource family for metadome: `metadome://capabilities`, `metadome://to
 ```python
 def recommended_citation(variation_id, vcv_accession, release_date):
     rel = f" ClinVar weekly release {release_date}." if release_date else ""
-    return (f"ClinVar (NCBI). VariationID {variation_id} ({vcv_accession})."
-            f"{rel} https://www.ncbi.nlm.nih.gov/clinvar/variation/{variation_id}/")
+    return (
+        f"ClinVar (NCBI). VariationID {variation_id} ({vcv_accession})."
+        f"{rel} https://www.ncbi.nlm.nih.gov/clinvar/variation/{variation_id}/"
+    )
 ```
 
 - **Token optimization for lists:** instead of repeating the full citation per row, lift a **`citation_template`** (with `{id}` placeholders) into `_meta.citation_template` in minimal/compact mode; the client fills it from each row's IDs.
@@ -694,6 +731,7 @@ jobs:
 # tests/conftest.py (clinvar)
 FIXTURE = Path(__file__).parent / "fixtures" / "variant_summary_sample.txt"
 
+
 @pytest.fixture(scope="session")
 def built_db(tmp_path_factory):
     d = tmp_path_factory.mktemp("clinvar_data")
@@ -701,21 +739,29 @@ def built_db(tmp_path_factory):
     build_database(cfg, source_path=FIXTURE, last_modified="Mon, 01 Jan 2026 00:00:00 GMT")
     return cfg.db_path
 
+
 @pytest.fixture
 def repo(built_db):
-    r = ClinVarRepository(built_db); yield r; r.close()
+    r = ClinVarRepository(built_db)
+    yield r
+    r.close()
+
 
 @pytest.fixture
-def service(repo): return ClinVarService(repo)
+def service(repo):
+    return ClinVarService(repo)
+
 
 @pytest.fixture
-def facade(service): return create_clinvar_mcp(service_factory=lambda: service)
+def facade(service):
+    return create_clinvar_mcp(service_factory=lambda: service)
 ```
 
 - **In-memory FastMCP client** to call tools (no socket/subprocess):
 ```python
 async def call_tool(mcp, name, args):
     from fastmcp import Client
+
     async with Client(mcp) as client:
         res = await client.call_tool(name, args)
     return getattr(res, "data", None) or res.structured_content

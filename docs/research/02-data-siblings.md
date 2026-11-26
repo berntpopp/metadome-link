@@ -97,15 +97,30 @@ chainer, all wrapped in `run_mcp_tool(name, call, context=McpErrorContext(...))`
 
 ```python
 def _envelope(**properties):
-    props = {"success": {"type": "boolean"}, "_meta": _META,
-             "error_code": {"type": "string"}, "message": {"type": "string"},
-             "retryable": {"type": "boolean"}, "recovery_action": {"type": "string"},
-             "field": {"type": "string"}, "allowed_values": {"type": "array"},
-             "hint": {"type": "string"}, "candidates": {"type": "array"}, **properties}
+    props = {
+        "success": {"type": "boolean"},
+        "_meta": _META,
+        "error_code": {"type": "string"},
+        "message": {"type": "string"},
+        "retryable": {"type": "boolean"},
+        "recovery_action": {"type": "string"},
+        "field": {"type": "string"},
+        "allowed_values": {"type": "array"},
+        "hint": {"type": "string"},
+        "candidates": {"type": "array"},
+        **properties,
+    }
     return {"type": "object", "additionalProperties": True, "properties": props}
 
-_PAGE = {"total": _INT_NULL, "returned": _INT, "limit": _INT, "offset": _INT,
-         "truncated": _BOOL, "next_offset": _INT_NULL}
+
+_PAGE = {
+    "total": _INT_NULL,
+    "returned": _INT,
+    "limit": _INT,
+    "offset": _INT,
+    "truncated": _BOOL,
+    "next_offset": _INT_NULL,
+}
 ```
 
 - **The real "model" is the shaping layer** (`services/shaping.py`): pure functions over
@@ -116,15 +131,20 @@ _PAGE = {"total": _INT_NULL, "returned": _INT, "limit": _INT, "offset": _INT,
 def shape_score_set(raw, response_mode):
     if response_mode == "minimal":
         return _drop_empty({"urn": raw.get("urn"), "title": raw.get("title")})
-    full = response_mode == "full"; rich = response_mode in ("standard", "full")
-    payload = {"urn": raw.get("urn"), "title": raw.get("title"),
+    full = response_mode == "full"
+    rich = response_mode in ("standard", "full")
+    payload = {
+        "urn": raw.get("urn"),
+        "title": raw.get("title"),
         "short_description": raw.get("shortDescription"),
-        "num_variants": raw.get("numVariants"), "license": _license_short(raw),
+        "num_variants": raw.get("numVariants"),
+        "license": _license_short(raw),
         "targets": [_shape_target(t, full=rich) for t in raw.get("targetGenes") or []],
         "experiment_urn": (raw.get("experiment") or {}).get("urn") or raw.get("experimentUrn"),
         "publications": _shape_publications(raw, detail=response_mode),
         "score_calibrations": shape_calibrations(raw.get("scoreCalibrations"), full=full),
-        "record_url": _web_url("score-sets", raw.get("urn"))}
+        "record_url": _web_url("score-sets", raw.get("urn")),
+    }
     return payload if rich else _drop_empty(payload)
 ```
 
@@ -160,46 +180,65 @@ class MaveDBClient:
                 if self._client is None:
                     self._client = httpx.AsyncClient(
                         timeout=self._config.request_timeout,
-                        headers={"User-Agent": self._config.user_agent, "Accept": "application/json"},
-                        follow_redirects=True)
+                        headers={
+                            "User-Agent": self._config.user_agent,
+                            "Accept": "application/json",
+                        },
+                        follow_redirects=True,
+                    )
         return self._client
 
     @staticmethod
     def _raise_for_status(response):
         status = response.status_code
-        if status < 400: return
+        if status < 400:
+            return
         detail = _extract_detail(response)
-        if status == 404: raise NotFoundError(detail or "MaveDB record not found.")
-        if status in (400, 422): raise InvalidInputError(detail or "MaveDB rejected the request as invalid.")
-        if status == 429: raise RateLimitError(detail or "MaveDB rate limit hit.")
+        if status == 404:
+            raise NotFoundError(detail or "MaveDB record not found.")
+        if status in (400, 422):
+            raise InvalidInputError(detail or "MaveDB rejected the request as invalid.")
+        if status == 429:
+            raise RateLimitError(detail or "MaveDB rate limit hit.")
         raise ServiceUnavailableError(f"MaveDB API error (HTTP {status}). {detail}".strip())
 
     async def _send(self, method, url, *, params=None, json=None, accept=None):
         client = await self._ensure_client()
         headers = {"Accept": accept} if accept else None
-        delay = _BACKOFF_BASE_SECONDS                # 0.5 s base, 8.0 s cap
+        delay = _BACKOFF_BASE_SECONDS  # 0.5 s base, 8.0 s cap
         last_exc = None
         for attempt in range(self._config.max_retries + 1):
             response = None
-            async with self._semaphore:              # concurrency bound
+            async with self._semaphore:  # concurrency bound
                 try:
-                    response = await client.request(method, url, params=params, json=json, headers=headers)
+                    response = await client.request(
+                        method, url, params=params, json=json, headers=headers
+                    )
                 except (httpx.TimeoutException, httpx.TransportError) as exc:
                     last_exc = exc
-            if response is not None and response.status_code not in _RETRYABLE_STATUS:  # {429,500,502,503,504}
+            if (
+                response is not None and response.status_code not in _RETRYABLE_STATUS
+            ):  # {429,500,502,503,504}
                 return response
             if attempt >= self._config.max_retries:
-                if response is not None: return response
-                raise ServiceUnavailableError(f"MaveDB API unreachable after {attempt+1} attempts: {last_exc}") from last_exc
-            await asyncio.sleep(random.uniform(0, min(delay, _BACKOFF_MAX_SECONDS)))   # FULL JITTER
+                if response is not None:
+                    return response
+                raise ServiceUnavailableError(
+                    f"MaveDB API unreachable after {attempt + 1} attempts: {last_exc}"
+                ) from last_exc
+            await asyncio.sleep(random.uniform(0, min(delay, _BACKOFF_MAX_SECONDS)))  # FULL JITTER
             delay = min(delay * 2, _BACKOFF_MAX_SECONDS)
 
     async def get_json(self, path, *, params=None):
         key = _cache_key("GET", path, params)
-        if (cached := self._cache.get(key)) is not None: return cached
+        if (cached := self._cache.get(key)) is not None:
+            return cached
         response = await self._send("GET", f"{self._base_url}{path}", params=params)
-        self._raise_for_status(response); data = response.json()
-        self._cache.set(key, data); return data
+        self._raise_for_status(response)
+        data = response.json()
+        self._cache.set(key, data)
+        return data
+
     # also get_text (CSV, cached), post_json (NOT cached), get_version, clear_cache, aclose
 ```
 
@@ -219,18 +258,27 @@ class _TTLCache:
     def __init__(self, *, maxsize, ttl):
         self._maxsize, self._ttl = maxsize, ttl
         self._store: OrderedDict[str, tuple[float, Any]] = OrderedDict()
+
     def get(self, key):
-        if self._maxsize <= 0 or self._ttl <= 0: return None
+        if self._maxsize <= 0 or self._ttl <= 0:
+            return None
         hit = self._store.get(key)
-        if hit is None: return None
+        if hit is None:
+            return None
         expires_at, value = hit
-        if time.monotonic() >= expires_at: self._store.pop(key, None); return None
-        self._store.move_to_end(key); return value
+        if time.monotonic() >= expires_at:
+            self._store.pop(key, None)
+            return None
+        self._store.move_to_end(key)
+        return value
+
     def set(self, key, value):
-        if self._maxsize <= 0 or self._ttl <= 0: return
+        if self._maxsize <= 0 or self._ttl <= 0:
+            return
         self._store[key] = (time.monotonic() + self._ttl, value)
         self._store.move_to_end(key)
-        while len(self._store) > self._maxsize: self._store.popitem(last=False)
+        while len(self._store) > self._maxsize:
+            self._store.popitem(last=False)
 ```
 
 2. **Optional read-only SQLite mirror** (a pre-downloaded/bundled dataset).
@@ -246,8 +294,10 @@ class HybridClient(MaveDBClient):
     async def get_json(self, path, *, params=None):
         hit = self._mirror_json(path, params)
         if hit is not _MISS:
-            provenance.record("mirror", mirror_as_of=self._mirror_as_of); return hit
-        provenance.record("live"); return await super().get_json(path, params=params)
+            provenance.record("mirror", mirror_as_of=self._mirror_as_of)
+            return hit
+        provenance.record("live")
+        return await super().get_json(path, params=params)
 ```
 
 **Ingest/bundling**: `ingest/builder.py::build_database(dump_path, db_path)` streams a MaveDB
@@ -296,24 +346,30 @@ piece**; it never raises, always returns a structured dict:
 ```python
 async def run_mcp_tool(tool_name, call, *, context=None):
     ctx = context or McpErrorContext(tool_name=tool_name)
-    provenance.begin(); start = time.perf_counter()
+    provenance.begin()
+    start = time.perf_counter()
     try:
         result = await call()
         elapsed = int((time.perf_counter() - start) * 1000)
         if isinstance(result, dict):
             success = bool(result.setdefault("success", True))
-            meta = {**(result.get("_meta") or {}), "tool": tool_name, "request_id": _request_id(),
-                    "elapsed_ms": elapsed, "truncated": bool(result.get("truncated")),
-                    **provenance.snapshot()}                  # data_source / mirror_as_of
+            meta = {
+                **(result.get("_meta") or {}),
+                "tool": tool_name,
+                "request_id": _request_id(),
+                "elapsed_ms": elapsed,
+                "truncated": bool(result.get("truncated")),
+                **provenance.snapshot(),
+            }  # data_source / mirror_as_of
             _stamp_capabilities_version(meta)
             result["_meta"] = _shape_meta(meta, ctx.response_mode)
             result["_meta"]["token_estimate"] = _estimate_tokens(result)
-            _apply_budget_guard(result, ctx)                  # flag + steer over-budget
+            _apply_budget_guard(result, ctx)  # flag + steer over-budget
             metrics.record(tool_name, elapsed, ok=success)
         return result
-    except Exception as exc:                                  # error boundary: RETURN, never raise
-        envelope = _error_envelope(exc, ctx)                  # {success:False, error_code, message,
-                                                              #  retryable, recovery_action, candidates?}
+    except Exception as exc:  # error boundary: RETURN, never raise
+        envelope = _error_envelope(exc, ctx)  # {success:False, error_code, message,
+        #  retryable, recovery_action, candidates?}
         metrics.record(tool_name, elapsed, ok=False)
         return envelope
 ```
@@ -351,19 +407,29 @@ modeled on UBE2I `urn:mavedb:00000001-a-1`). The full stack runs for real; only 
 
 ```python
 @pytest.fixture
-def api_config(): return MaveDBApiConfig(base_url=fixtures.BASE_URL, cache_ttl=0, cache_size=0, max_retries=2)
+def api_config():
+    return MaveDBApiConfig(base_url=fixtures.BASE_URL, cache_ttl=0, cache_size=0, max_retries=2)
+
 
 @pytest.fixture
 async def client(api_config):
-    c = MaveDBClient(api_config); yield c; await c.aclose()   # httpx calls intercepted by respx
+    c = MaveDBClient(api_config)
+    yield c
+    await c.aclose()  # httpx calls intercepted by respx
+
 
 @pytest.fixture
 async def facade(service):
-    set_mavedb_service(service); mcp = create_mavedb_mcp(); yield mcp; set_mavedb_service(None)
+    set_mavedb_service(service)
+    mcp = create_mavedb_mcp()
+    yield mcp
+    set_mavedb_service(None)
+
 
 @pytest.fixture
 def respx_router():
-    with respx.mock(base_url=fixtures.BASE_URL, assert_all_called=False) as router: yield router
+    with respx.mock(base_url=fixtures.BASE_URL, assert_all_called=False) as router:
+        yield router
 ```
 
 `test_client.py` asserts status→exception mapping, 429 retry-then-raise (`call_count==3` at
@@ -470,7 +536,7 @@ queue-wait deadline and a **fault taxonomy**: `SpliceApiError` base, with `DataN
 
 ```python
 _RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
-_INPUT_ERROR_STATUS = frozenset({400, 404, 410, 422})       # deterministic, never retried
+_INPUT_ERROR_STATUS = frozenset({400, 404, 410, 422})  # deterministic, never retried
 ```
 
 The scoring client (`scoring_client.py`) handles the upstream's quirk that **failures arrive as
@@ -517,13 +583,16 @@ async def get_json(self, url, params):
     delay = _BACKOFF_BASE_SECONDS
     last_exc = None
     for attempt in range(settings.MAX_RETRIES + 1):
-        await self._acquire_slot(timeout=max(0.0, queue_deadline - loop.time()))   # bounded queue wait
+        await self._acquire_slot(
+            timeout=max(0.0, queue_deadline - loop.time())
+        )  # bounded queue wait
         try:
             response = await client.get(url, params=params)
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as exc:
-            last_exc = exc; status = exc.response.status_code
+            last_exc = exc
+            status = exc.response.status_code
             if status in _INPUT_ERROR_STATUS:
                 raise UpstreamInputError(_extract_error_message(exc.response, status)) from exc
             if status == 429 and attempt == settings.MAX_RETRIES:
@@ -535,8 +604,8 @@ async def get_json(self, url, params):
             if attempt == settings.MAX_RETRIES:
                 raise SpliceApiError(f"Upstream request failed: {exc!s}") from exc
         finally:
-            self._semaphore.release()                  # release BEFORE the backoff sleep
-        await asyncio.sleep(random.uniform(0, min(delay, _BACKOFF_MAX_SECONDS)))    # FULL JITTER
+            self._semaphore.release()  # release BEFORE the backoff sleep
+        await asyncio.sleep(random.uniform(0, min(delay, _BACKOFF_MAX_SECONDS)))  # FULL JITTER
         delay = min(delay * 2, _BACKOFF_MAX_SECONDS)
     raise SpliceApiError(f"Retry loop exhausted for {url}: {last_exc!s}")
 ```
@@ -554,6 +623,7 @@ wrapper a MetaDome poll loop should sit inside.**
 def running_as_task(ctx):
     return bool(ctx is not None and getattr(ctx, "is_background_task", False))
 
+
 async def run_with_deadline(coro, *, ctx, enforce=True):
     deadline = settings.PREDICT_SOFT_DEADLINE_SECONDS
     bypass = not enforce or running_as_task(ctx)
@@ -563,7 +633,8 @@ async def run_with_deadline(coro, *, ctx, enforce=True):
         except TimeoutError as exc:
             raise SpliceApiError(
                 f"Scoring exceeded the server's {deadline}s deadline "
-                "(comprehensive gene_set and/or a large max_distance are slow).") from exc
+                "(comprehensive gene_set and/or a large max_distance are slow)."
+            ) from exc
     return await coro
 ```
 
@@ -584,8 +655,10 @@ inside a batch; terminal vs retryable separation; one bad item never fails its s
 ```python
 _RETRYABLE_CODES = {"rate_limited", "upstream_unavailable"}
 
+
 async def _run_item(predict_fn, service, *, variant, genome_build, params, retry_backoff_s):
-    retried = False; request_id = uuid.uuid4().hex[:12]
+    retried = False
+    request_id = uuid.uuid4().hex[:12]
     while True:
         try:
             one = await predict_fn(service, variant=variant, genome_build=genome_build, **params)
@@ -594,7 +667,8 @@ async def _run_item(predict_fn, service, *, variant, genome_build, params, retry
             item, code = _error_item(exc, variant, genome_build, request_id)
             if code in _RETRYABLE_CODES and not retried:
                 retried = True
-                if retry_backoff_s: await asyncio.sleep(random.uniform(0, retry_backoff_s))
+                if retry_backoff_s:
+                    await asyncio.sleep(random.uniform(0, retry_backoff_s))
                 continue
             kind = "retryable" if code in _RETRYABLE_CODES else "terminal"
             return item, kind, retried
@@ -629,24 +703,26 @@ position*:
 ```python
 InputKind = Literal["coordinate", "hgvs", "rsid"]
 
+
 @dataclass(frozen=True)
 class VariantInput:
     kind: InputKind
-    value: str   # coordinate -> canonical CHROM-POS-REF-ALT; hgvs/rsid -> cleaned string for VEP
+    value: str  # coordinate -> canonical CHROM-POS-REF-ALT; hgvs/rsid -> cleaned string for VEP
+
 
 def parse_variant_input(text: str) -> VariantInput:
     if text is None or not str(text).strip():
         raise VariantParseError("Empty variant input. Provide CHROM-POS-REF-ALT, HGVS, or an rsID.")
     t = str(text).strip()
-    if looks_like_rsid(t):                                   # ^rs\d+$
+    if looks_like_rsid(t):  # ^rs\d+$
         return VariantInput(kind="rsid", value=t.lower())
-    tokens = _coordinate_tokens(t)                           # split on [\s:\-]+, validate pos>=1, ACGTN
+    tokens = _coordinate_tokens(t)  # split on [\s:\-]+, validate pos>=1, ACGTN
     if tokens is not None:
         chrom, pos, ref, alt = tokens
         if chrom in _VALID_CHROMS:
             return VariantInput(kind="coordinate", value=f"{chrom}-{pos}-{ref}-{alt}")
-        raise UnsupportedContigError(...)                    # well-formed but non-standard contig
-    if looks_like_hgvs(t):                                   # [:.]\s*[cgnmr]\. or NM_/ENST prefix
+        raise UnsupportedContigError(...)  # well-formed but non-standard contig
+    if looks_like_hgvs(t):  # [:.]\s*[cgnmr]\. or NM_/ENST prefix
         return VariantInput(kind="hgvs", value=clean_hgvs(t))
     raise VariantParseError("Could not interpret the input as a variant. Supported forms: ...")
 ```
@@ -665,7 +741,7 @@ same mode-gating + truncation metadata.**
 per-leaf in `SpliceService.__init__`:
 
 ```python
-self._score_cached   = alru_cache(maxsize=cache_size, ttl=ttl_seconds)(self._score_uncached)
+self._score_cached = alru_cache(maxsize=cache_size, ttl=ttl_seconds)(self._score_uncached)
 self._resolve_cached = alru_cache(maxsize=cache_size, ttl=ttl_seconds)(self._resolve_uncached)
 ```
 
