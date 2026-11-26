@@ -9,6 +9,8 @@ from collections.abc import Awaitable, Callable
 from copy import deepcopy
 from typing import Any
 
+from metadome_link import provenance
+
 
 class TranscriptCache:
     """TTL/LRU cache that deduplicates concurrent fetches and isolates callers."""
@@ -16,7 +18,7 @@ class TranscriptCache:
     def __init__(self, *, ttl_seconds: int, maxsize: int) -> None:
         self._ttl = ttl_seconds
         self._maxsize = maxsize
-        self._values: OrderedDict[tuple[str, str], tuple[float, list[dict[str, Any]]]] = (
+        self._values: OrderedDict[tuple[str, str], tuple[float, list[dict[str, Any]], str]] = (
             OrderedDict()
         )
         self._inflight: dict[tuple[str, str], asyncio.Event] = {}
@@ -35,6 +37,7 @@ class TranscriptCache:
                 cached = self._values.get(key)
                 if cached is not None and cached[0] > time.monotonic():
                     self._values.move_to_end(key)
+                    provenance.fetched(cached[2])  # a hit keeps its original fetch time
                     return deepcopy(cached[1])
                 if cached is not None:
                     self._values.pop(key, None)
@@ -46,7 +49,11 @@ class TranscriptCache:
         try:
             value = await fetch()
             async with self._lock:
-                self._values[key] = (time.monotonic() + self._ttl, deepcopy(value))
+                self._values[key] = (
+                    time.monotonic() + self._ttl,
+                    deepcopy(value),
+                    provenance.utc(),
+                )
                 self._values.move_to_end(key)
                 while len(self._values) > self._maxsize:
                     self._values.popitem(last=False)

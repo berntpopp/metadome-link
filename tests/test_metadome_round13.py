@@ -133,10 +133,11 @@ def test_docs_describe_tool_modes_and_terminal_cached_failures_truthfully() -> N
     assert "every tool has `readOnlyHint`" not in best_practices
     assert "request_tolerance_landscape" in normalized_best_practices
     assert "readOnlyHint: false" in normalized_best_practices
-    assert "_meta = {tool, request_id, data_versions, unsafe_for_clinical_use}" in " ".join(
-        agents.split()
+    assert (
+        "_meta = {tool, request_id, elapsed_ms, data_versions, unsafe_for_clinical_use}"
+        in " ".join(agents.split())
     )
-    assert "`{tool, request_id, data_versions, unsafe_for_clinical_use}`" in usage
+    assert "`{tool, request_id, elapsed_ms, data_versions, unsafe_for_clinical_use}`" in usage
     for text in (usage, architecture):
         row = next(line for line in text.splitlines() if "| `upstream_unavailable` |" in line)
         assert "cached" in row.lower() and "switch_tool" in row
